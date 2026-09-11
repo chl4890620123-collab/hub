@@ -83,6 +83,19 @@ pre{white-space:pre-wrap;background:var(--slate-50);border:1px solid var(--hub-l
 .nav:hover{background:var(--ink-700);color:#fff}
 .nav.active{background:var(--hub-primary);color:#fff}
 .nav.active .ui-icon{color:#fff}
+
+/* Admin-only controls get a dedicated violet accent (distinct from the single blue work accent)
+   so privileged screens are never visually confused with regular work tools. */
+.nav-group-label-admin{color:#c4b5fd}
+.nav.nav-admin{background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.4);color:#ddd6fe;font-weight:700}
+.nav.nav-admin .ui-icon{color:#c4b5fd}
+.nav.nav-admin:hover{background:rgba(124,58,237,.24);color:#fff}
+.nav.nav-admin.active{background:var(--violet-600);color:#fff;border-color:var(--violet-600)}
+.nav.nav-admin.active .ui-icon{color:#fff}
+.nav-admin-badge{margin-left:auto;font-size:.6rem;font-weight:800;letter-spacing:.05em;line-height:1.5;background:var(--violet-600);color:#fff;border-radius:var(--r-pill);padding:1px 7px;flex:0 0 auto}
+.nav.nav-admin.active .nav-admin-badge{background:#fff;color:var(--violet-600)}
+.admin-cta-banner{display:flex;align-items:center;gap:12px;margin:-6px 0 16px;padding:12px 16px;background:var(--violet-50);border:1px solid #ddd6fe;border-radius:var(--r-md);color:var(--ink-700);font-size:.9rem}
+.admin-cta-banner .soft-link{margin-left:auto;font-weight:700;color:var(--violet-600);white-space:nowrap}
 .content{padding:28px 32px 52px;max-width:1400px;width:100%;margin:auto}
 .view{display:none}.view.active{display:block}
 .view>h1{font-size:1.6rem;margin-top:0}

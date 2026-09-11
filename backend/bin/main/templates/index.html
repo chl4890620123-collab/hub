@@ -44,7 +44,8 @@
       <span class="nav-group-label">연결 · 계정</span>
       <button data-view="connectors" class="nav"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
       <button data-view="account" class="nav"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
-      <button data-view="admin" id="adminNav" class="nav" hidden><svg class="ui-icon"><use href="#i-settings"/></svg><span>회사 관리</span></button>
+      <span class="nav-group-label nav-group-label-admin">관리자</span>
+      <button data-view="admin" id="adminNav" class="nav nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
     </nav>
   </aside>
   <section class="content">
@@ -63,7 +64,7 @@
         <div class="admin-summary-card tone-yellow"><span class="feature-icon"><svg class="ui-icon"><use href="#i-check"/></svg></span><div><span>담당자 확인</span><strong id="dashReassignmentCount">0건</strong><small>담당자를 다시 정할 일</small></div></div>
         <div class="admin-summary-card tone-blue"><span class="feature-icon"><svg class="ui-icon"><use href="#i-people"/></svg></span><div><span>사용자</span><strong id="dashUserCount">0명</strong><small>등록된 전체 사용자</small></div></div>
       </div>
-      <div id="dashboardAdminLink" class="row" hidden style="margin:-6px 0 16px"><a class="soft-link" href="#" data-open-view="admin">회사 관리로 이동 →</a></div>
+      <div id="dashboardAdminLink" class="admin-cta-banner" hidden><span class="nav-admin-badge">ADMIN</span><span>가입 승인 대기와 담당자 없는 업무를 관리자 화면에서 확인하세요.</span><a class="soft-link" href="#" data-open-view="admin">회사 관리로 이동 →</a></div>
       <div class="workflow-strip" aria-label="핵심 사용자 흐름">
         <div><span>1</span><strong>자료 찾기</strong><small>사내 자료와 연결 서비스를 한 번에</small></div>
         <div><span>2</span><strong>근거 확인</strong><small>답변에 사용된 원문과 위치 확인</small></div>
@@ -283,7 +284,7 @@
       <button type="button" data-compact-view="connectors"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
       <button type="button" data-compact-view="review"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI 정리 확인</span></button>
       <button type="button" data-compact-view="account"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
-      <button type="button" data-compact-view="admin" id="compactAdminBtn" hidden><svg class="ui-icon"><use href="#i-settings"/></svg><span>회사 관리</span></button>
+      <button type="button" data-compact-view="admin" id="compactAdminBtn" class="nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
     </div>
   </div>
 </div>
