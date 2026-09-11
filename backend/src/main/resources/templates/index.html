@@ -40,11 +40,11 @@
       <span class="nav-group-label">자료 정리</span>
       <button data-view="documents" class="nav"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 가져오기</span></button>
       <button data-view="meetings" class="nav"><svg class="ui-icon"><use href="#i-mic"/></svg><span>회의 녹음</span></button>
-      <button data-view="review" class="nav" hidden><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI 정리 확인</span></button>
       <span class="nav-group-label">연결 · 계정</span>
       <button data-view="connectors" class="nav"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
       <button data-view="account" class="nav"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
       <span class="nav-group-label nav-group-label-admin">관리자</span>
+      <button data-view="review" class="nav nav-admin" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span><span class="nav-admin-badge">ADMIN</span></button>
       <button data-view="admin" id="adminNav" class="nav nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
     </nav>
   </aside>
@@ -140,7 +140,7 @@
     <section id="view-todos" class="view todo-workspace">
       <div class="row between todo-heading"><div><span class="eyebrow">내 업무</span><h1>할 일</h1><p class="muted">관리자가 확정해 배정한 업무를 보고, 진행 상태를 바꾸고, 이 일이 나온 관련 자료까지 바로 확인합니다.</p></div><input id="monthInput" type="month" aria-label="볼 달 선택"></div>
       <div id="todoProgress" class="panel todo-progress-panel"></div>
-      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option><option value="REVIEW">관리자 확인 전</option></select><div class="tabs"><button id="listMode" class="active">목록</button><button id="calendarMode">달력</button></div></div>
+      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option></select><div class="tabs"><button id="listMode" class="active">목록</button><button id="calendarMode">달력</button></div></div>
       <div id="todoList"></div><div id="todoCalendar" style="display:none"></div><div id="todoUndated"></div>
     </section>
 
@@ -282,7 +282,7 @@
       <button type="button" data-compact-view="documents"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 가져오기</span></button>
       <button type="button" data-compact-view="ask"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI에게 묻기</span></button>
       <button type="button" data-compact-view="connectors"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
-      <button type="button" data-compact-view="review"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI 정리 확인</span></button>
+      <button type="button" data-compact-view="review" class="nav-admin" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span><span class="nav-admin-badge">ADMIN</span></button>
       <button type="button" data-compact-view="account"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
       <button type="button" data-compact-view="admin" id="compactAdminBtn" class="nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
     </div>

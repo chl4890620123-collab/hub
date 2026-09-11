@@ -429,6 +429,8 @@ details.panel>div,details.panel>*:not(summary){padding:0 18px 16px}
 .compact-feature-grid button{display:flex;align-items:center;gap:9px;text-align:left;min-height:54px}
 .compact-feature-grid button[hidden]{display:none}
 .compact-feature-grid .ui-icon{width:1.25rem;height:1.25rem}
+.compact-feature-grid .nav-admin{background:var(--violet-50);border:1px solid var(--violet-600);color:var(--violet-600)}
+.compact-feature-grid .nav-admin .ui-icon{color:var(--violet-600)}
 .compact-bottom-nav button>.ui-icon{width:1.4rem;height:1.4rem;margin:0 auto}
 .compact-bottom-nav .compact-primary-action>.ui-icon{width:1.6rem;height:1.6rem}
 
