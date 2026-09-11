@@ -82,7 +82,7 @@
           <div class="quick-input-grid friendly-actions">
             <button type="button" class="quick-input-card tone-green" data-open-view="meetings"><span class="feature-icon"><svg class="ui-icon"><use href="#i-mic"/></svg></span><strong>새 녹음</strong><span>지금 바로 회의를 녹음해요</span></button>
             <button type="button" class="quick-input-card tone-blue" data-open-view="documents"><span class="feature-icon"><svg class="ui-icon"><use href="#i-doc"/></svg></span><strong>문서 가져오기</strong><span>내 파일에서 필요한 문서만 골라요</span></button>
-            <button type="button" class="quick-input-card tone-yellow" data-open-view="search"><span class="feature-icon"><svg class="ui-icon"><use href="#i-search"/></svg></span><strong>자료 찾기</strong><span>필요한 내용을 말하듯 찾아봐요</span></button>
+            <button type="button" class="quick-input-card tone-yellow" data-open-view="ask"><span class="feature-icon"><svg class="ui-icon"><use href="#i-spark"/></svg></span><strong>AI에게 묻기</strong><span>등록된 자료를 근거로 바로 답을 받아요</span></button>
             <button type="button" class="quick-input-card tone-pink" data-open-view="todos"><span class="feature-icon"><svg class="ui-icon"><use href="#i-check"/></svg></span><strong>내 할 일</strong><span>오늘 해야 할 일을 확인해요</span></button>
           </div>
           <form id="quickManualForm" class="panel quick-manual">
@@ -160,7 +160,7 @@
     <section id="view-memory" class="view"><h1>프로젝트 요약</h1><p class="muted">사람이 확인하고 확정한 프로젝트의 핵심 사실만 모아 봅니다.</p><form id="memoryForm" class="grid3" hidden><input name="key" placeholder="항목 이름" required><input name="value" placeholder="확정된 프로젝트 사실" required><button>저장</button></form><div id="memoryList"></div></section>
     <section id="view-history" class="view"><h1>수정 이력</h1><p class="muted">AI가 처음 정리한 내용과 사람이 확인하며 바꾼 내용을 시간순으로 확인합니다.</p><div id="revisionList"></div></section>
 
-    <section id="view-connectors" class="view"><h1>연결 서비스</h1><div id="connectorStatusDetail"></div><p class="muted">Google Drive, Slack, GitHub, Notion의 자료를 읽어서 검색에 함께 사용합니다. 원본 자료는 바꾸지 않으며, 로그인에 필요한 비밀 정보는 관리자 서버에서만 보관합니다.</p><div class="grid2">
+    <section id="view-connectors" class="view"><h1>연결 서비스</h1><div id="connectorStatusDetail"></div><p class="muted">Google Drive, Slack, GitHub, Notion의 자료를 읽어서 검색에 함께 사용합니다. 원본 자료는 바꾸지 않으며, 로그인에 필요한 비밀 정보는 관리자 서버에서만 보관합니다.</p><p id="connectorMemberNotice" class="notice">연결 설정은 관리자만 할 수 있어요. 필요한 서비스가 있으면 관리자에게 요청해 주세요.</p><div class="grid2">
       <form class="connectorForm panel" hidden data-type="GITHUB"><h3>GitHub</h3><a class="oauth-connect" data-oauth-type="GITHUB" href="#">GitHub 계정으로 연결</a><p class="muted">연결 후 저장소 주소를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="예: 회사이름/프로젝트이름" required><button>자료 가져오기</button></form>
       <form class="connectorForm panel" hidden data-type="GOOGLE_DRIVE"><h3>Google Drive</h3><p class="muted">먼저 Google 계정으로 로그인하면 Drive 읽기 권한 토큰을 자동으로 연결합니다.</p><a id="googleConnectBtn" class="button-link" href="#">Google 계정으로 연결</a><input name="scope" placeholder="Drive 폴더 주소 또는 폴더 ID" required><button>Drive 자료 가져오기</button></form>
       <form class="connectorForm panel" hidden data-type="SLACK"><h3>Slack</h3><a class="oauth-connect" data-oauth-type="SLACK" href="#">Slack 계정으로 연결</a><p class="muted">연결 후 채널 ID를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="Slack 채널 ID (예: C0123456789)" required><button>자료 가져오기</button></form>
