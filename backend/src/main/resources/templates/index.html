@@ -157,10 +157,6 @@
       <form id="compareForm" class="panel"><h3>두 문서의 달라진 내용 비교</h3><p class="muted">복잡한 문서 번호를 입력할 필요 없이 비교할 두 자료를 직접 선택합니다.</p><div class="row"><select id="beforeVersionSelect" name="beforeVersionId" required></select><span>→</span><select id="afterVersionSelect" name="afterVersionId" required></select><button>비교</button></div></form><div id="changeResults"></div>
     </section>
 
-    <section id="view-timeline" class="view"><h1>업무 흐름</h1><p class="muted">회의·할 일·결정·변경과 연결한 자료를 가져온 기록을 시간순으로 봅니다.</p><div id="timelineList"></div></section>
-    <section id="view-memory" class="view"><h1>프로젝트 요약</h1><p class="muted">사람이 확인하고 확정한 프로젝트의 핵심 사실만 모아 봅니다.</p><form id="memoryForm" class="grid3" hidden><input name="key" placeholder="항목 이름" required><input name="value" placeholder="확정된 프로젝트 사실" required><button>저장</button></form><div id="memoryList"></div></section>
-    <section id="view-history" class="view"><h1>수정 이력</h1><p class="muted">AI가 처음 정리한 내용과 사람이 확인하며 바꾼 내용을 시간순으로 확인합니다.</p><div id="revisionList"></div></section>
-
     <section id="view-connectors" class="view"><h1>연결 서비스</h1><div id="connectorStatusDetail"></div><p class="muted">Google Drive, Slack, GitHub, Notion의 자료를 읽어서 검색에 함께 사용합니다. 원본 자료는 바꾸지 않으며, 로그인에 필요한 비밀 정보는 관리자 서버에서만 보관합니다.</p><p id="connectorMemberNotice" class="notice">연결 설정은 관리자만 할 수 있어요. 필요한 서비스가 있으면 관리자에게 요청해 주세요.</p><div class="grid2">
       <form class="connectorForm panel" hidden data-type="GITHUB"><h3>GitHub</h3><a class="oauth-connect" data-oauth-type="GITHUB" href="#">GitHub 계정으로 연결</a><p class="muted">연결 후 저장소 주소를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="예: 회사이름/프로젝트이름" required><button>자료 가져오기</button></form>
       <form class="connectorForm panel" hidden data-type="GOOGLE_DRIVE"><h3>Google Drive</h3><p class="muted">먼저 Google 계정으로 로그인하면 Drive 읽기 권한 토큰을 자동으로 연결합니다.</p><a id="googleConnectBtn" class="button-link" href="#">Google 계정으로 연결</a><input name="scope" placeholder="Drive 폴더 주소 또는 폴더 ID" required><button>Drive 자료 가져오기</button></form>
@@ -263,6 +259,11 @@
       <details class="admin-collapsible">
         <summary><strong>바뀐 내용 기록</strong><span>누가 사용자·프로젝트·검색 설정을 바꿨는지 확인해야 할 때만 엽니다.</span></summary>
         <div class="admin-collapsible-body"><p class="muted">운영 중 문제가 생겼을 때 변경한 사람과 시간을 확인할 수 있습니다.</p><div id="auditList"></div></div>
+      </details>
+
+      <details class="admin-collapsible">
+        <summary><strong>AI 정리 수정 이력</strong><span>AI가 처음 정리한 내용을 사람이 확인하며 무엇을 바꿨는지 확인해야 할 때만 엽니다.</span></summary>
+        <div class="admin-collapsible-body"><p class="muted">문서·회의·할 일 등에서 AI가 처음 정리한 내용과 사람이 확인하며 바꾼 내용을 시간순으로 봅니다.</p><div id="revisionList"></div></div>
       </details>
     </section>
   </section>
