@@ -1,0 +1,13 @@
+{
+  "name": "hub-frontend-contracts",
+  "version": "2.34.0",
+  "private": true,
+  "description": "Hub responsive intranet web contracts and browser runtime helpers.",
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.login.json --noEmit",
+    "build": "tsc -p tsconfig.runtime.json && tsc -p tsconfig.login.json"
+  }
+}

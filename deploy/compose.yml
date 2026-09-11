@@ -1,0 +1,118 @@
+# Optional full-stack intranet deployment.
+# Normal Windows/VS Code development uses HUB.bat start (H2 + local FastAPI) and does not need Docker.
+# Optional Docker use from the repository root:
+#   docker compose --env-file .env -f deploy/compose.yml up -d --build
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hub
+      POSTGRES_USER: ${DB_USER:-hub}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required for Docker deployment}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - hub_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hub} -d hub"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ai:
+    build:
+      context: ../ai-service
+      args:
+        HUB_INSTALL_LOCAL_MODELS: "${HUB_INSTALL_LOCAL_MODELS:-true}"
+        HUB_PRELOAD_E5: "false"
+    restart: unless-stopped
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: UTF-8
+      HUB_AI_MODE: ${HUB_AI_MODE:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_TRANSCRIBE_MODEL: ${GEMINI_TRANSCRIBE_MODEL:-gemini-3.5-transcribe}
+      HUB_EMBED_MODE: ${HUB_EMBED_MODE:-e5}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8 -Duser.language=ko -Duser.country=KR"
+      SPRING_PROFILES_ACTIVE: postgresql
+      HUB_BIND_ADDRESS: 0.0.0.0
+      HUB_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/hub
+      DB_USER: ${DB_USER:-hub}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required for Docker deployment}
+      HUB_AI_BASE_URL: http://ai:8000
+      HUB_STORAGE_ROOT: /app/data/storage
+      HUB_JWT_SECRET: ${HUB_JWT_SECRET:?HUB_JWT_SECRET is required for Docker deployment}
+      HUB_COOKIE_SECURE: ${HUB_COOKIE_SECURE:-false}
+      HUB_ENFORCE_SECURE_CONFIG: ${HUB_ENFORCE_SECURE_CONFIG:-false}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      GOOGLE_ACCESS_TOKEN: ${GOOGLE_ACCESS_TOKEN:-}
+      SLACK_TOKEN: ${SLACK_TOKEN:-}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET:-}
+      NOTION_TOKEN: ${NOTION_TOKEN:-}
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID:-}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
+    volumes:
+      - hub_storage:/app/data/storage
+    ports:
+      - "${HUB_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+
+  # Optional HTTPS endpoint for browser microphone use from other intranet PCs.
+  # Start with: docker compose --env-file .env -f deploy/compose.yml --profile https up -d --build
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      HUB_LAN_HOST: ${HUB_LAN_HOST:-localhost}
+    ports:
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  hub_pg_data:
+  hub_storage:
+  caddy_data:
+  caddy_config:

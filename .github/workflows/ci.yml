@@ -1,0 +1,72 @@
+name: hub-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  web-and-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify one-config repository structure
+        run: |
+          python scripts/validate_env.py --file .env.example --mode example
+          python scripts/verify.py
+          test ! -f .env
+          test "$(find . -maxdepth 1 -type f -name '.env.*' | wc -l)" -eq 1
+      - name: TypeScript typecheck and build
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+      - name: Verify committed browser bundles and JS syntax
+        run: |
+          cmp frontend/dist/hub-runtime.js backend/src/main/resources/static/js/hub-runtime.js
+          cmp frontend/dist/login.js backend/src/main/resources/static/js/login.js
+          node --check backend/src/main/resources/static/js/app.js
+
+  ai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: AI compile and tests using network-free providers
+        working-directory: ai-service
+        run: |
+          pip install -r requirements.txt
+          HUB_AI_MODE=mock HUB_EMBED_MODE=hash PYTHONPATH=. python -m compileall -q app tests
+          HUB_AI_MODE=mock HUB_EMBED_MODE=hash PYTHONPATH=. python -m pytest -q
+
+  backend:
+    needs: [web-and-config, ai]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Spring unit tests and stable JAR build
+        working-directory: backend
+        run: gradle --no-daemon clean test bootJar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hub-backend-jar
+          path: backend/build/libs/hub-backend.jar

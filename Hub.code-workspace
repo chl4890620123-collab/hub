@@ -1,0 +1,127 @@
+{
+  "folders": [
+    {
+      "name": "Context AI Hub",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.autobuild.enabled": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/ai-service/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+      "${workspaceFolder}/ai-service"
+    ],
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+      "ai-service/tests"
+    ],
+    "search.exclude": {
+      "**/.runtime": true,
+      "**/.tools": true,
+      "**/.venv": true,
+      "**/node_modules": true,
+      "**/build": true,
+      "**/.gradle": true,
+      "**/__pycache__": true
+    },
+    "files.watcherExclude": {
+      "**/.runtime/**": true,
+      "**/.tools/**": true,
+      "**/.venv/**": true,
+      "**/node_modules/**": true,
+      "**/build/**": true,
+      "**/.gradle/**": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "vscjava.vscode-java-pack",
+      "vmware.vscode-spring-boot",
+      "ms-python.python",
+      "ms-python.vscode-pylance"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Hub: 0. 환경 점검",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["doctor"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Hub: 1. 로컬 시작",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["start"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": [],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      },
+      {
+        "label": "Hub: 상태 확인",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["status"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Hub: 구조 검수",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["check"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Hub: 전체 테스트",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["test"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Hub: 배포 JAR 빌드",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["build"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Hub: 종료",
+        "type": "shell",
+        "command": "${workspaceFolder}\\HUB.bat",
+        "args": ["stop"],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Optional production-quality local semantic embedding provider.
+# Install only when the model download and local RAM are acceptable.
+sentence-transformers>=5.1,<6
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/
+paddlepaddle==3.3.0
+paddleocr>=3.5,<4

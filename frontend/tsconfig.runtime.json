@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outFile": "./dist/hub-runtime.js"
+  },
+  "files": ["./src/contracts.ts", "./src/runtime.ts"]
+}

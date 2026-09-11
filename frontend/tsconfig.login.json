@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outFile": "./dist/login.js"
+  },
+  "files": ["./src/login.ts"]
+}

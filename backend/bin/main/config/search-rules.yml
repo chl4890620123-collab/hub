@@ -1,0 +1,20 @@
+# Bundled fallback search aliases.
+# Normal project-specific rules are managed from the ADMIN web screen and stored in the database.
+rules:
+  - name: "기획서 / PRD"
+    aliases: ["기획서", "PRD", "프로젝트 기획"]
+    patterns: ["*PRD*", "*기획서*"]
+    mode: "smart"
+    priority: 10
+
+  - name: "기술 설계 / 아키텍처"
+    aliases: ["기술설계", "설계서", "아키텍처", "architecture"]
+    patterns: ["*Technical_Design*", "*ARCHITECTURE*", "*기술설계*"]
+    mode: "smart"
+    priority: 10
+
+  - name: "운영 문서"
+    aliases: ["운영규칙", "운영 문서", "운영 가이드"]
+    patterns: ["*OPERATIONS*", "*운영*"]
+    mode: "smart"
+    priority: 10

@@ -1,0 +1,12 @@
+https://{$HUB_LAN_HOST} {
+    tls internal
+    encode zstd gzip
+    reverse_proxy backend:8080
+    header {
+        -Server
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "microphone=(self)"
+    }
+}

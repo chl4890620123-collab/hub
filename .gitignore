@@ -1,0 +1,40 @@
+# Secrets / local config
+# Commit only .env.example. Any real/local/staging/production dotenv file stays out of Git.
+.env
+.env.*
+!.env.example
+*.local.env
+
+# Java / Gradle
+.gradle/
+backend/.gradle/
+backend/build/
+backend/out/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Python
+ai-service/.venv/
+ai-service/.deps-ready
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local runtime/tool caches
+.runtime/
+.tools/
+
+# Local data
+backend/data/
+data/storage/*
+!data/storage/.gitkeep
+*.mv.db
+*.trace.db
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

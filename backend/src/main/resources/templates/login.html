@@ -1,0 +1,126 @@
+<!-- Two-step intranet auth entry: pick a role first (member/admin), then that role's login/signup flow. -->
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}"><meta name="_csrf_header" th:content="${_csrf.headerName}">
+  <link rel="stylesheet" th:href="@{/css/app.css}"><title>Context AI Hub 계정</title>
+</head>
+<body class="login-page">
+<main class="login-card signup-login-card">
+  <h1>회사 자료를 찾고, 해야 할 일을 이어서 관리하세요</h1>
+
+  <section id="roleSelectPanel">
+    <p class="muted">어떤 계정으로 시작할까요?</p>
+    <div class="role-select-grid" aria-label="계정 유형 선택">
+      <button id="chooseRoleAdmin" type="button" class="role-select-card">
+        <span class="role-select-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5.2c0 4.6-2.9 7.7-7 9.3-4.1-1.6-7-4.7-7-9.3V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.7 12 2 2 4.6-4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <strong>관리자</strong>
+        <span>가입을 승인하고 회사 업무를 관리해요</span>
+      </button>
+      <button id="chooseRoleMember" type="button" class="role-select-card">
+        <span class="role-select-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.8-5 3.4-7.5 7.5-7.5s6.7 2.5 7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <strong>일반사용자</strong>
+        <span>내 할 일을 확인하고 회사 자료를 찾아요</span>
+      </button>
+    </div>
+  </section>
+
+  <section id="authFlow" hidden>
+    <button id="backToRoleBtn" type="button" class="ghost compact-button auth-back-btn">← 다른 계정으로 시작</button>
+
+    <div class="login-choice login-choice-three" role="tablist" aria-label="계정 이용 방법">
+      <button id="showLoginBtn" type="button" class="active" role="tab" aria-selected="true">로그인</button>
+      <button id="showMemberSignupBtn" type="button" role="tab" aria-selected="false">일반회원 가입</button>
+      <button id="showAdminSignupBtn" type="button" role="tab" aria-selected="false">관리자 가입</button>
+    </div>
+    <div id="loginMessage" class="notice" hidden aria-live="polite"></div>
+
+    <section id="memberLoginPanel" class="auth-panel">
+      <form id="memberLoginForm">
+        <label>아이디 또는 이메일<input name="identifier" autocomplete="username" required></label>
+        <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">일반회원 로그인</button>
+      </form>
+      <div class="auth-help-box">
+        <strong>아직 계정이 없나요?</strong>
+        <span>위 탭에서 일반회원 가입을 신청하세요.</span>
+      </div>
+    </section>
+
+    <section id="adminLoginPanel" class="auth-panel" hidden>
+      <form id="adminLoginForm">
+        <label>아이디 또는 이메일<input name="identifier" autocomplete="username" required></label>
+        <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">관리자 로그인</button>
+      </form>
+      <div class="auth-help-box">
+        <strong>아직 관리자 계정이 없나요?</strong>
+        <span>회사명과 팀 정보를 입력해 관리자 계정을 바로 만들 수 있습니다.</span>
+      </div>
+    </section>
+
+    <section id="memberSignupPanel" class="auth-panel" hidden>
+      <div class="signup-guide">
+        <strong>일반회원 가입 신청</strong>
+        <span>가입 신청 후 ADMIN이 회사·부서·팀 정보를 확인합니다. 승인 전에는 회사 자료에 접근할 수 없습니다.</span>
+      </div>
+      <form id="memberSignupForm">
+        <label>회사/조직명<input name="companyName" maxlength="200" autocomplete="organization" required></label>
+        <label>이름<input name="displayName" maxlength="100" autocomplete="name" required></label>
+        <div class="auth-grid2">
+          <label>부서 <span class="optional">선택</span><input name="departmentName" maxlength="200"></label>
+          <label>팀 <span class="optional">선택</span><input name="teamName" maxlength="200"></label>
+        </div>
+        <label>직급/직책 <span class="optional">선택</span><input name="jobTitle" maxlength="200" placeholder="예: 주임, 개발자, 매니저"></label>
+        <label>로그인 아이디
+          <div class="auth-field-action">
+            <input id="memberLoginId" name="loginId" minlength="4" maxlength="40" pattern="[A-Za-z0-9_.\-]{4,40}" autocomplete="username" required>
+            <button id="memberLoginIdCheckBtn" type="button" class="ghost compact-button">중복 확인</button>
+          </div>
+          <small id="memberLoginIdStatus" class="availability-status">영문/숫자/._- 조합 4~40자</small>
+        </label>
+        <label>이메일<input name="email" type="email" maxlength="255" autocomplete="email" required><small>이메일 중복 여부는 가입 제출 시 서버에서 다시 확인합니다.</small></label>
+        <div class="auth-grid2">
+          <label>비밀번호<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>12자 이상, 영문과 숫자를 포함해 주세요.</small></label>
+          <label>비밀번호 확인<input name="passwordConfirm" type="password" autocomplete="new-password" required><small class="password-match" aria-live="polite"></small></label>
+        </div>
+        <label>가입 메모 <span class="optional">선택</span><textarea name="signupNote" maxlength="1000" placeholder="관리자가 확인할 내용이 있으면 적어주세요."></textarea></label>
+        <button type="submit">일반회원 가입 승인 요청</button>
+      </form>
+      <div class="signup-next-steps"><strong>가입 후 순서</strong><span>1. 신청 접수 → 2. 관리자 확인 → 3. 승인 완료 → 4. 같은 아이디/비밀번호로 로그인</span></div>
+    </section>
+
+    <section id="adminSignupPanel" class="auth-panel" hidden>
+      <div class="signup-guide">
+        <strong>관리자 가입</strong>
+        <span>회사명과 팀 정보를 등록하면 관리자 계정이 바로 생성됩니다. 일반사용자 가입만 관리자 승인을 거칩니다.</span>
+      </div>
+      <form id="adminSignupForm">
+        <label>회사/조직명<input name="companyName" maxlength="200" autocomplete="organization" required></label>
+        <div class="auth-grid2">
+          <label>부서 <span class="optional">선택</span><input name="departmentName" maxlength="200"></label>
+          <label>팀 <span class="optional">선택</span><input name="teamName" maxlength="200"></label>
+        </div>
+        <label>이름<input name="displayName" maxlength="100" autocomplete="name" required></label>
+        <label>로그인 아이디
+          <div class="auth-field-action">
+            <input id="adminLoginId" name="loginId" minlength="4" maxlength="40" pattern="[A-Za-z0-9_.\-]{4,40}" autocomplete="username" required>
+            <button id="adminLoginIdCheckBtn" type="button" class="ghost compact-button">중복 확인</button>
+          </div>
+          <small id="adminLoginIdStatus" class="availability-status">영문/숫자/._- 조합 4~40자</small>
+        </label>
+        <label>이메일<input name="email" type="email" maxlength="255" autocomplete="email" required></label>
+        <div class="auth-grid2">
+          <label>비밀번호<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>12자 이상, 영문과 숫자를 포함해 주세요.</small></label>
+          <label>비밀번호 확인<input name="passwordConfirm" type="password" autocomplete="new-password" required><small class="password-match" aria-live="polite"></small></label>
+        </div>
+        <button id="adminSignupSubmit" type="submit">관리자 계정 만들기</button>
+      </form>
+    </section>
+  </section>
+
+  <p class="auth-security muted">Hub 웹사이트는 회사 계정과 권한을 기준으로 접근합니다. 비밀번호는 BCrypt 해시로 저장되며, 승인 전 계정은 조직 자료에 접근할 수 없습니다.</p>
+</main>
+<script th:src="@{/js/login.js}"></script>
+</body></html>
