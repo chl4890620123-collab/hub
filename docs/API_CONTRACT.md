@@ -25,7 +25,7 @@
 - Evidence/open-original 관련 조회 API
 
 ## Work output
-- TODO / decisions / changes / timeline / revisions / project memory
+- TODO / decisions / changes / timeline / revisions
 
 ## Connectors
 - Google Drive / Slack / GitHub / Notion read-only import
