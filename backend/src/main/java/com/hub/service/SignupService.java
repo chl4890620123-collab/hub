@@ -43,10 +43,15 @@ public class SignupService {
         this.memberships = memberships;
     }
 
-    /** Common identity fields. team/jobTitle/note are optional by signup type. */
+    /**
+     * Common identity fields. team/jobTitle/note are optional by signup type. company/department/team
+     * are legacy free-text context (kept only for rows written before signup switched to project
+     * requests); requestedProjectId is the applicant's actual ask and is MEMBER-only - an admin sees
+     * all projects already, so there is nothing for an admin signup to request.
+     */
     public record RegisterCommand(String loginId, String email, String password, String displayName,
                                   String companyName, String departmentName, String teamName,
-                                  String jobTitle, String signupNote) {}
+                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {}
     public record RegisterResult(long id, String status, String requestedRole, boolean reopened, boolean firstAdminCreated) {}
     public record LoginIdAvailability(String loginId, boolean available, String message) {}
 
@@ -98,7 +103,7 @@ public class SignupService {
                     throw new IllegalArgumentException("기존 가입 신청의 비밀번호를 확인해 주세요.");
                 long id = byLogin.get().id();
                 boolean reopened = users.reopenRejectedSignup(id, byLogin.get().passwordHash(), v.name(), v.company(),
-                        v.department(), v.team(), v.jobTitle(), v.note(), requestedRole);
+                        v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
                 if (!reopened) throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
                 audit.add(null, null, "SIGNUP_REOPEN", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
                 return new RegisterResult(id, "PENDING", requestedRole, true, false);
@@ -108,7 +113,7 @@ public class SignupService {
         }
         try {
             long id = users.createSignup(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), v.company(),
-                    v.department(), v.team(), v.jobTitle(), v.note(), requestedRole);
+                    v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
             audit.add(null, null, "SIGNUP_REQUEST", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
             return new RegisterResult(id, "PENDING", requestedRole, false, false);
         } catch (DataIntegrityViolationException conflict) {
@@ -142,18 +147,27 @@ public class SignupService {
     }
 
     private Validated validate(RegisterCommand command, boolean allowMemberExtras) {
+        if (!command.privacyConsent()) throw new IllegalArgumentException("개인정보 수집 및 이용에 동의해야 가입할 수 있습니다.");
         String loginId = normalizeLoginId(command.loginId());
         String email = normalizeEmail(command.email());
         String name = required(command.displayName(), "이름", MAX_NAME);
-        String company = required(command.companyName(), "회사/조직명", MAX_COMPANY);
+        String company = optional(command.companyName(), MAX_COMPANY);
         String department = optional(command.departmentName(), MAX_PROFILE);
         String team = optional(command.teamName(), MAX_PROFILE);
         String jobTitle = allowMemberExtras ? optional(command.jobTitle(), MAX_PROFILE) : null;
         String note = allowMemberExtras ? optional(command.signupNote(), MAX_NOTE) : null;
+        Long requestedProjectId = allowMemberExtras ? validateRequestedProject(command.requestedProjectId()) : null;
         validateLoginId(loginId);
         validateEmail(email);
         passwordPolicy.validate(command.password());
-        return new Validated(loginId, email, name, company, department, team, jobTitle, note);
+        return new Validated(loginId, email, name, company, department, team, jobTitle, note, requestedProjectId);
+    }
+
+    /** A stale or made-up project id must not silently attach to the application. */
+    private Long validateRequestedProject(Long requestedProjectId) {
+        if (requestedProjectId == null) return null;
+        if (!projects.exists(requestedProjectId)) throw new IllegalArgumentException("존재하지 않는 프로젝트입니다. 다시 선택해 주세요.");
+        return requestedProjectId;
     }
 
     private void ensureIdentityUnusedForFirstAdmin(String loginId, String email) {
@@ -162,7 +176,7 @@ public class SignupService {
     }
 
     private record Validated(String loginId, String email, String name, String company, String department,
-                             String team, String jobTitle, String note) {}
+                             String team, String jobTitle, String note, Long requestedProjectId) {}
 
     private static void validateLoginId(String loginId) {
         if (!LOGIN_ID.matcher(loginId).matches()) throw new IllegalArgumentException("아이디는 영문/숫자/._- 조합 4~40자로 입력해 주세요.");

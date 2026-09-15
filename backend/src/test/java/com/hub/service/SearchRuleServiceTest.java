@@ -52,7 +52,7 @@ class SearchRuleServiceTest {
     }
 
     private static HubProperties properties(Path rules) {
-        return new HubProperties("./data", "http://127.0.0.1:8000", true,
+        return new HubProperties("./data", "http://localhost:8000", true, 
           "./local-reader", rules.toString(), 12000, 2, 3, 16, 30000,
                 "", "", "", "", "", "", "");
     }

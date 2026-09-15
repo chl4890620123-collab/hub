@@ -98,8 +98,14 @@ public class GitHubConnector implements ReadOnlyConnector {
                     .retrieve()
                     .body(String.class);
             return ConnectorSupport.json(json, body, "Invalid GitHub response");
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+            throw new IllegalStateException("GitHub 연결이 만료되었거나 토큰이 유효하지 않습니다. 다시 연결해 주세요.", e);
+        } catch (org.springframework.web.client.HttpClientErrorException.Forbidden e) {
+            throw new IllegalStateException("GitHub 접근 권한이 없거나 요청이 제한되었습니다. 토큰 권한을 확인해 주세요.", e);
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            throw new IllegalStateException("GitHub에서 해당 저장소를 찾을 수 없습니다. 목록을 다시 불러온 뒤 선택해 주세요.", e);
         } catch (RestClientException e) {
-            throw new IllegalStateException("GitHub API request failed", e);
+            throw new IllegalStateException("GitHub 자료를 가져오지 못했습니다.", e);
         }
     }
 
@@ -108,5 +114,21 @@ public class GitHubConnector implements ReadOnlyConnector {
         if (value == null || value.isBlank()) return "Commit";
         String first = value.lines().findFirst().orElse("Commit");
         return first.length() <= 500 ? first : first.substring(0, 500);
+    }
+
+    /** Repositories the token can read, newest activity first. */
+    @Override
+    public List<ConnectorTarget> targets(String token) {
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode repos = get("/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member", token);
+        if (repos.isArray()) {
+            for (JsonNode repo : repos) {
+                String full = repo.path("full_name").asText("");
+                if (full.isBlank()) continue;
+                String description = repo.path("private").asBoolean(false) ? "비공개 저장소" : "공개 저장소";
+                out.add(new ConnectorTarget(full, full, description, "https://github.com/" + full));
+            }
+        }
+        return out;
     }
 }

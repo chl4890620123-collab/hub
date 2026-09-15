@@ -69,7 +69,7 @@ public class WorkContextService {
 
     private static String required(String value) {
         String v = value == null ? "" : value.trim();
-        if (v.isBlank()) throw new IllegalArgumentException("Context query is required");
+        if (v.isBlank()) throw new IllegalArgumentException("찾을 내용을 입력해 주세요.");
         return v;
     }
 

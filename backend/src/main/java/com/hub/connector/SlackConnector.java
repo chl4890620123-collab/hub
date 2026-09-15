@@ -124,7 +124,7 @@ public class SlackConnector implements ReadOnlyConnector {
                     .body(String.class);
             JsonNode node = json.readTree(body == null ? "{}" : body);
             if (!node.path("ok").asBoolean(false)) {
-                throw new IllegalStateException("Slack API error: " + node.path("error").asText("unknown_error"));
+                throw new IllegalStateException(slackError(node.path("error").asText("unknown_error")));
             }
             return node;
         } catch (RestClientException e) {
@@ -159,5 +159,34 @@ public class SlackConnector implements ReadOnlyConnector {
     private static String abbreviate(String text, int max) {
         String oneLine = text.replaceAll("\\s+", " ").trim();
         return oneLine.length() <= max ? oneLine : oneLine.substring(0, max) + "…";
+    }
+
+    /** Public channels this token can read. */
+    @Override
+    public List<ConnectorTarget> targets(String token) {
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode body = get("/conversations.list?types=public_channel&exclude_archived=true&limit=200", token);
+        JsonNode channels = body.path("channels");
+        if (channels.isArray()) {
+            for (JsonNode channel : channels) {
+                String id = channel.path("id").asText("");
+                String name = channel.path("name").asText("");
+                if (id.isBlank() || name.isBlank()) continue;
+                out.add(new ConnectorTarget(id, "#" + name, channel.path("purpose").path("value").asText("")));
+            }
+        }
+        return out;
+    }
+
+    /** Slack's error codes name a setup step; say which one instead of echoing the code. */
+    private static String slackError(String code) {
+        return switch (code) {
+            case "not_in_channel" -> "이 채널에 Hub 앱을 먼저 초대해 주세요. 채널에서 /invite @Hub 를 실행하면 됩니다.";
+            case "channel_not_found" -> "채널을 찾을 수 없습니다. 목록을 다시 불러온 뒤 선택해 주세요.";
+            case "missing_scope", "not_allowed_token_type" -> "Slack 토큰 권한이 부족합니다. channels:history와 channels:read 권한을 확인해 주세요.";
+            case "invalid_auth", "token_revoked", "account_inactive" -> "Slack 토큰이 유효하지 않습니다. 다시 연결해 주세요.";
+            case "ratelimited" -> "Slack 요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요.";
+            default -> "Slack 자료를 가져오지 못했습니다 (" + code + ")";
+        };
     }
 }

@@ -5,8 +5,10 @@ import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.RefreshTokenRepository;
+import com.hub.repository.SensitiveTermRepository;
 import com.hub.repository.UserRepository;
 import com.hub.service.*;
+import com.hub.util.UnicodeText;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,14 +27,16 @@ public class AdminController {
     private final PasswordEncoder encoder;private final PasswordPolicy passwordPolicy;private final ProjectAccessService access;
     private final AuditRepository audit;private final RefreshTokenRepository refreshTokens;private final SignupService signup;
     private final MembershipService memberships;private final AccountLifecycleService accounts;private final TodoReassignmentService reassignments;
+    private final SensitiveTermRepository sensitiveTerms;
 
     public AdminController(CurrentUserService current,UserRepository users,ProjectRepository projects,PasswordEncoder encoder,
                            PasswordPolicy passwordPolicy,ProjectAccessService access,AuditRepository audit,
                            RefreshTokenRepository refreshTokens,SignupService signup,MembershipService memberships,
-                           AccountLifecycleService accounts,TodoReassignmentService reassignments){
+                           AccountLifecycleService accounts,TodoReassignmentService reassignments,
+                           SensitiveTermRepository sensitiveTerms){
         this.current=current;this.users=users;this.projects=projects;this.encoder=encoder;this.passwordPolicy=passwordPolicy;
         this.access=access;this.audit=audit;this.refreshTokens=refreshTokens;this.signup=signup;this.memberships=memberships;
-        this.accounts=accounts;this.reassignments=reassignments;
+        this.accounts=accounts;this.reassignments=reassignments;this.sensitiveTerms=sensitiveTerms;
     }
 
     private User requireAdmin(Authentication authentication){User user=current.requireOperational(authentication);if(!user.isAdmin())throw new AccessDeniedException("Admin only");return user;}
@@ -110,6 +114,37 @@ public class AdminController {
     @PostMapping("/reassignments/{requestId}/resolve")
     public Map<String,Object> resolveReassignment(@PathVariable long requestId,@RequestBody ResolveReassignment request,Authentication authentication){
         User admin=requireAdmin(authentication);reassignments.resolve(requestId,request.newAssigneeId(),admin);return Map.of("status","RESOLVED");
+    }
+
+    public record BulkResolveReassignment(List<Long> requestIds,long newAssigneeId){}
+    @PostMapping("/projects/{projectId}/reassignments/bulk-resolve")
+    public Map<String,Object> bulkResolveReassignment(@PathVariable long projectId,@RequestBody BulkResolveReassignment request,Authentication authentication){
+        User admin=requireAdmin(authentication);access.requireAdmin(projectId,admin);
+        if(request.requestIds()==null||request.requestIds().isEmpty())throw new IllegalArgumentException("선택된 항목이 없습니다.");
+        Map<Long,String> results=reassignments.bulkResolve(projectId,request.requestIds(),request.newAssigneeId(),admin);
+        return Map.of("results",results);
+    }
+
+    @GetMapping("/sensitive-terms")
+    public List<SensitiveTermRepository.SensitiveTerm> listSensitiveTerms(Authentication authentication){requireAdmin(authentication);return sensitiveTerms.list();}
+
+    public record AddSensitiveTerm(String term){}
+    @PostMapping("/sensitive-terms")
+    public Map<String,Object> addSensitiveTerm(@RequestBody AddSensitiveTerm request,Authentication authentication){
+        User admin=requireAdmin(authentication);
+        String term=UnicodeText.nfc(request.term()==null?"":request.term()).trim();
+        if(term.isBlank())throw new IllegalArgumentException("해시로 가릴 단어나 값을 입력해 주세요.");
+        if(term.length()>500)throw new IllegalArgumentException("500자 이하로 입력해 주세요.");
+        boolean added=sensitiveTerms.add(term,admin.id());
+        audit.add(admin.id(),null,"SENSITIVE_TERM_ADD","SENSITIVE_TERM",null,"{}");
+        return Map.of("status",added?"ADDED":"ALREADY_REGISTERED");
+    }
+
+    @DeleteMapping("/sensitive-terms/{id}")
+    public Map<String,Object> removeSensitiveTerm(@PathVariable long id,Authentication authentication){
+        User admin=requireAdmin(authentication);sensitiveTerms.delete(id);
+        audit.add(admin.id(),null,"SENSITIVE_TERM_REMOVE","SENSITIVE_TERM",id,"{}");
+        return Map.of("status","REMOVED");
     }
 
     private User requireTarget(long userId){return users.findById(userId).orElseThrow(()->new IllegalArgumentException("사용자를 찾을 수 없습니다."));}

@@ -173,7 +173,7 @@ public class AnalysisService {
             long evidenceId = evidence.createDocumentEvidence(
                     versionId, grounded.chunkId(), quote, Hashing.sha256(quote)
             );
-            Long candidateId = null;
+            Long candidateId = matchProjectMember(projectId, candidateAssigneeText(proposal));
             TodoDuplicateDetector.DuplicateMatch duplicate = duplicateDetector.find(projectId, proposal.title());
             long todoId = todos.create(
                     projectId, versionId, null, proposal.title(), proposal.description(), proposal.assigneeText(),
@@ -218,7 +218,7 @@ public class AnalysisService {
             long evidenceId = evidence.createTranscriptEvidence(
                     grounded.segmentId(), quote, Hashing.sha256(quote)
             );
-            Long candidateId = null;
+            Long candidateId = matchProjectMember(projectId, candidateAssigneeText(proposal));
             TodoDuplicateDetector.DuplicateMatch duplicate = duplicateDetector.find(projectId, proposal.title());
             long todoId = todos.create(
                     projectId, null, meetingId, proposal.title(), proposal.description(), proposal.assigneeText(),
@@ -292,6 +292,31 @@ public class AnalysisService {
     private Object value(Map<String, Object> row, String key) {
         if (row.containsKey(key)) return row.get(key);
         return row.get(key.toUpperCase());
+    }
+
+    /**
+     * Links the name the AI read out of the document to a real project member, so the review screen can
+     * preselect that person. Only the suggestion is stored; assignee_id stays empty until an admin confirms.
+     * An ambiguous name (two members sharing a display name) resolves to nothing rather than to a guess.
+     */
+    private Long matchProjectMember(long projectId, String suggestedName) {
+        if (suggestedName == null || suggestedName.isBlank()) return null;
+        String wanted = normalizePersonName(suggestedName);
+        if (wanted.isEmpty()) return null;
+        Long matched = null;
+        for (Map<String, Object> member : projects.listMembers(projectId)) {
+            Object nameValue = value(member, "display_name");
+            if (nameValue == null || !wanted.equals(normalizePersonName(nameValue.toString()))) continue;
+            Object idValue = value(member, "user_id");
+            if (!(idValue instanceof Number number)) continue;
+            if (matched != null && matched != number.longValue()) return null;
+            matched = number.longValue();
+        }
+        return matched;
+    }
+
+    private static String normalizePersonName(String raw) {
+        return raw.replaceAll("\s+", "").toLowerCase(java.util.Locale.ROOT);
     }
 
     private String candidateAssigneeText(AiDtos.TodoProposal proposal) {

@@ -49,7 +49,7 @@ class DocumentContextServiceTest {
     }
 
     private static HubProperties properties(int whole, int neighbors, int docs, int ragChunks, int ragChars) {
-        return new HubProperties("./data", "http://127.0.0.1:8000", true,
+        return new HubProperties("./data", "http://localhost:8000", true,
             "./local-reader", "./config/search-rules.yml", whole, neighbors, docs, ragChunks, ragChars,
                 "", "", "", "", "", "", "");
     }

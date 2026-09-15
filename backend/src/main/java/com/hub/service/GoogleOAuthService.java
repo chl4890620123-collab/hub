@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GoogleOAuthService {
-    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+    // "email" is requested so the screen can name the Google account that was linked, not just say "connected".
+    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly email";
     private final HubProperties props;
     private final GoogleAccessTokenProvider tokens;
     private final RestClient client;
@@ -42,7 +43,9 @@ public class GoogleOAuthService {
                 .queryParam("response_type", "code")
                 .queryParam("scope", SCOPE)
                 .queryParam("access_type", "offline")
-                .queryParam("prompt", "consent")
+                // Without select_account an already signed-in browser skips straight back, giving the
+                // operator no chance to pick which Google account to link.
+                .queryParam("prompt", "select_account consent")
                 .queryParam("state", state).build().encode().toUriString();
     }
 
@@ -58,11 +61,25 @@ public class GoogleOAuthService {
             String refresh = node.path("refresh_token").asText("");
             String access = node.path("access_token").asText("");
             if (refresh.isBlank() || access.isBlank()) throw new IllegalStateException("Google 토큰을 발급받지 못했습니다.");
-            tokens.connect(pending.userId(), refresh, access, node.path("expires_in").asLong(3600));
+            tokens.connect(pending.userId(), pending.projectId(), refresh, access, node.path("expires_in").asLong(3600), accountEmail(access));
             return pending;
         } catch (Exception e) { throw new IllegalStateException("Google 로그인 처리에 실패했습니다.", e); }
     }
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }
     public record PendingState(long userId, long projectId, String redirectUri, Instant expiresAt) {}
+
+    /** Best-effort: a missing email must not fail a connection that otherwise succeeded. */
+    private String accountEmail(String accessToken) {
+        try {
+            String body = RestClient.create().get()
+                    .uri("https://www.googleapis.com/oauth2/v3/userinfo")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(String.class);
+            String email = json.readTree(body == null ? "{}" : body).path("email").asText("");
+            return email.isBlank() ? null : email;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
 }

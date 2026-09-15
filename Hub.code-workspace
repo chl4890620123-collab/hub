@@ -1,7 +1,7 @@
 {
   "folders": [
     {
-      "name": "Context AI Hub",
+      "name": "Hub",
       "path": "."
     }
   ],
@@ -35,7 +35,8 @@
       "**/node_modules/**": true,
       "**/build/**": true,
       "**/.gradle/**": true
-    }
+    },
+    "java.compile.nullAnalysis.mode": "automatic"
   },
   "extensions": {
     "recommendations": [

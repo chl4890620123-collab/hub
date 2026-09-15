@@ -47,6 +47,22 @@ public class ProcessingJobExecutor {
     private static String rootMessage(Throwable error) {
         Throwable cursor = error;
         while (cursor.getCause() != null && cursor.getCause() != cursor) cursor = cursor.getCause();
-        return cursor.getMessage() == null ? cursor.getClass().getSimpleName() : cursor.getMessage();
+        String message = cursor.getMessage() == null ? cursor.getClass().getSimpleName() : cursor.getMessage();
+        return friendly(message);
+    }
+
+    /**
+     * The provider's own wording reaches this screen, so a spent quota showed up as a raw
+     * 502/429 dump. Operators only need to know that the AI is unavailable and why.
+     */
+    private static String friendly(String raw) {
+        if (raw == null) return "AI 처리에 실패했습니다.";
+        if (raw.contains("429") || raw.contains("Too Many Requests") || raw.contains("RESOURCE_EXHAUSTED"))
+            return "AI 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 사용 중인 AI 요금제를 확인해 주세요.";
+        if (raw.contains("503") || raw.contains("UNAVAILABLE") || raw.contains("overloaded"))
+            return "AI 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해 주세요.";
+        if (raw.contains("timed out") || raw.contains("ReadTimeout") || raw.contains("timeout"))
+            return "AI 응답이 지연되어 처리를 마치지 못했습니다. 잠시 후 다시 시도해 주세요.";
+        return raw;
     }
 }

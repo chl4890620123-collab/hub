@@ -62,4 +62,17 @@ public class ProjectController {
         projectAccess.requireAccess(projectId, user);
         return projects.listMembers(projectId);
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{projectId}")
+    public Map<String, Object> rename(@PathVariable long projectId,
+                                      @Valid @RequestBody CreateProject request,
+                                      Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAdmin(projectId, user);
+        if (!projects.exists(projectId)) throw new IllegalArgumentException("존재하지 않는 프로젝트입니다.");
+        String name = request.name().trim();
+        String description = request.description() == null ? null : request.description().trim();
+        projects.rename(projectId, name, description);
+        return Map.of("status", "UPDATED");
+    }
 }

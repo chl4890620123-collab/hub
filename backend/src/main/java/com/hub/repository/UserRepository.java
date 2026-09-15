@@ -39,6 +39,7 @@ public class UserRepository {
     public record SignupApplication(
             long id, String loginId, String email, String displayName, String companyName,
             String departmentName, String teamName, String jobTitle, String signupNote,
+            Long requestedProjectId, String requestedProjectName,
             String requestedRole, String approvalStatus, String rejectionReason, Instant createdAt
     ) {}
 
@@ -63,14 +64,21 @@ public class UserRepository {
 
     public List<SignupApplication> listPendingApplications() {
         return jdbc.query("""
-                SELECT id,login_id,email,display_name,company_name,department_name,team_name,job_title,signup_note,
-                       requested_role,approval_status,rejection_reason,created_at
-                FROM app_user WHERE approval_status='PENDING' ORDER BY created_at ASC,id ASC
-                """, (rs,n)->new SignupApplication(
+                SELECT u.id,u.login_id,u.email,u.display_name,u.company_name,u.department_name,u.team_name,u.job_title,u.signup_note,
+                       u.requested_project_id,p.name AS requested_project_name,
+                       u.requested_role,u.approval_status,u.rejection_reason,u.created_at
+                FROM app_user u LEFT JOIN project p ON p.id=u.requested_project_id
+                WHERE u.approval_status='PENDING' ORDER BY u.created_at ASC,u.id ASC
+                """, (rs,n)->{
+            long requestedProjectId = rs.getLong("requested_project_id");
+            return new SignupApplication(
                 rs.getLong("id"), rs.getString("login_id"), rs.getString("email"), rs.getString("display_name"),
                 rs.getString("company_name"), rs.getString("department_name"), rs.getString("team_name"),
-                rs.getString("job_title"), rs.getString("signup_note"), rs.getString("requested_role"),
-                rs.getString("approval_status"), rs.getString("rejection_reason"), rs.getTimestamp("created_at").toInstant()));
+                rs.getString("job_title"), rs.getString("signup_note"),
+                rs.wasNull() ? null : requestedProjectId, rs.getString("requested_project_name"),
+                rs.getString("requested_role"), rs.getString("approval_status"), rs.getString("rejection_reason"),
+                rs.getTimestamp("created_at").toInstant());
+        });
     }
 
     public Optional<User> findById(long id) { return findAuthById(id).map(AuthUser::asUser); }
@@ -126,18 +134,19 @@ public class UserRepository {
     /** Pending signup never receives its requested ADMIN permission before approval. */
     public long createSignup(String loginId, String email, String passwordHash, String displayName,
                              String companyName, String departmentName, String teamName, String jobTitle,
-                             String signupNote, String requestedRole) {
+                             String signupNote, Long requestedProjectId, String requestedRole) {
         KeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO app_user(login_id,email,password_hash,display_name,company_name,department_name,team_name,job_title,
-                                         signup_note,global_role,requested_role,account_status,must_change_password,approval_status)
-                    VALUES(?,?,?,?,?,?,?,?,?,'MEMBER',?,'SUSPENDED',FALSE,'PENDING')
+                                         signup_note,requested_project_id,global_role,requested_role,account_status,must_change_password,approval_status,privacy_consent_at)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,'MEMBER',?,'SUSPENDED',FALSE,'PENDING',CURRENT_TIMESTAMP)
                     """, new String[]{"id"});
             setCommonIdentity(ps, loginId, email, passwordHash, displayName, companyName, departmentName, teamName);
             ps.setString(8, trimNullable(jobTitle));
             ps.setString(9, trimNullable(signupNote));
-            ps.setString(10, requestedRole);
+            if (requestedProjectId == null) ps.setNull(10, java.sql.Types.BIGINT); else ps.setLong(10, requestedProjectId);
+            ps.setString(11, requestedRole);
             return ps;
         }, key);
         if (key.getKey() == null) throw new IllegalStateException("Signup id was not generated");
@@ -151,8 +160,8 @@ public class UserRepository {
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO app_user(login_id,email,password_hash,display_name,company_name,department_name,team_name,
-                                         global_role,requested_role,account_status,must_change_password,approval_status,approved_at)
-                    VALUES(?,?,?,?,?,?,?,'ADMIN','ADMIN','ACTIVE',FALSE,'APPROVED',CURRENT_TIMESTAMP)
+                                         global_role,requested_role,account_status,must_change_password,approval_status,approved_at,privacy_consent_at)
+                    VALUES(?,?,?,?,?,?,?,'ADMIN','ADMIN','ACTIVE',FALSE,'APPROVED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
                     """, new String[]{"id"});
             setCommonIdentity(ps, loginId, email, passwordHash, displayName, companyName, departmentName, teamName);
             return ps;
@@ -164,14 +173,15 @@ public class UserRepository {
     /** Rejected applicants can reuse the row only for the same requested role. */
     public boolean reopenRejectedSignup(long userId, String passwordHash, String displayName, String companyName,
                                         String departmentName, String teamName, String jobTitle, String signupNote,
-                                        String requestedRole) {
+                                        Long requestedProjectId, String requestedRole) {
         return jdbc.update("""
                 UPDATE app_user SET password_hash=?,display_name=?,company_name=?,department_name=?,team_name=?,job_title=?,signup_note=?,
+                    requested_project_id=?,
                     approval_status='PENDING',account_status='SUSPENDED',rejection_reason=NULL,rejected_at=NULL,approved_by=NULL,approved_at=NULL,
-                    failed_login_count=0,locked_until=NULL,auth_version=auth_version+1
+                    failed_login_count=0,locked_until=NULL,auth_version=auth_version+1,privacy_consent_at=CURRENT_TIMESTAMP
                 WHERE id=? AND approval_status='REJECTED' AND requested_role=?
-                """, passwordHash, displayName.trim(), companyName.trim(), trimNullable(departmentName), trimNullable(teamName),
-                trimNullable(jobTitle), trimNullable(signupNote), userId, requestedRole) == 1;
+                """, passwordHash, displayName.trim(), trimNullable(companyName), trimNullable(departmentName), trimNullable(teamName),
+                trimNullable(jobTitle), trimNullable(signupNote), requestedProjectId, userId, requestedRole) == 1;
     }
 
     /** Approval activates exactly the requested role. */
@@ -272,7 +282,7 @@ public class UserRepository {
         ps.setString(2, email.trim().toLowerCase());
         ps.setString(3, passwordHash);
         ps.setString(4, displayName.trim());
-        ps.setString(5, companyName.trim());
+        ps.setString(5, trimNullable(companyName));
         ps.setString(6, trimNullable(departmentName));
         ps.setString(7, trimNullable(teamName));
     }

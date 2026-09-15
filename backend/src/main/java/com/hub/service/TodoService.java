@@ -23,6 +23,21 @@ public class TodoService {
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
     public List<TodoItem> pending(long projectId){return todos.pending(projectId);}
 
+    /** Registering a document with a due date can create its follow-up task in the same step. */
+    @Transactional
+    public long createManual(long projectId,Long versionId,String title,Long assigneeId,LocalDate dueDate,User actor){
+        if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
+        String assigneeText=null;
+        if(assigneeId!=null){
+            if(!projects.isMember(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 활성 MEMBER여야 합니다.");
+            assigneeText=users.findById(assigneeId).filter(User::active).filter(u->!u.isAdmin()).map(User::displayName)
+                    .orElseThrow(()->new IllegalArgumentException("담당 MEMBER를 찾을 수 없습니다."));
+        }
+        long id=todos.createConfirmed(projectId,versionId,title.trim(),assigneeId,assigneeText,dueDate,actor.id());
+        timeline.append(projectId,"TODO_CREATED",title.trim(),null,LocalDateTime.now(),"TODO",id);
+        return id;
+    }
+
     @Transactional
     public void confirm(TodoItem before,Long assigneeId,LocalDate dueDate,User actor){
         if(assigneeId==null)throw new IllegalArgumentException("업무 확정 전에 담당 MEMBER를 선택해 주세요.");
@@ -36,6 +51,33 @@ public class TodoService {
         if(before.dueDateSuggestion()!=null&&!before.dueDateSuggestion().equals(dueDate))feedback.add(before.projectId(),"TODO",before.id(),"due_date",before.dueDateSuggestion().toString(),String.valueOf(dueDate),"DUE_DATE_CORRECTION",actor.id());
         if(before.assigneeText()!=null&&!before.assigneeText().isBlank()&&!before.assigneeText().equals(confirmedAssignee))feedback.add(before.projectId(),"TODO",before.id(),"assignee",before.assigneeText(),confirmedAssignee,"ASSIGNEE_CORRECTION",actor.id());
         timeline.append(before.projectId(),"TODO_CONFIRMED",before.title(),null,LocalDateTime.now(),"TODO",before.id());
+    }
+
+    @Transactional
+    public void editCandidate(TodoItem before,String title,String description,User actor){
+        if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
+        if(!todos.editCandidate(before.id(),title.trim(),description))
+            throw new StateConflictException("이미 확정/제외된 TODO는 수정할 수 없습니다.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"CANDIDATE_EDIT",json.writeValueAsString(before),
+                json.writeValueAsString(java.util.Map.of("title",title.trim())));}
+        catch(Exception e){throw new IllegalStateException(e);}
+    }
+
+    /** Best-effort bulk assignment: each candidate is confirmed independently so one failure does not block the rest. */
+    @Transactional
+    public java.util.Map<Long,String> bulkConfirm(long projectId,List<Long> todoIds,Long assigneeId,LocalDate dueDate,User actor){
+        java.util.Map<Long,String> results=new java.util.LinkedHashMap<>();
+        for(Long id:todoIds){
+            try{
+                TodoItem before=todos.find(id);
+                if(before.projectId()!=projectId)throw new IllegalArgumentException("다른 프로젝트의 TODO입니다.");
+                confirm(before,assigneeId,dueDate,actor);
+                results.put(id,"CONFIRMED");
+            }catch(Exception e){
+                results.put(id,"FAILED: "+e.getMessage());
+            }
+        }
+        return results;
     }
 
     @Transactional

@@ -59,7 +59,7 @@ public class ChangeController {
         projectAccess.requireAccess(projectId, user);
         if (documents.projectIdForVersion(request.beforeVersionId()) != projectId
                 || documents.projectIdForVersion(request.afterVersionId()) != projectId) {
-            throw new IllegalArgumentException("Versions must belong to the selected project");
+            throw new IllegalArgumentException("비교할 두 자료는 모두 현재 프로젝트의 자료여야 합니다.");
         }
         return changeService.compare(
                 projectId,
@@ -90,7 +90,7 @@ public class ChangeController {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
-            throw new IllegalArgumentException("Change item does not belong to project");
+            throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }
         return evidence.forChange(itemId);
     }
@@ -102,7 +102,7 @@ public class ChangeController {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAdmin(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
-            throw new IllegalArgumentException("Change item does not belong to project");
+            throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }
         if (!changes.confirmItem(itemId)) throw new com.hub.service.StateConflictException("이미 확정된 변경 후보입니다.");
         revisions.add(
@@ -115,5 +115,19 @@ public class ChangeController {
                 "{\"reviewStatus\":\"CONFIRMED\"}"
         );
         return Map.of("status", "CONFIRMED");
+    }
+
+    @PostMapping("/items/{itemId}/reject")
+    public Map<String, Object> reject(@PathVariable long projectId,
+                                      @PathVariable long itemId,
+                                      Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAdmin(projectId, user);
+        if (changes.projectIdForItem(itemId) != projectId) {
+            throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
+        }
+        if (!changes.rejectItem(itemId)) throw new com.hub.service.StateConflictException("이미 처리된 변경 후보입니다.");
+        revisions.add(projectId, "CHANGE_ITEM", itemId, user.id(), "REJECT", null, "{\"reviewStatus\":\"REJECTED\"}");
+        return Map.of("status", "REJECTED");
     }
 }

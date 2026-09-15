@@ -1,6 +1,7 @@
 # Python performance and provider selection are configured in one place.
 import importlib.util
 import os
+import sys
 
 
 def env(name: str, default: str = "") -> str:
@@ -49,7 +50,9 @@ GEMINI_CONNECT_TIMEOUT_SECONDS = env_int("HUB_GEMINI_CONNECT_TIMEOUT_SECONDS", 5
 GEMINI_READ_TIMEOUT_SECONDS = env_int("HUB_GEMINI_READ_TIMEOUT_SECONDS", 60, 5, 300)
 GEMINI_MAX_CONNECTIONS = env_int("HUB_GEMINI_MAX_CONNECTIONS", 20, 1, 100)
 GEMINI_MAX_KEEPALIVE_CONNECTIONS = env_int("HUB_GEMINI_MAX_KEEPALIVE_CONNECTIONS", 10, 1, 100)
-GEMINI_RETRIES = env_int("HUB_GEMINI_RETRIES", 2, 0, 5)
+GEMINI_RETRIES = env_int("HUB_GEMINI_RETRIES", 3, 0, 5)
+# A 429 is answered with the delay the API asks for, capped so a job cannot stall behind one quota wait.
+GEMINI_MAX_RETRY_DELAY_SECONDS = env_int("HUB_GEMINI_MAX_RETRY_DELAY_SECONDS", 20, 1, 120)
 
 # OCR is fixed to local PaddleOCR in real mode and mock OCR in smoke-test mode.
 # These tuning values are advanced defaults; normal operators do not need them in .env.
@@ -96,8 +99,14 @@ def validate() -> None:
     if OCR_PROVIDER == "local":
         missing = [name for name in ("paddle", "paddleocr") if importlib.util.find_spec(name) is None]
         if missing:
-            raise RuntimeError(
-                "Local OCR requires PaddlePaddle/PaddleOCR. Install ai-service/requirements-local.txt."
+            # PaddleOcrProvider already loads its engine lazily on first use (see paddle_ocr.py),
+            # so a missing local install should only fail an actual OCR request, not block startup
+            # for installs that never upload scanned images/PDFs.
+            print(
+                "WARNING: Local OCR requires PaddlePaddle/PaddleOCR (missing: "
+                + ", ".join(missing)
+                + "). OCR requests will fail until ai-service/requirements-local.txt is installed.",
+                file=sys.stderr,
             )
 
     if STT_PROVIDER not in {"mock", "gemini"}:

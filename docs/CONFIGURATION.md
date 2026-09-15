@@ -8,9 +8,9 @@
 
 ```env
 HUB_PORT=8080
-HUB_BIND_ADDRESS=127.0.0.1
+HUB_BIND_ADDRESS=localhost
 HUB_STORAGE_ROOT=./data/storage
-HUB_AI_BASE_URL=http://127.0.0.1:8000
+HUB_AI_BASE_URL=http://localhost:8000
 
 HUB_JWT_SECRET=<32자 이상>
 

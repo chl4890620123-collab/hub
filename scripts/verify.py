@@ -35,14 +35,18 @@ check("default: local" in app_yml, "local profile must be the default")
 check("jdbc:h2:file:./data/hubdb" in app_yml, "local H2 file DB config missing")
 check("classpath:config/search-rules.yml" in app_yml, "search rules must use bundled classpath resource")
 
-# Web-only UI: compact navigation is layout-only; meeting audio is available from the same site.
+# Desktop-web-only UI: there is no mobile/compact navigation layer and no responsive breakpoints.
 index = text("backend/src/main/resources/templates/index.html")
 app_js = text("backend/src/main/resources/static/js/app.js")
 for marker in ["view-search", "view-meetings", "recordBtn", "audioFileInput", "view-todos", "view-connectors", "view-admin"]:
     check(marker in index, f"web feature missing: {marker}")
 for forbidden in ["mobileClient", "X-Hub-Client", "data-mobile-only", "/mobile", "/manifest.webmanifest", "/sw.js"]:
     check(forbidden not in index + app_js, f"legacy mobile/PWA branch remains: {forbidden}")
-check("dataset.compactView" in app_js, "responsive compact navigation binding is broken")
+app_css = text("backend/src/main/resources/static/css/app.css")
+check('data-view="search"' in index and "dataset.view" in app_js, "sidebar navigation binding is broken")
+check("@media" not in app_css, "desktop-only UI: responsive breakpoint remains in app.css")
+for forbidden in ["compact-bottom-nav", "compactMoreSheet", "data-compact-view", "compact-feature-grid"]:
+    check(forbidden not in index + app_js + app_css, f"compact mobile navigation remains: {forbidden}")
 check("window.isSecureContext" in app_js, "secure-context recording guard missing")
 
 # Scope decisions: no camera-capture path and no LangChain dependency/runtime.

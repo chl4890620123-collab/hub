@@ -28,6 +28,23 @@ public class TodoReassignmentService {
 
     public List<Map<String,Object>> pending(long projectId){return reassignments.listPending(projectId);}
 
+    /** Best-effort bulk resolve: each request is handled independently so one failure does not block the rest. */
+    @Transactional
+    public Map<Long,String> bulkResolve(long projectId,List<Long> requestIds,long newAssigneeId,User admin){
+        java.util.Map<Long,String> results=new java.util.LinkedHashMap<>();
+        for(Long requestId:requestIds){
+            try{
+                Map<String,Object> request=reassignments.findPending(requestId);
+                if(((Number)request.get("project_id")).longValue()!=projectId)throw new IllegalArgumentException("다른 프로젝트의 요청입니다.");
+                resolve(requestId,newAssigneeId,admin);
+                results.put(requestId,"RESOLVED");
+            }catch(Exception e){
+                results.put(requestId,"FAILED: "+e.getMessage());
+            }
+        }
+        return results;
+    }
+
     @Transactional
     public void resolve(long requestId,long newAssigneeId,User admin){
         Map<String,Object> request=reassignments.findPending(requestId);

@@ -4,11 +4,11 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="_csrf" th:content="${_csrf.token}"><meta name="_csrf_header" th:content="${_csrf.headerName}">
-  <meta name="theme-color" content="#2f6f55">
+  <meta name="theme-color" content="#159447">
   <link rel="stylesheet" th:href="@{/css/app.css}"><title>Hub</title>
 </head>
 <body class="auth-loading">
-<div id="authLoadingScreen" class="auth-loading-screen" aria-live="polite"><div class="auth-loading-card"><strong>Context AI Hub</strong><span class="muted">로그인 상태를 확인하고 있습니다...</span></div></div>
+<div id="authLoadingScreen" class="auth-loading-screen" aria-live="polite"><div class="auth-loading-card"><strong>Hub</strong><span class="muted">로그인 상태를 확인하고 있습니다...</span></div></div>
 <svg class="svg-sprite" aria-hidden="true" width="0" height="0" focusable="false">
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8v9.7a.5.5 0 0 1-.5.5H15v-6H9v6H3.5a.5.5 0 0 1-.5-.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.7" cy="10.7" r="6.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -27,10 +27,12 @@
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
-<header class="topbar"><div><strong>Context AI</strong><span class="product-sub">Hub · 회사 업무를 쉽게 정리해요</span><span id="meName"></span></div><div class="row"><button id="compactMenuBtn" class="compact-menu-button ghost" type="button">전체 메뉴</button><button id="logoutBtn" class="ghost" type="button">로그아웃</button></div></header>
+<header class="topbar"><div class="topbar-brand"><strong>Hub</strong><span class="product-sub">회사 업무를 쉽게 정리해요</span></div><div class="topbar-actions"><span id="headerProgress" class="header-progress" aria-live="polite">진행도 확인 중</span><span id="meName" class="header-user"></span><button id="logoutBtn" class="ghost logout-button" type="button">로그아웃</button></div></header>
 <main class="shell">
   <aside class="sidebar">
-    <h2>프로젝트</h2><select id="projectSelect"></select><button id="newProjectBtn" hidden>+ 프로젝트</button>
+    <h2>프로젝트</h2>
+    <div class="project-select-row"><select id="projectSelect"></select><button id="renameProjectBtn" hidden class="icon-btn" type="button" title="프로젝트 이름 수정" aria-label="프로젝트 이름 수정">✏️</button></div>
+    <button id="newProjectBtn" hidden>+ 프로젝트</button>
     <nav aria-label="주요 기능">
       <span class="nav-group-label">업무</span>
       <button data-view="dashboard" class="nav"><svg class="ui-icon"><use href="#i-home"/></svg><span>오늘 할 일</span></button>
@@ -38,7 +40,7 @@
       <button data-view="ask" class="nav"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI에게 묻기</span></button>
       <button data-view="todos" class="nav"><svg class="ui-icon"><use href="#i-check"/></svg><span>할 일 · 일정</span></button>
       <span class="nav-group-label">자료 정리</span>
-      <button data-view="documents" class="nav"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 가져오기</span></button>
+      <button data-view="documents" class="nav"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 요약</span></button>
       <button data-view="meetings" class="nav"><svg class="ui-icon"><use href="#i-mic"/></svg><span>회의 녹음</span></button>
       <span class="nav-group-label">연결 · 계정</span>
       <button data-view="connectors" class="nav"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
@@ -81,7 +83,7 @@
           <span class="eyebrow">빠른 입력</span><h2>회의·자료를 바로 업무로</h2>
           <div class="quick-input-grid friendly-actions">
             <button type="button" class="quick-input-card tone-green" data-open-view="meetings"><span class="feature-icon"><svg class="ui-icon"><use href="#i-mic"/></svg></span><strong>새 녹음</strong><span>지금 바로 회의를 녹음해요</span></button>
-            <button type="button" class="quick-input-card tone-blue" data-open-view="documents"><span class="feature-icon"><svg class="ui-icon"><use href="#i-doc"/></svg></span><strong>문서 가져오기</strong><span>내 파일에서 필요한 문서만 골라요</span></button>
+            <button type="button" class="quick-input-card tone-blue" data-open-view="documents"><span class="feature-icon"><svg class="ui-icon"><use href="#i-doc"/></svg></span><strong>문서 요약</strong><span>내 파일에서 필요한 문서만 골라요</span></button>
             <button type="button" class="quick-input-card tone-yellow" data-open-view="ask"><span class="feature-icon"><svg class="ui-icon"><use href="#i-spark"/></svg></span><strong>AI에게 묻기</strong><span>등록된 자료를 근거로 바로 답을 받아요</span></button>
             <button type="button" class="quick-input-card tone-pink" data-open-view="todos"><span class="feature-icon"><svg class="ui-icon"><use href="#i-check"/></svg></span><strong>내 할 일</strong><span>오늘 해야 할 일을 확인해요</span></button>
           </div>
@@ -98,17 +100,17 @@
     </section>
 
     <section id="view-search" class="view active">
-      <div class="hero"><div><span class="eyebrow">자료 찾기</span><h1>흩어진 업무 자료를 한 곳에서 찾습니다</h1><p>사내 파일과 연결된 서비스의 자료를 한 번에 찾고 원문 위치로 이동합니다. 자료를 근거로 한 AI 답변이 필요하면 <a href="#" data-open-view="ask">AI에게 묻기</a>를 이용하세요.</p></div><a class="primary-link" href="#" data-open-view="documents">파일도 가져오기</a></div><h2>자료 검색</h2>
+      <div class="hero"><div><span class="eyebrow">자료 찾기</span><h1>흩어진 업무 자료를 한 곳에서 찾습니다</h1><p>사내 파일과 연결된 서비스의 자료를 한 번에 찾고 원문 위치로 이동합니다. 자료를 근거로 한 AI 답변이 필요하면 <a class="inline-link" href="#" data-open-view="ask">✨ AI에게 묻기 →</a>를 이용하세요.</p></div><a class="primary-link" href="#" data-open-view="documents">파일도 가져오기</a></div><h2>자료 검색</h2>
       <p class="muted">“어디에 있었지?”를 해결합니다. Slack 메시지, Drive 파일, GitHub의 작업 기록, Notion 페이지와 직접 올린 자료까지 한 번에 찾고 원문 위치로 이동할 수 있습니다.</p>
-      <div id="recentViews" class="quick-searches" hidden></div>
+      <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지?"><button>자료 찾기</button></form><p class="search-ranking-hint">정확한 파일명·업무 코드도 찾고, 표현이 달라도 의미가 가까운 문서를 추천합니다. 기본 검색은 최신 버전을 사용하며, 작은 문서는 전체 내용까지 읽어 답변합니다.</p><div id="recentViews" class="quick-searches" hidden></div>
       <div id="connectorStatus" class="quick-searches"></div><div id="topSearches" class="quick-searches"></div>
       <div id="searchTodoOverview" class="task-overview-inline" aria-label="현재 할 일 요약"></div>
-      <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지?"><button>자료 찾기</button></form><p class="search-ranking-hint">정확한 파일명·업무 코드도 찾고, 표현이 달라도 의미가 가까운 문서를 추천합니다. 기본 검색은 최신 버전을 사용하며, 작은 문서는 전체 내용까지 읽어 답변합니다.</p>
+      
       <div id="searchResults" class="material-results"></div>
     </section>
 
     <section id="view-ask" class="view">
-      <div class="hero"><div><span class="eyebrow">AI에게 묻기</span><h1>등록된 자료를 근거로 답합니다</h1><p>자료 자체를 찾고 싶다면 <a href="#" data-open-view="search">자료 찾기</a>를 이용하세요.</p></div></div>
+      <div class="hero"><div><span class="eyebrow">AI에게 묻기</span><h1>등록된 자료를 근거로 답합니다</h1><p>자료 자체를 찾고 싶다면 <a class="inline-link" href="#" data-open-view="search">🔍 자료 찾기 →</a>를 이용하세요.</p></div></div>
       <div class="panel ask-panel"><div class="ask-heading"><div><span class="eyebrow">자료를 참고한 AI 답변</span><h3>자료에 질문</h3></div><span class="context-mode-badge">관련 자료를 먼저 확인</span></div><p class="muted">질문과 관련 있는 최신 자료를 먼저 찾고, 짧은 자료는 전체 내용을 확인합니다. 긴 자료는 관련 부분의 앞뒤 내용까지 함께 확인합니다. 확인할 원문이 없으면 임의로 답을 만들지 않습니다.</p><form id="askForm" class="row"><input id="askQuestion" placeholder="예: 출시 일정이 왜 바뀌었어?"><button>근거와 함께 답변</button></form><pre id="ragAnswer"></pre><div id="ragSources" class="material-results"></div></div>
     </section>
 
@@ -130,8 +132,23 @@
           <input id="meetingTitle" placeholder="회의 제목" value="회의">
           <div class="record-box"><span id="recordTime">00:00</span><button id="recordBtn" type="button">녹음 시작</button><button id="stopBtn" type="button" disabled>중지·분석</button></div>
           <p id="recordState" class="muted">브라우저에서 마이크 권한을 허용해 주세요. 다른 사내 PC에서 직접 녹음하려면 HTTPS가 필요할 수 있습니다.</p>
-          <label class="audio-fallback">기존 음성 파일로 분석<input id="audioFileInput" type="file" accept="audio/*"></label>
+          <label class="file-picker audio-fallback"><input id="audioFileInput" type="file" accept="audio/*"><span class="file-picker-btn">🎧 기존 음성 파일 선택</span><span class="file-picker-name">선택된 파일이 없습니다.</span></label>
           <button id="audioUploadBtn" class="ghost" type="button">선택한 음성 분석</button>
+        </div>
+        <form id="manualMeetingForm" class="panel recording-panel">
+          <h3 class="icon-heading"><span class="feature-icon tone-blue"><svg class="ui-icon"><use href="#i-doc"/></svg></span><span>📝 회의록 직접 입력</span></h3>
+          <p class="muted">녹음 없이 회의 내용을 바로 적으면 AI가 요약하고 할 일 후보를 만듭니다.</p>
+          <input name="title" placeholder="회의 제목" required>
+          <textarea name="text" placeholder="예: 로그인 오류는 민규님이 금요일까지 수정하기로 했습니다." rows="6" required></textarea>
+          <div class="grid2">
+            <label>완료 기한 <span class="optional">선택 입력</span><input name="dueDate" type="date"></label>
+            <label>담당자 <span class="optional">선택 입력</span><select id="manualMeetingAssignee" name="assigneeId"><option value="">지정 안 함</option></select></label>
+          </div>
+          <button>저장하고 내용 정리</button>
+        </form>
+        <div class="panel recording-panel" id="meetingSummaryPanel">
+          <h3 class="icon-heading"><span class="feature-icon tone-pink"><svg class="ui-icon"><use href="#i-spark"/></svg></span><span>✅ 요약 · 확인</span></h3>
+          <p class="muted">녹음이나 직접 입력을 저장하면 이 자리에 AI 요약과 할 일 후보가 나타납니다.</p>
           <div id="meetingResult"></div>
           <small class="muted">분석 결과는 관리자 검토 후 할 일과 결정으로 확정합니다.</small>
         </div>
@@ -141,27 +158,47 @@
     <section id="view-todos" class="view todo-workspace">
       <div class="row between todo-heading"><div><span class="eyebrow">내 업무</span><h1>할 일</h1><p class="muted">관리자가 확정해 배정한 업무를 보고, 진행 상태를 바꾸고, 이 일이 나온 관련 자료까지 바로 확인합니다.</p></div><input id="monthInput" type="month" aria-label="볼 달 선택"></div>
       <div id="todoProgress" class="panel todo-progress-panel"></div>
-      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option></select><div class="tabs"><button id="listMode" class="active">목록</button><button id="calendarMode">달력</button></div></div>
+      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option></select><div class="tabs" aria-label="할 일 보기 방식"><button id="listMode" class="active" type="button">목록</button><button id="todoGridMode" type="button">그리드</button><button id="calendarMode" type="button">달력</button></div></div>
       <div id="todoList"></div><div id="todoCalendar" style="display:none"></div><div id="todoUndated"></div>
+      <details class="panel">
+        <summary><strong>📨 파일 주고받기</strong> <span class="muted">팀원에게 파일을 보내거나 받은 파일을 확인합니다.</span></summary>
+        <form id="fileTransferForm" class="stack">
+          <label class="file-picker"><input name="file" type="file" required><span class="file-picker-btn">📎 보낼 파일 선택</span><span class="file-picker-name">선택된 파일이 없습니다.</span></label>
+          <div class="grid2">
+            <label>받는 사람<select id="fileTransferRecipient" name="recipientId" required><option value="">받는 사람 선택</option></select></label>
+            <label>메모 <span class="optional">선택 입력</span><input name="note" maxlength="1000" placeholder="예: 요청하신 파일입니다"></label>
+          </div>
+          <button>보내기</button>
+        </form>
+        <div id="fileTransferList" class="stack compact-list"></div>
+      </details>
     </section>
 
-    <section id="view-review" class="view"><span class="eyebrow">관리자 확인</span><h1>팀원에게 할 일 배정</h1><p class="muted">회의·문서에서 정리된 할 일을 관련 자료와 함께 확인하고, 담당자와 기한을 정해 팀원에게 배정합니다. 배정 전에는 팀원의 할 일에 나타나지 않습니다.</p><div class="review-legend"><span class="status-pill ready">바로 실행</span><span class="status-pill review">검토 필요</span><span class="status-pill missing">기한 미정</span></div><div id="reviewList"></div></section>
+    <section id="view-review" class="view"><span class="eyebrow">관리자 확인</span><h1>팀원에게 할 일 배정</h1><p class="muted">회의·문서에서 정리된 할 일을 관련 자료와 함께 확인하고, 담당자와 기한을 정해 팀원에게 배정합니다. 배정 전에는 팀원의 할 일에 나타나지 않습니다.</p><div class="review-legend"><span class="status-pill ready">바로 실행</span><span class="status-pill review">검토 필요</span><span class="status-pill missing">기한 미정</span></div><input id="reviewFilter" type="search" placeholder="🔎 제목·내용으로 후보 찾기" class="review-filter-input"><div id="reviewList"></div></section>
 
     <section id="view-documents" class="view">
-      <h1>자료 관리</h1><div class="web-only-note">파일 경로를 입력하지 않고 Windows 파일 탐색기에서 직접 선택합니다. 선택한 자료와 직접 입력한 내용은 같은 프로젝트에서 검색·AI 답변에 사용됩니다.</div>
-      <div class="grid2"><form id="uploadForm" class="panel explorer-upload"><h3>파일 하나 가져오기</h3><p class="muted">Windows 파일 탐색기에서 파일 하나를 선택합니다. 원본은 수정하지 않습니다.</p><input name="file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.png,.jpg,.jpeg,.webp" required><button>선택한 파일 가져오기</button></form><form id="folderUploadForm" class="panel explorer-upload"><h3>폴더째 가져오기</h3><p class="muted">폴더 선택을 누르면 Windows 탐색기가 열립니다. 폴더 안 지원 파일 목록을 확인한 뒤 모두 가져옵니다.</p><input id="folderPicker" name="folder" type="file" webkitdirectory directory multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.png,.jpg,.jpeg,.webp"><div id="folderFileList" class="compact-list muted">선택된 폴더가 없습니다.</div><button id="folderUploadButton" type="submit" disabled>폴더 파일 가져오기</button></form><form id="manualForm" class="panel"><h3>직접 입력</h3><p class="muted">파일이 없는 메모나 짧은 회의 내용을 바로 적을 수 있습니다.</p><input name="title" placeholder="제목" required><textarea name="text" placeholder="문서로 남지 않은 업무 메모" required></textarea><button>저장하고 내용 정리</button></form></div>
+      <h1>📥 문서 요약</h1><div class="web-only-note">파일 경로를 입력하지 않고 Windows 파일 탐색기에서 직접 선택합니다. 선택한 자료는 같은 프로젝트에서 검색·AI 답변에 사용됩니다.</div>
+      <form id="uploadForm" class="panel explorer-upload">
+        <h3>📎 파일 가져오기</h3><p class="muted">파일을 선택하면 원본은 그대로 두고 내용만 읽어 검색·AI 답변에 사용합니다.</p>
+        <label class="file-picker"><input name="file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.tsv,.json,.xml,.yaml,.yml,.png,.jpg,.jpeg,.webp" required><span class="file-picker-btn">📎 파일 선택</span><span class="file-picker-name">선택된 파일이 없습니다.</span></label>
+        <div class="grid2">
+          <label>완료 기한 <span class="optional">선택 입력</span><input name="dueDate" type="date"></label>
+          <label>담당자 <span class="optional">선택 입력</span><select id="uploadAssignee" name="assigneeId"><option value="">지정 안 함</option></select></label>
+        </div>
+        <button>선택한 파일 가져오기</button>
+      </form>
       <div id="documentAnalysisResult" class="latest-analysis-result"></div>
       
-      <div class="row between"><h2>등록 문서</h2><div class="row"><input id="documentMonthInput" type="month" aria-label="볼 달 선택"><div class="tabs"><button id="docListMode" class="active">목록</button><button id="docCalendarMode">달력</button></div><button id="refreshProcessingJobsBtn" type="button" class="ghost">처리 상태 새로고침</button></div></div><div id="documentCalendar" class="calendar" style="display:none"></div><div id="documentList"></div>
+      <div class="row between"><h2>등록 문서</h2><div class="todo-toolbar"><input id="documentMonthInput" type="month" aria-label="볼 달 선택"><div class="tabs" aria-label="문서 보기 방식"><button id="docListMode" class="active" type="button">목록</button><button id="docGridMode" type="button">그리드</button><button id="docCalendarMode" type="button">달력</button></div><button id="refreshProcessingJobsBtn" type="button" class="ghost">처리 상태 새로고침</button></div></div><input id="documentFilter" type="search" placeholder="🔎 파일 이름으로 찾기" class="review-filter-input"><div id="documentCalendar" class="calendar" style="display:none"></div><div id="documentList"></div>
       <details class="panel"><summary><strong>최근 AI 처리 기록</strong> <span class="muted">문서·회의 분석이 진행 중이거나 실패했을 때 확인합니다.</span></summary><div id="processingJobList" class="stack compact-list"></div></details>
       <form id="compareForm" class="panel"><h3>두 문서의 달라진 내용 비교</h3><p class="muted">복잡한 문서 번호를 입력할 필요 없이 비교할 두 자료를 직접 선택합니다.</p><div class="row"><select id="beforeVersionSelect" name="beforeVersionId" required></select><span>→</span><select id="afterVersionSelect" name="afterVersionId" required></select><button>비교</button></div></form><div id="changeResults"></div>
     </section>
 
-    <section id="view-connectors" class="view"><h1>연결 서비스</h1><div id="connectorStatusDetail"></div><p class="muted">Google Drive, Slack, GitHub, Notion의 자료를 읽어서 검색에 함께 사용합니다. 원본 자료는 바꾸지 않으며, 로그인에 필요한 비밀 정보는 관리자 서버에서만 보관합니다.</p><p id="connectorMemberNotice" class="notice">연결 설정은 관리자만 할 수 있어요. 필요한 서비스가 있으면 관리자에게 요청해 주세요.</p><div class="grid2">
-      <form class="connectorForm panel" hidden data-type="GITHUB"><h3>GitHub</h3><a class="oauth-connect" data-oauth-type="GITHUB" href="#">GitHub 계정으로 연결</a><p class="muted">연결 후 저장소 주소를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="예: 회사이름/프로젝트이름" required><button>자료 가져오기</button></form>
-      <form class="connectorForm panel" hidden data-type="GOOGLE_DRIVE"><h3>Google Drive</h3><p class="muted">먼저 Google 계정으로 로그인하면 Drive 읽기 권한 토큰을 자동으로 연결합니다.</p><a id="googleConnectBtn" class="button-link" href="#">Google 계정으로 연결</a><input name="scope" placeholder="Drive 폴더 주소 또는 폴더 ID" required><button>Drive 자료 가져오기</button></form>
-      <form class="connectorForm panel" hidden data-type="SLACK"><h3>Slack</h3><a class="oauth-connect" data-oauth-type="SLACK" href="#">Slack 계정으로 연결</a><p class="muted">연결 후 채널 ID를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="Slack 채널 ID (예: C0123456789)" required><button>자료 가져오기</button></form>
-      <form class="connectorForm panel" hidden data-type="NOTION"><h3>Notion</h3><a class="oauth-connect" data-oauth-type="NOTION" href="#">Notion 계정으로 연결</a><p class="muted">연결 후 페이지 주소를 입력하고 자료를 가져옵니다.</p><input name="scope" placeholder="Notion 페이지 주소 또는 페이지 ID" required><button>자료 가져오기</button></form>
+    <section id="view-connectors" class="view"><h1>연결 서비스</h1><div id="connectorStatusDetail"></div><p class="muted">Google Drive, Slack, GitHub, Notion에서 내가 접근 가능한 자료를 읽어서 이 프로젝트의 검색에 함께 사용합니다. 원본 자료는 바꾸지 않으며, 각자 자기 계정으로 연결합니다 — 팀원마다 연결 상태가 다를 수 있어요.</p><div class="grid2">
+      <form class="connectorForm panel" hidden data-type="GITHUB" data-icon="📦" data-noun="저장소"><h3>GitHub</h3><a class="oauth-connect" data-oauth-type="GITHUB" href="#">GitHub 계정으로 연결</a><p class="muted">연결하면 접근 가능한 저장소를 찾아볼 수 있습니다. 고른 뒤 가져오기를 누르세요.</p><div class="connector-actions"><input type="hidden" name="scope" class="connector-scope-value"><button type="button" class="ghost connector-browse-btn">📂 저장소 찾아보기</button><div class="connector-buttons"><button>자료 가져오기</button></div></div></form>
+      <form class="connectorForm panel" hidden data-type="GOOGLE_DRIVE" data-icon="📁" data-noun="폴더"><h3>Google Drive</h3><a id="googleConnectBtn" class="oauth-connect" href="#">Google 계정으로 연결</a><p class="muted">연결하면 접근 가능한 폴더를 찾아볼 수 있습니다. 고른 뒤 가져오기를 누르세요.</p><div class="connector-actions"><input type="hidden" name="scope" class="connector-scope-value"><button type="button" class="ghost connector-browse-btn">📂 폴더 찾아보기</button><div class="connector-buttons"><button>자료 가져오기</button></div></div></form>
+      <form class="connectorForm panel" hidden data-type="SLACK" data-icon="#️⃣" data-noun="채널"><h3>Slack</h3><a class="oauth-connect" data-oauth-type="SLACK" href="#">Slack 계정으로 연결</a><p class="muted">연결하면 채널을 찾아볼 수 있습니다. 채널에 <strong>/invite @hub</strong> 로 앱을 초대해야 메시지를 읽습니다.</p><div class="connector-actions"><input type="hidden" name="scope" class="connector-scope-value"><button type="button" class="ghost connector-browse-btn">📂 채널 찾아보기</button><div class="connector-buttons"><button>자료 가져오기</button></div></div></form>
+      <form class="connectorForm panel" hidden data-type="NOTION" data-icon="📄" data-noun="페이지"><h3>Notion</h3><a class="oauth-connect" data-oauth-type="NOTION" href="#">Notion 계정으로 연결</a><p class="muted">연결할 때 공유한 페이지를 찾아볼 수 있습니다.</p><div class="connector-actions"><input type="hidden" name="scope" class="connector-scope-value"><button type="button" class="ghost connector-browse-btn">📂 페이지 찾아보기</button><div class="connector-buttons"><button>자료 가져오기</button></div></div></form>
     </div></section>
 
     <section id="view-account" class="view">
@@ -257,6 +294,18 @@
       </details>
 
       <details class="admin-collapsible">
+        <summary><strong>민감정보 해시 처리</strong><span>회의록에서 자동으로 가리지 못하는 이름·값을 등록해 둘 때만 엽니다.</span></summary>
+        <div class="admin-collapsible-body">
+          <p class="muted">주민번호·카드번호·전화번호·이메일은 등록 없이도 회의록에서 자동으로 가려집니다. 그 외에 가리고 싶은 이름이나 값(예: 특정 고객명, 사건번호)만 여기에 추가하면 됩니다. 등록한 뒤 새로 만들어지는 회의록부터 적용되며, 이미 저장된 회의록에는 다시 적용되지 않습니다.</p>
+          <form id="sensitiveTermForm" class="row">
+            <input name="term" maxlength="500" placeholder="예: 홍길동, 사건번호 2024-123" required>
+            <button type="submit">해시 대상으로 추가</button>
+          </form>
+          <div id="sensitiveTermList" class="stack compact-list"></div>
+        </div>
+      </details>
+
+      <details class="admin-collapsible">
         <summary><strong>바뀐 내용 기록</strong><span>누가 사용자·프로젝트·검색 설정을 바꿨는지 확인해야 할 때만 엽니다.</span></summary>
         <div class="admin-collapsible-body"><p class="muted">운영 중 문제가 생겼을 때 변경한 사람과 시간을 확인할 수 있습니다.</p><div id="auditList"></div></div>
       </details>
@@ -269,29 +318,7 @@
   </section>
 </main>
 
-<nav id="compactBottomNav" class="compact-bottom-nav" aria-label="좁은 화면 빠른 메뉴">
-  <button type="button" data-compact-view="dashboard" class="active"><svg class="ui-icon" aria-hidden="true"><use href="#i-home"/></svg><small>홈</small></button>
-  <button type="button" data-compact-view="search"><svg class="ui-icon" aria-hidden="true"><use href="#i-search"/></svg><small>검색</small></button>
-  <button type="button" data-compact-view="meetings" class="compact-primary-action"><svg class="ui-icon" aria-hidden="true"><use href="#i-mic"/></svg><small>회의</small></button>
-  <button type="button" data-compact-view="todos"><svg class="ui-icon" aria-hidden="true"><use href="#i-check"/></svg><small>할 일</small></button>
-  <button type="button" id="compactMoreBtn"><svg class="ui-icon" aria-hidden="true"><use href="#i-more"/></svg><small>더보기</small></button>
-</nav>
-<div id="compactMoreSheet" class="compact-more-sheet" hidden>
-  <div class="compact-more-card">
-    <div class="row between"><div><span class="eyebrow">더보기</span><h2>필요한 기능</h2></div><button id="compactMoreClose" type="button" class="ghost">닫기</button></div>
-    <p class="muted">화면이 좁을 때는 자주 쓰는 검색·회의 녹음 기능을 아래 메뉴에서 빠르게 열 수 있습니다. 기능 자체는 PC와 동일합니다.</p>
-    <div class="compact-feature-grid">
-      <button type="button" data-compact-view="documents"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 가져오기</span></button>
-      <button type="button" data-compact-view="ask"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI에게 묻기</span></button>
-      <button type="button" data-compact-view="connectors"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
-      <button type="button" data-compact-view="review" class="nav-admin" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span><span class="nav-admin-badge">ADMIN</span></button>
-      <button type="button" data-compact-view="account"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
-      <button type="button" data-compact-view="admin" id="compactAdminBtn" class="nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
-    </div>
-  </div>
-</div>
-
 <div id="viewer" class="viewer" hidden><div class="viewer-card"><div class="row between"><div><span class="eyebrow">원문 근거</span><h2 id="viewerTitle">원문 확인</h2></div><button id="viewerClose" class="ghost">닫기</button></div><div id="viewerMeta" class="material-location"></div><div class="viewer-split"><section><h3>AI가 사용한 근거</h3><div id="viewerEvidence"></div></section><section><h3>원문 / 요약</h3><div id="viewerSummary" class="summary-box"></div><pre id="viewerText"></pre></section></div></div></div>
 <script th:src="@{/js/hub-runtime.js}"></script>
-<script th:src="@{/js/app.js}"></script>
+<script th:src="@{/js/app.js?v=20260915-2}"></script>
 </body></html>

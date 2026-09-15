@@ -1,4 +1,4 @@
-# Context AI Hub - single Spring configuration file.
+# Hub - single Spring configuration file.
 #
 # Default: local profile (H2 file DB, no Docker required).
 # Optional: SPRING_PROFILES_ACTIVE=postgresql or postgresql,prod.
@@ -20,7 +20,7 @@ spring:
     locale-resolver: fixed
 
 server:
-  address: ${HUB_BIND_ADDRESS:127.0.0.1}
+  address: ${HUB_BIND_ADDRESS:localhost}
   port: ${HUB_PORT:8080}
   servlet:
     encoding:
@@ -28,7 +28,10 @@ server:
       enabled: true
       force: true
   error:
-    include-message: always
+    # Every expected error path already returns its own Korean message via ApiExceptionHandler;
+    # this setting only affects genuinely unhandled exceptions, which must never leak internal
+    # exception text/class names to the browser.
+    include-message: never
 
 management:
   endpoints:
@@ -38,8 +41,10 @@ management:
 
 hub:
   storage-root: ${HUB_STORAGE_ROOT:./data/storage}
-  ai-base-url: ${HUB_AI_BASE_URL:http://127.0.0.1:8000}
+  ai-base-url: ${HUB_AI_BASE_URL:http://localhost:8000}
   demo-mode: ${HUB_DEMO_MODE:false}
+  # Background AI jobs run one at a time so a folder import cannot outrun the Gemini per-minute quota.
+  ai-job-concurrency: ${HUB_AI_JOB_CONCURRENCY:1}
   # Browser file upload is the normal web path. The server-side local reader remains disabled
   # unless an administrator deliberately configures safe roots.
   local-reader-roots: ${HUB_LOCAL_READER_ROOTS:}
@@ -53,6 +58,17 @@ hub:
   embedding-retry-enabled: ${HUB_EMBED_RETRY_ENABLED:true}
   embedding-retry-interval-ms: ${HUB_EMBED_RETRY_INTERVAL_MS:600000}
   embedding-retry-initial-delay-ms: ${HUB_EMBED_RETRY_INITIAL_DELAY_MS:60000}
+  # Only DONE todos past their due date are ever removed; documents/meetings/evidence are never touched.
+  todo-retention-enabled: ${HUB_TODO_RETENTION_ENABLED:true}
+  todo-retention-months: ${HUB_TODO_RETENTION_MONTHS:12}
+  todo-retention-interval-ms: ${HUB_TODO_RETENTION_INTERVAL_MS:86400000}
+  todo-retention-initial-delay-ms: ${HUB_TODO_RETENTION_INITIAL_DELAY_MS:300000}
+  # Log-shaped tables only (expired sessions, search log, orphaned connector import history) - live
+  # application data such as documents/meetings/evidence is never touched by this job.
+  data-retention-enabled: ${HUB_DATA_RETENTION_ENABLED:true}
+  data-retention-months: ${HUB_DATA_RETENTION_MONTHS:12}
+  data-retention-interval-ms: ${HUB_DATA_RETENTION_INTERVAL_MS:86400000}
+  data-retention-initial-delay-ms: ${HUB_DATA_RETENTION_INITIAL_DELAY_MS:600000}
   github-token: ${GITHUB_TOKEN:}
   google-access-token: ${GOOGLE_ACCESS_TOKEN:}
   google-client-id: ${GOOGLE_CLIENT_ID:}
@@ -64,8 +80,20 @@ hub:
   github-client-secret: ${GITHUB_CLIENT_SECRET:}
   slack-client-id: ${SLACK_CLIENT_ID:}
   slack-client-secret: ${SLACK_CLIENT_SECRET:}
+  slack-team-id: ${SLACK_TEAM_ID:}
   notion-client-id: ${NOTION_CLIENT_ID:}
   notion-client-secret: ${NOTION_CLIENT_SECRET:}
+  # Address the browser uses to reach Hub. OAuth callbacks are built from this, so it must match
+  # what each provider has registered. Empty means "derive it from the incoming request".
+  public-base-url: ${HUB_PUBLIC_BASE_URL:}
+  # Off by default: a connector token above is only ever used by the account that linked it. Turning
+  # this on lets every user fall back to that one shared token/account for a connector they haven't
+  # personally linked - only appropriate for a single-tenant demo, never when users must stay isolated.
+  allow-shared-connector-fallback: ${HUB_ALLOW_SHARED_CONNECTOR_FALLBACK:false}
+  # Keyed hash used to redact resident-registration/card/phone numbers and emails out of STT
+  # transcripts before they are stored or searched. Admin-set and secret: without it, a random
+  # key is generated per run (redacted values then won't match across restarts).
+  stt-pii-hash-key: ${HUB_STT_PII_HASH_KEY:}
   jwt:
     secret: ${HUB_JWT_SECRET:hub-local-only-secret-ChangeMe-1234567890}
     issuer: ${HUB_JWT_ISSUER:hub}

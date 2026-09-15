@@ -11,6 +11,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -88,6 +90,7 @@ public class SecurityConfig {
             // Public pages and refresh/logout must still work when the access JWT is expired.
             if ("/".equals(path) || "/api/auth/login".equals(path)
                     || "/api/auth/signup/member".equals(path) || "/api/auth/signup/admin".equals(path)
+                    || "/api/auth/signup/projects".equals(path)
                     || "/api/auth/setup-status".equals(path) || "/api/auth/check-login-id".equals(path)
                     || "/api/auth/refresh".equals(path) || "/api/auth/logout".equals(path)
                     || "/api/connectors/google/callback".equals(path)
@@ -112,10 +115,16 @@ public class SecurityConfig {
 
         http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(config -> config.csrfTokenRepository(csrf))
+                // Logout is exempt: signing out must never fail because the CSRF cookie went missing,
+                // and the worst a forged logout can do is end a session the user can restart.
+                .csrf(config -> config.csrfTokenRepository(csrf).ignoringRequestMatchers("/api/auth/logout"))
+                // The token is only written to the cookie when something reads it during the request. Without
+                // this the cookie can be missing on a page the browser served from cache, and the next POST
+                // (logout, most visibly) fails CSRF and — being anonymous — comes back 401 with no body.
+                .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/login", "/css/**", "/js/**", "/favicon.ico", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/setup-status", "/api/auth/check-login-id").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/setup-status", "/api/auth/check-login-id", "/api/auth/signup/projects").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup/member", "/api/auth/signup/admin", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/connectors/google/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/connectors/oauth/callback").permitAll()
@@ -129,5 +138,18 @@ public class SecurityConfig {
                 .requestCache(cache -> cache.disable())
                 .cors(Customizer.withDefaults());
         return http.build();
+    }
+
+    /** Forces the CSRF token to materialise so CookieCsrfTokenRepository always writes XSRF-TOKEN. */
+    static final class CsrfCookieFilter extends org.springframework.web.filter.OncePerRequestFilter {
+        @Override
+        protected void doFilterInternal(jakarta.servlet.http.HttpServletRequest request,
+                                        jakarta.servlet.http.HttpServletResponse response,
+                                        jakarta.servlet.FilterChain chain)
+                throws jakarta.servlet.ServletException, java.io.IOException {
+            CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (token != null) token.getToken();
+            chain.doFilter(request, response);
+        }
     }
 }

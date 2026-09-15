@@ -70,6 +70,19 @@ function Wait-Url([string]$Url, [int]$Seconds, [string]$Name) {
     throw "$Name 시작 시간 초과: $Url"
 }
 
+function Test-PythonImport([string]$Python, [string]$ImportStatement) {
+    # A native command that writes anything to stderr (a traceback, or even a benign library
+    # INFO line) becomes a terminating NativeCommandError under $ErrorActionPreference = "Stop",
+    # even when redirected to $null. try/catch is required so a successful-but-noisy import
+    # doesn't get treated as a missing package.
+    try {
+        & $Python -c $ImportStatement 2>$null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
 function Stop-Tree([string]$PidFile) {
     if (-not (Test-Path $PidFile)) { return }
     $pidValue = (Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
@@ -85,16 +98,14 @@ function Ensure-PythonRuntime {
         if ($LASTEXITCODE -ne 0) { throw "Python 가상환경 생성 실패" }
     }
 
-    & $VenvPython -c "import fastapi,uvicorn,httpx,pydantic,multipart" 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Test-PythonImport $VenvPython "import fastapi,uvicorn,httpx,pydantic,multipart")) {
         Write-Host "[SETUP] AI 기본 패키지 설치 (최초 1회)"
         & $VenvPython -m pip install --disable-pip-version-check -r (Join-Path $AiDir "requirements.txt")
         if ($LASTEXITCODE -ne 0) { throw "AI 기본 패키지 설치 실패" }
     }
 
     if ($env:HUB_EMBED_MODE -eq "e5" -or $env:HUB_AI_MODE -eq "gemini") {
-        & $VenvPython -c "import sentence_transformers; import paddle; import paddleocr" 2>$null
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Test-PythonImport $VenvPython "import sentence_transformers; import paddle; import paddleocr")) {
             Write-Host "[SETUP] 로컬 E5/업로드 문서 OCR 패키지 설치 (최초 1회)"
             & $VenvPython -m pip install --disable-pip-version-check -r (Join-Path $AiDir "requirements-local.txt")
             if ($LASTEXITCODE -ne 0) { throw "로컬 AI 의존성 설치 실패: ai-service/requirements-local.txt" }
@@ -214,11 +225,11 @@ function Run-Build {
 
 function Show-Status {
     $port = if ($env:HUB_PORT) { $env:HUB_PORT } else { "8080" }
-    $ai = Test-Url "http://127.0.0.1:8000/health"
-    $backend = Test-Url "http://127.0.0.1:$port/actuator/health"
+    $ai = Test-Url "http://localhost:8000/health"
+    $backend = Test-Url "http://localhost:$port/actuator/health"
     Write-Host ("AI service : " + $(if ($ai) { "UP" } else { "DOWN" }))
     Write-Host ("Backend    : " + $(if ($backend) { "UP" } else { "DOWN" }))
-    if ($backend) { Write-Host "Web        : http://127.0.0.1:$port/login" }
+    if ($backend) { Write-Host "Web        : http://localhost:$port/login" }
 }
 
 if ($Action -eq "stop") {
@@ -235,8 +246,8 @@ else {
 }
 
 if (-not $env:HUB_PORT) { $env:HUB_PORT = "8080" }
-if (-not $env:HUB_BIND_ADDRESS) { $env:HUB_BIND_ADDRESS = "127.0.0.1" }
-if (-not $env:HUB_AI_BASE_URL) { $env:HUB_AI_BASE_URL = "http://127.0.0.1:8000" }
+if (-not $env:HUB_BIND_ADDRESS) { $env:HUB_BIND_ADDRESS = "localhost" }
+if (-not $env:HUB_AI_BASE_URL) { $env:HUB_AI_BASE_URL = "http://localhost:8000" }
 if (-not $env:HUB_AI_MODE) { $env:HUB_AI_MODE = "mock" }
 if (-not $env:HUB_EMBED_MODE) { $env:HUB_EMBED_MODE = "hash" }
 $env:SPRING_PROFILES_ACTIVE = "local"
@@ -255,18 +266,18 @@ if ($LASTEXITCODE -ne 0 -or $javaText -notmatch 'version "21[\.]') {
 }
 
 Ensure-PythonRuntime
-if (-not (Test-Url "http://127.0.0.1:8000/health")) {
+if (-not (Test-Url "http://localhost:8000/health")) {
     $aiOut = Join-Path $Runtime "ai.out.log"; $aiErr = Join-Path $Runtime "ai.err.log"
-    $p = Start-Process -FilePath $VenvPython -ArgumentList @("-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8000") -WorkingDirectory $AiDir -RedirectStandardOutput $aiOut -RedirectStandardError $aiErr -PassThru
+    $p = Start-Process -FilePath $VenvPython -ArgumentList @("-m","uvicorn","app.main:app","--host","localhost","--port","8000") -WorkingDirectory $AiDir -RedirectStandardOutput $aiOut -RedirectStandardError $aiErr -PassThru
     Set-Content (Join-Path $Runtime "ai.pid") $p.Id
 }
-try { Wait-Url "http://127.0.0.1:8000/health" 90 "AI service" } catch {
+try { Wait-Url "http://localhost:8000/health" 90 "AI service" } catch {
     Get-Content (Join-Path $Runtime "ai.err.log") -Tail 100 -ErrorAction SilentlyContinue
     throw
 }
 
 $gradleCmd = Get-GradleCommand
-if (-not (Test-Url "http://127.0.0.1:$($env:HUB_PORT)/actuator/health")) {
+if (-not (Test-Url "http://localhost:$($env:HUB_PORT)/actuator/health")) {
     $backendOut = Join-Path $Runtime "backend.out.log"; $backendErr = Join-Path $Runtime "backend.err.log"
     if ($gradleCmd -match '\.(bat|cmd)$') {
         $cmdLine = ('"{0}" --no-daemon bootRun' -f $gradleCmd)
@@ -276,7 +287,7 @@ if (-not (Test-Url "http://127.0.0.1:$($env:HUB_PORT)/actuator/health")) {
     }
     Set-Content (Join-Path $Runtime "backend.pid") $p.Id
 }
-try { Wait-Url "http://127.0.0.1:$($env:HUB_PORT)/actuator/health" 180 "Spring Boot" } catch {
+try { Wait-Url "http://localhost:$($env:HUB_PORT)/actuator/health" 180 "Spring Boot" } catch {
     Write-Host "--- backend stderr ---"; Get-Content (Join-Path $Runtime "backend.err.log") -Tail 120 -ErrorAction SilentlyContinue
     Write-Host "--- backend stdout ---"; Get-Content (Join-Path $Runtime "backend.out.log") -Tail 120 -ErrorAction SilentlyContinue
     throw
@@ -284,11 +295,11 @@ try { Wait-Url "http://127.0.0.1:$($env:HUB_PORT)/actuator/health" 180 "Spring B
 
 Write-Host ""
 Write-Host "Hub v2.34 로컬 실행 완료"
-Write-Host "Web       : http://127.0.0.1:$($env:HUB_PORT)/login"
-Write-Host "AI health : http://127.0.0.1:8000/health"
+Write-Host "Web       : http://localhost:$($env:HUB_PORT)/login"
+Write-Host "AI health : http://localhost:8000/health"
 Write-Host "Stop      : HUB.bat stop"
 Write-Host "실제 비밀값은 표시하지 않습니다."
 if ($env:HUB_BIND_ADDRESS -eq "0.0.0.0") {
     Write-Host "LAN 공개 상태입니다. 다른 PC의 브라우저 직접 녹음은 HTTPS 사용을 권장합니다."
 }
-if ($env:HUB_LOCAL_AUTO_OPEN -ne "false") { Start-Process "http://127.0.0.1:$($env:HUB_PORT)/login" }
+if ($env:HUB_LOCAL_AUTO_OPEN -ne "false") { Start-Process "http://localhost:$($env:HUB_PORT)/login" }

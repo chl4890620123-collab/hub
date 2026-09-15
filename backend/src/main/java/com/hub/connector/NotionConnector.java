@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hub.util.HttpRequestFactories;
 import org.springframework.http.HttpHeaders;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -79,6 +80,12 @@ public class NotionConnector implements ReadOnlyConnector {
                     .header("Notion-Version", API_VERSION)
                     .retrieve().body(String.class);
             return ConnectorSupport.json(json, body, "Invalid Notion response");
+        } catch (HttpClientErrorException.Unauthorized e) {
+            throw new IllegalStateException("Notion 연결이 만료되었거나 토큰이 유효하지 않습니다. 다시 연결해 주세요.", e);
+        } catch (HttpClientErrorException.Forbidden e) {
+            throw new IllegalStateException("Notion Integration에 해당 페이지 접근 권한이 없습니다. 페이지의 Connections에서 Integration을 공유해 주세요.", e);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new IllegalStateException("Notion 페이지를 찾을 수 없거나 Integration에 공유되지 않았습니다.", e);
         } catch (RestClientException e) {
             throw new IllegalStateException("Notion API request failed", e);
         }
@@ -116,4 +123,32 @@ public class NotionConnector implements ReadOnlyConnector {
         return found;
     }
 
+
+    /** Pages this integration has been shared with. */
+    @Override
+    public List<ConnectorTarget> targets(String token) {
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode body;
+        try {
+            String response = client.post().uri("/search")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header("Notion-Version", API_VERSION)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body("{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":100}")
+                    .retrieve().body(String.class);
+            body = ConnectorSupport.json(json, response, "Invalid Notion response");
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Notion API request failed", e);
+        }
+        JsonNode results = body.path("results");
+        if (results.isArray()) {
+            for (JsonNode page : results) {
+                String id = page.path("id").asText("");
+                if (id.isBlank()) continue;
+                out.add(new ConnectorTarget(id, pageTitle(page), "Notion 페이지",
+                        page.path("url").asText("https://www.notion.so/" + id.replace("-", ""))));
+            }
+        }
+        return out;
+    }
 }

@@ -56,5 +56,9 @@ public class DecisionRepository {
         return jdbc.update("UPDATE decision_candidate SET review_status='CONFIRMED',confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')", actorId, id) == 1;
     }
 
+    public boolean reject(long id, long actorId) {
+        return jdbc.update("UPDATE decision_candidate SET review_status='REJECTED',confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')", actorId, id) == 1;
+    }
+
     public long projectId(long id) { return jdbc.queryForObject("SELECT project_id FROM decision_candidate WHERE id=?", Long.class, id); }
 }

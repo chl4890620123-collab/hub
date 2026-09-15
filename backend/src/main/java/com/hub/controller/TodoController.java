@@ -90,6 +90,32 @@ public class TodoController {
         return Map.of("status", "CONFIRMED");
     }
 
+    public record EditCandidate(String title, String description) {}
+
+    @PatchMapping("/api/todos/{todoId}")
+    public Map<String,Object> editCandidate(@PathVariable long todoId,
+                                            @RequestBody EditCandidate request,
+                                            Authentication authentication){
+        User user=currentUser.requireOperational(authentication);
+        TodoItem before=todos.find(todoId);
+        projectAccess.requireAdmin(before.projectId(),user);
+        todoService.editCandidate(before,request.title(),request.description(),user);
+        return Map.of("status","UPDATED");
+    }
+
+    public record BulkConfirm(List<Long> todoIds, Long assigneeId, LocalDate dueDate) {}
+
+    @PostMapping("/api/projects/{projectId}/review/todos/bulk-confirm")
+    public Map<String,Object> bulkConfirm(@PathVariable long projectId,
+                                          @RequestBody BulkConfirm request,
+                                          Authentication authentication){
+        User user=currentUser.requireOperational(authentication);
+        projectAccess.requireAdmin(projectId,user);
+        if(request.todoIds()==null||request.todoIds().isEmpty())throw new IllegalArgumentException("선택된 할 일이 없습니다.");
+        Map<Long,String> results=todoService.bulkConfirm(projectId,request.todoIds(),request.assigneeId(),request.dueDate(),user);
+        return Map.of("results",results);
+    }
+
     @PostMapping("/api/todos/{todoId}/reject")
     public Map<String,Object> reject(@PathVariable long todoId,Authentication authentication){
         User user=currentUser.requireOperational(authentication);

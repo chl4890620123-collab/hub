@@ -3,7 +3,19 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(docker compose *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8080/login)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8080/login)",
+      "Bash(./mvnw -q -o compile)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" compileJava --console=plain -q)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" compileJava --console=plain)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" compileJava --rerun-tasks --console=plain)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" compileTestJava --console=plain)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" bootRun --console=plain)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(node \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" http://localhost:8080/ --script \"C:\\\\Users\\\\samsung\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\hub_qa_signup.mjs\" --session hubqa)",
+      "Bash(node \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" --session hubqa --snapshot)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Get-Process -Id $_ | Select-Object Id,ProcessName,Path })",
+      "PowerShell(Stop-Process -Id 23168 -Force)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'git' } | Select-Object Id,ProcessName,StartTime)"
     ]
   }
 }

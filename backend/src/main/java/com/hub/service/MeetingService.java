@@ -29,10 +29,13 @@ public class MeetingService {
     private final AnalysisService analysis;
     private final TimelineRepository timeline;
     private final DocumentService documents;
+    private final SensitiveDataMaskingService piiMasking;
 
     public MeetingService(MeetingRepository meetings, FileStorageService storage, AiClient ai,
-                          AnalysisService analysis, TimelineRepository timeline, DocumentService documents) {
+                          AnalysisService analysis, TimelineRepository timeline, DocumentService documents,
+                          SensitiveDataMaskingService piiMasking) {
         this.meetings = meetings; this.storage = storage; this.ai = ai; this.analysis = analysis; this.timeline = timeline; this.documents = documents;
+        this.piiMasking = piiMasking;
     }
 
     public UploadResult createUpload(long projectId, String title, OffsetDateTime meetingAt, MultipartFile audio, User user) {
@@ -85,7 +88,9 @@ public class MeetingService {
         if (result == null || result.text() == null || result.text().isBlank()) {
             throw new IllegalStateException("회의 음성에서 내용을 확인하지 못했습니다. 녹음 상태를 확인해 다시 시도해 주세요.");
         }
-        String transcript = UnicodeText.nfc(result.text()).strip();
+        // Masked immediately after STT returns: the resident-number/card/phone/email plaintext
+        // never reaches transcript storage, search indexing, or the AI analysis call below.
+        String transcript = piiMasking.mask(UnicodeText.nfc(result.text()).strip());
 
         progress.accept(55);
         meetings.deleteSegments(meetingId); // retry-safe: never duplicate transcript segments.
@@ -96,7 +101,7 @@ public class MeetingService {
             for (AiDtos.SttSegment segment : result.segments()) {
                 if (segment.text() == null || segment.text().isBlank()) continue;
                 meetings.createSegment(meetingId, index++, segment.startMs(), segment.endMs(),
-                        UnicodeText.nfc(segment.speaker()), UnicodeText.nfc(segment.text()).trim());
+                        UnicodeText.nfc(segment.speaker()), piiMasking.mask(UnicodeText.nfc(segment.text()).trim()));
             }
         }
         meetings.completeTranscript(meetingId, transcript);

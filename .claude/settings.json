@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(.\\\\HUB.bat doctor; Write-Host \"EXITCODE=$LASTEXITCODE\")",
+      "PowerShell(.\\\\HUB.bat start; Write-Host \"EXITCODE=$LASTEXITCODE\")",
+      "PowerShell(.\\\\HUB.bat status; Write-Host \"EXITCODE=$LASTEXITCODE\")",
+      "PowerShell(node \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" --session hubqa --script \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\noop.mjs\" 2>&1)",
+      "PowerShell(node \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" --session hubqa --eval \"\\(\\(\\)=>{const b=[...document.querySelectorAll\\('button'\\)].map\\(x=>x.innerText.trim\\(\\).slice\\(0,40\\)\\);return {buttons:b}}\\)\\(\\)\")",
+      "PowerShell(docker exec deploy-postgres-1 psql -U hub -d hub -c \"select id, email, name, role, status from users order by id\" 2>&1)",
+      "PowerShell(docker exec deploy-postgres-1 psql -U hub -d hub -c \"\\\\d app_user\" 2>&1)",
+      "PowerShell(docker exec deploy-postgres-1 psql -U hub -d hub -c \"select id, login_id, email, display_name, global_role, approval_status, account_status from app_user order by id\" 2>&1)",
+      "Bash(./.venv/Scripts/python.exe -m pip install --disable-pip-version-check -r requirements-local.txt)"
+    ]
+  }
+}

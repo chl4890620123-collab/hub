@@ -33,6 +33,7 @@ public class DocumentService {
     private final TimelineRepository timeline;
     private final VectorIndexService vectorIndex;
     private final TransactionTemplate transaction;
+    private final SensitiveDataMaskingService piiMasking;
 
     public DocumentService(DocumentRepository documents,
                            DocumentParserService parser,
@@ -41,7 +42,8 @@ public class DocumentService {
                            AiClient ai,
                            TimelineRepository timeline,
                            VectorIndexService vectorIndex,
-                           org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                           org.springframework.transaction.PlatformTransactionManager transactionManager,
+                           SensitiveDataMaskingService piiMasking) {
         this.documents = documents;
         this.parser = parser;
         this.chunker = chunker;
@@ -50,6 +52,7 @@ public class DocumentService {
         this.timeline = timeline;
         this.vectorIndex = vectorIndex;
         this.transaction = new TransactionTemplate(transactionManager);
+        this.piiMasking = piiMasking;
     }
 
     /**
@@ -89,6 +92,24 @@ public class DocumentService {
         var duplicate = documents.findVersionByHash(projectId, "MANUAL_TEXT", hash);
         if (duplicate.isPresent()) return duplicate.get();
         return saveText(projectId, "MANUAL_TEXT", "manual:" + normalizeSourceName(safeTitle), safeTitle, null, text.strip(), bytes, user);
+    }
+
+    /**
+     * Edits a specific manually-entered document in place: same document, a new immutable version.
+     * Unlike manualText(), this is keyed by documentId rather than by title, so renaming a note
+     * updates it instead of quietly creating a second document next to it.
+     */
+    public long manualEdit(long projectId, long documentId, String title, String text, User user) {
+        var meta = documents.findMeta(documentId)
+                .filter(m -> m.projectId() == projectId)
+                .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        if (!"MANUAL_TEXT".equals(meta.sourceType()))
+            throw new IllegalArgumentException("직접 입력한 자료만 수정할 수 있습니다.");
+        String safeTitle = safeTitle(title, meta.originalName());
+        validateExtractedText(text);
+        String stripped = text.strip();
+        byte[] bytes = stripped.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return createVersionForDocument(projectId, documentId, safeTitle, null, stripped, bytes, user.id());
     }
 
     /**
@@ -244,22 +265,40 @@ public class DocumentService {
                           byte[] hashBytes,
                           long userId) {
         final String normalizedTitle = UnicodeText.nfc(title);
-        final String normalizedText = UnicodeText.nfc(text);
+        Long documentId = transaction.execute(status -> {
+            // A project-level row lock is intentionally brief and database-portable. It closes the
+            // "first upload" race before a document exists, while parsing/OCR/embedding remain outside
+            // the transaction so long-running AI work never holds this lock.
+            documents.lockProject(projectId);
+            return documents.findDocumentId(projectId, sourceType, sourceIdentifier)
+                    .orElseGet(() -> documents.createDocument(
+                            projectId, sourceType, sourceIdentifier, normalizedTitle, storagePath, userId
+                    ));
+        });
+        if (documentId == null) throw new IllegalStateException("Document id was not resolved");
+        return createVersionForDocument(projectId, documentId, title, storagePath, text, hashBytes, userId);
+    }
+
+    /**
+     * Appends one new immutable version to an already-known document. Shared by first-time
+     * find-or-create imports and by manualEdit(), which already knows the exact document to update.
+     */
+    private long createVersionForDocument(long projectId,
+                                          long documentId,
+                                          String title,
+                                          String storagePath,
+                                          String text,
+                                          byte[] hashBytes,
+                                          long userId) {
+        final String normalizedTitle = UnicodeText.nfc(title);
+        // Masked before it ever reaches full_text/chunks/embeddings/search, same as meeting transcripts.
+        final String normalizedText = piiMasking.mask(UnicodeText.nfc(text));
         List<String> chunks = chunker.chunk(normalizedText);
         if (chunks.isEmpty()) throw new IllegalArgumentException("No searchable text was produced");
         EmbeddingAttempt embedding = embedBestEffort(chunks);
         String hash = Hashing.sha256(hashBytes);
 
         Long versionId = transaction.execute(status -> {
-            // A project-level row lock is intentionally brief and database-portable. It closes the
-            // "first upload" race before a document exists, while parsing/OCR/embedding remain outside
-            // the transaction so long-running AI work never holds this lock.
-            documents.lockProject(projectId);
-            long documentId = documents.findDocumentId(projectId, sourceType, sourceIdentifier)
-                    .orElseGet(() -> documents.createDocument(
-                            projectId, sourceType, sourceIdentifier, normalizedTitle, storagePath, userId
-                    ));
-
             // Prevent two sync requests from allocating the same version number.
             documents.lockDocument(documentId);
             var latest = documents.latestVersion(documentId);
@@ -297,7 +336,7 @@ public class DocumentService {
                     projectId,
                     latest.isPresent() ? "DOCUMENT_UPDATED" : "DOCUMENT_IMPORTED",
                     normalizedTitle,
-                    sourceType,
+                    "DOCUMENT",
                     LocalDateTime.now(),
                     "DOCUMENT_VERSION",
                     version

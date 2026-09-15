@@ -34,10 +34,24 @@ public class ConnectorRepository {
                          String sourceUrl,
                          OffsetDateTime createdAt,
                          String metadataJson) {
+        saveItem(projectId, null, connectorType, externalId, itemType, title, content, author, sourceUrl, createdAt, metadataJson);
+    }
+
+    public void saveItem(long projectId,
+                         Long connectorAccountId,
+                         String connectorType,
+                         String externalId,
+                         String itemType,
+                         String title,
+                         String content,
+                         String author,
+                         String sourceUrl,
+                         OffsetDateTime createdAt,
+                         String metadataJson) {
         String id = connectorType + ":" + externalId;
         Object timestamp = createdAt == null ? null : Timestamp.from(createdAt.toInstant());
 
-        int updated = updateExisting(projectId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
+        int updated = updateExisting(projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
         if (updated > 0) return;
 
         try {
@@ -46,17 +60,18 @@ public class ConnectorRepository {
                     INSERT INTO external_item(
                         project_id,connector_account_id,external_id,item_type,title,content,author,
                         source_url,source_created_at,raw_metadata
-                    ) VALUES(?,NULL,?,?,?,?,?,?,?,?)
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?)
                     """,
-                    projectId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson
+                    projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson
             );
         } catch (DuplicateKeyException concurrentSync) {
             // Another sync may have inserted the same provider item between UPDATE and INSERT.
-            updateExisting(projectId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
+            updateExisting(projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
         }
     }
 
     private int updateExisting(long projectId,
+                               Long connectorAccountId,
                                String externalId,
                                String itemType,
                                String title,
@@ -65,14 +80,16 @@ public class ConnectorRepository {
                                String sourceUrl,
                                Object createdAt,
                                String metadataJson) {
-        return jdbc.update(
-                """
+        String accountClause = connectorAccountId == null ? "connector_account_id IS NULL" : "connector_account_id=?";
+        String sql = """
                 UPDATE external_item
                 SET item_type=?,title=?,content=?,author=?,source_url=?,source_created_at=?,raw_metadata=?
-                WHERE project_id=? AND external_id=?
-                """,
-                itemType, title, content, author, sourceUrl, createdAt, metadataJson, projectId, externalId
-        );
+                WHERE project_id=? AND %s AND external_id=?
+                """.formatted(accountClause);
+        if (connectorAccountId == null) {
+            return jdbc.update(sql, itemType, title, content, author, sourceUrl, createdAt, metadataJson, projectId, externalId);
+        }
+        return jdbc.update(sql, itemType, title, content, author, sourceUrl, createdAt, metadataJson, projectId, connectorAccountId, externalId);
     }
     public record ExternalSearchRow(
             long id,
@@ -236,6 +253,17 @@ public class ConnectorRepository {
                     return new SyncState(rs.getString("connector_type"),rs.getString("external_scope"),
                             ts==null?null:ts.toInstant().atOffset(ZoneOffset.UTC),rs.getString("last_status"),rs.getString("last_error"),rs.getInt("last_imported_count"));
                 }, projectId);
+    }
+
+    /**
+     * Retention cleanup only: removes imported-item bookkeeping rows left orphaned by a disconnected
+     * connector account (connector_account_id is SET NULL on disconnect). Nothing else references
+     * external_item, and the document it may have imported is never touched.
+     */
+    public int purgeOrphanedItemsOlderThan(java.time.LocalDate cutoff) {
+        return jdbc.update(
+                "DELETE FROM external_item WHERE connector_account_id IS NULL AND created_at<?",
+                java.sql.Date.valueOf(cutoff));
     }
 
 }

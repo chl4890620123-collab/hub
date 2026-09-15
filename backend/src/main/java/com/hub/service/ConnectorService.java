@@ -46,18 +46,68 @@ public class ConnectorService {
     }
 
     /**
+     * Lists what the caller's own credentials can reach, plus whether those credentials came from this
+     * account's own link or from the server configuration, so the screen can say which is in use.
+     * Personal on purpose: a teammate's Drive/Slack/GitHub account can see different files/channels/
+     * repos than this account can, so there is no single project-wide answer to "what's available".
+     */
+    public java.util.Map<String,Object> targets(String type, User user) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        ReadOnlyConnector adapter = adapters.get(normalizedType);
+        if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
+        String token = resolveToken(normalizedType, user);
+        if (token == null || token.isBlank())
+            return java.util.Map.of("connected", false, "linkedByUser", false, "targets", java.util.List.of());
+        boolean linked = linkedByUser(normalizedType, user);
+        String account = linked ? accountLabel(normalizedType, user) : null;
+        java.util.Map<String,Object> result = new java.util.LinkedHashMap<>();
+        result.put("connected", true);
+        result.put("linkedByUser", linked);
+        result.put("account", account);
+        result.put("targets", adapter.targets(token));
+        return result;
+    }
+
+    /** Name of the external account behind this account's own link, when it made one. */
+    public String accountLabel(String type, User user) {
+        if ("GOOGLE_DRIVE".equals(type)) return googleTokens.accountLabel(user.id());
+        return externalOAuth.accountLabel(user.id(), type);
+    }
+
+    /** Drops this account's own link so the next import falls back to the server credentials. */
+    public void disconnect(String type, User user) {
+        String normalized = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        if ("GOOGLE_DRIVE".equals(normalized)) googleTokens.disconnect(user.id());
+        else externalOAuth.disconnect(user.id(), normalized);
+    }
+
+    /** Whether the credential in use was granted by this account rather than read from the server config. */
+    public boolean linkedByUser(String type, User user) {
+        if ("GOOGLE_DRIVE".equals(type)) return googleTokens.linkedByUser(user.id());
+        return externalOAuth.connected(user.id(), type);
+    }
+
+    /**
      * Connector sync is read-only toward the provider. Re-importing the same external id is safe:
      * external metadata is upserted and DocumentService creates a new version only when content changed.
+     * Whoever triggers the import uses their own personal credential, but the imported content always
+     * lands in this project's shared document pool - that is where results from different teammates'
+     * accounts combine, not in the credential itself.
      */
     public int importItems(long projectId, String type, String scope, User user) {
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
         if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
-        if (scope == null || scope.isBlank()) throw new IllegalArgumentException("Connector scope is required");
+        if (scope == null || scope.isBlank()) throw new IllegalArgumentException("가져올 범위를 입력해 주세요.");
 
         String cleanScope=scope.trim();
         String effectiveToken = resolveToken(normalizedType, user);
+        if (effectiveToken == null || effectiveToken.isBlank()) {
+            throw new IllegalArgumentException(connectorName(normalizedType) + " 계정을 먼저 연결해 주세요.");
+        }
         int imported = 0;
+        int skipped = 0;
+        Long connectorAccountId = externalOAuth.accountId(user.id(), normalizedType);
         try {
         for (ExternalContent item : adapter.fetch(cleanScope, effectiveToken)) {
             String metadata;
@@ -71,24 +121,33 @@ public class ConnectorService {
             String normalizedContent = UnicodeText.nfcNullable(item.content());
             String normalizedAuthor = UnicodeText.nfcNullable(item.author());
             repository.saveItem(
-                    projectId, adapter.type(), item.externalId(), item.itemType(), normalizedTitle, normalizedContent,
+                    projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(), normalizedTitle, normalizedContent,
                     normalizedAuthor, item.sourceUrl(), item.createdAt(), metadata
             );
             String sourceIdentifier = adapter.type() + ":" + item.externalId();
-            if (item.hasBinary()) {
-                documents.importExternalFile(
-                        projectId, adapter.type(), sourceIdentifier, normalizedTitle, item.contentType(),
-                        item.binaryContent(), user
-                );
-                imported++;
-            } else if (normalizedContent != null && !normalizedContent.isBlank()) {
-                documents.importExternalText(
-                        projectId, adapter.type(), sourceIdentifier, normalizedTitle, normalizedContent, user
-                );
-                imported++;
+            // A folder is a mixed bag: one binary blob nobody can read must not discard the files
+            // that imported fine before it. The item is skipped and reported in the sync status.
+            try {
+                if (item.hasBinary()) {
+                    documents.importExternalFile(
+                            projectId, adapter.type(), sourceIdentifier, normalizedTitle, item.contentType(),
+                            item.binaryContent(), user
+                    );
+                    imported++;
+                } else if (normalizedContent != null && !normalizedContent.isBlank()) {
+                    documents.importExternalText(
+                            projectId, adapter.type(), sourceIdentifier, normalizedTitle, normalizedContent, user
+                    );
+                    imported++;
+                } else {
+                    skipped++;
+                }
+            } catch (RuntimeException itemFailure) {
+                skipped++;
             }
         }
-        repository.saveSyncState(projectId, normalizedType, cleanScope, "SUCCESS", null, imported);
+        String note = skipped == 0 ? null : "읽을 수 없는 파일 " + skipped + "건은 건너뛰었습니다.";
+        repository.saveSyncState(projectId, normalizedType, cleanScope, "SUCCESS", note, imported);
         timeline.append(
                 projectId,
                 "CONNECTOR_IMPORT",
@@ -114,13 +173,44 @@ public class ConnectorService {
         return msg.length()>500?msg.substring(0,500):msg;
     }
 
+    /**
+     * Every connector resolves the same way: the credential this account personally linked wins, and
+     * the shared one from the server configuration is the fallback - but only when an admin turned
+     * that fallback on (hub.allow-shared-connector-fallback). Without it, an unlinked user gets no
+     * token at all instead of silently browsing whatever account the server happens to be configured
+     * with. GitHub used to skip the personal token entirely, so a user who had signed in to GitHub
+     * still browsed the server account's repositories.
+     */
     private String resolveToken(String type, User user) {
-        if ("GITHUB".equals(type)) return props.githubToken();
-        if ("GOOGLE_DRIVE".equals(type)) return googleTokens.accessToken(user.id());
-        if ("SLACK".equals(type)) return first(externalOAuth.token(user.id(), type), props.slackToken());
-        if ("NOTION".equals(type)) return first(externalOAuth.token(user.id(), type), props.notionToken());
+        if ("GOOGLE_DRIVE".equals(type)) {
+            if (!googleTokens.connected(user.id())) return null;
+            return googleTokens.accessToken(user.id());
+        }
+        // External providers are always account-scoped: the personal link wins whenever it exists,
+        // so a server token never makes one user's repository/channel/page list look like another
+        // user's linked account. The shared token is only a fallback for a user who hasn't linked yet.
+        if ("GITHUB".equals(type) || "SLACK".equals(type) || "NOTION".equals(type)) {
+            String personal = externalOAuth.token(user.id(), type);
+            if (personal != null && !personal.isBlank()) return personal;
+            return props.allowSharedConnectorFallback() ? sharedToken(type) : null;
+        }
         return "";
     }
 
-    private static String first(String value, String fallback) { return value == null || value.isBlank() ? fallback : value; }
+    private String sharedToken(String type) {
+        if ("GITHUB".equals(type)) return props.githubToken();
+        if ("SLACK".equals(type)) return props.slackToken();
+        if ("NOTION".equals(type)) return props.notionToken();
+        return null;
+    }
+
+    private static String connectorName(String type) {
+        return switch (type) {
+            case "GITHUB" -> "GitHub";
+            case "SLACK" -> "Slack";
+            case "NOTION" -> "Notion";
+            case "GOOGLE_DRIVE" -> "Google Drive";
+            default -> type;
+        };
+    }
 }

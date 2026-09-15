@@ -39,6 +39,30 @@ class GeminiProvider:
     async def close(self) -> None:
         await self._pool.close()
 
+    @staticmethod
+    def _retry_delay(response: httpx.Response, attempt: int) -> float:
+        """
+        A quarter-second backoff is fine for a blip but never for a quota: importing a folder fires
+        several analyses at once and Gemini answers 429, so a rate limit waits as long as the API asks
+        (Retry-After, or Google's retryDelay in the error body) before falling back to exponential.
+        """
+        if response.status_code != 429:
+            return min(2.0, 0.25 * (2**attempt))
+        header = response.headers.get("Retry-After")
+        if header:
+            try:
+                return max(1.0, min(float(header), config.GEMINI_MAX_RETRY_DELAY_SECONDS))
+            except ValueError:
+                pass
+        try:
+            for detail in response.json().get("error", {}).get("details", []):
+                delay = str(detail.get("retryDelay", ""))
+                if delay.endswith("s"):
+                    return max(1.0, min(float(delay[:-1]), config.GEMINI_MAX_RETRY_DELAY_SECONDS))
+        except Exception:  # noqa: BLE001 - a malformed quota body must not mask the original 429
+            pass
+        return min(config.GEMINI_MAX_RETRY_DELAY_SECONDS, 2.0 * (2**attempt))
+
     async def json_generate(self, prompt: str) -> dict:
         if not self.enabled:
             raise RuntimeError("Gemini provider is not enabled")
@@ -50,7 +74,7 @@ class GeminiProvider:
             response = await client.post(url, headers=headers, json=self.request_body(prompt))
             if response.status_code not in {429, 500, 502, 503, 504} or attempt >= config.GEMINI_RETRIES:
                 break
-            await asyncio.sleep(min(2.0, 0.25 * (2**attempt)))
+            await asyncio.sleep(self._retry_delay(response, attempt))
         assert response is not None
         response.raise_for_status()
         data = response.json()

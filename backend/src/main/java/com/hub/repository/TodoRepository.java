@@ -20,26 +20,56 @@ public class TodoRepository {
 
     /** AI creates a review candidate only. Exact normalized duplicates are flagged, never auto-deleted. */
     public long create(long projectId,Long versionId,Long meetingId,String title,String description,
-                       String assigneeText,Long ignoredSuggestionId,String assigneeSuggestionText,
+                       String assigneeText,Long assigneeSuggestionId,String assigneeSuggestionText,
                        LocalDate ignoredDueDate,LocalDate dueSuggestion,String confidence,
                        Long duplicateOf,String duplicateReason){
         String normalizedTitle=normalizeTitle(title);
         KeyHolder key=new GeneratedKeyHolder();
         jdbc.update(connection->{
+            // assignee_id stays NULL on purpose: the AI proposes a person, an administrator confirms one.
             PreparedStatement ps=connection.prepareStatement("""
                 INSERT INTO todo(project_id,source_document_version_id,source_meeting_id,title,description,
                     assignee_id,assignee_text,assignee_suggestion_id,assignee_suggestion_text,due_date,due_date_suggestion,confidence,
                     normalized_title,possible_duplicate_of_id,duplicate_reason)
-                VALUES(?,?,?,?,?,NULL,?,NULL,?,NULL,?,?,?,?,?)
+                VALUES(?,?,?,?,?,NULL,?,?,?,NULL,?,?,?,?,?)
                 """, new String[]{"id"});
             ps.setLong(1,projectId);
             if(versionId==null)ps.setNull(2,java.sql.Types.BIGINT);else ps.setLong(2,versionId);
             if(meetingId==null)ps.setNull(3,java.sql.Types.BIGINT);else ps.setLong(3,meetingId);
-            ps.setString(4,title);ps.setString(5,description);ps.setString(6,assigneeText);ps.setString(7,assigneeSuggestionText);
-            if(dueSuggestion==null)ps.setNull(8,java.sql.Types.DATE);else ps.setDate(8,Date.valueOf(dueSuggestion));
-            ps.setString(9,confidence);ps.setString(10,normalizedTitle);
-            if(duplicateOf==null)ps.setNull(11,java.sql.Types.BIGINT);else ps.setLong(11,duplicateOf);
-            ps.setString(12,duplicateReason);return ps;
+            ps.setString(4,title);ps.setString(5,description);ps.setString(6,assigneeText);
+            if(assigneeSuggestionId==null)ps.setNull(7,java.sql.Types.BIGINT);else ps.setLong(7,assigneeSuggestionId);
+            ps.setString(8,assigneeSuggestionText);
+            if(dueSuggestion==null)ps.setNull(9,java.sql.Types.DATE);else ps.setDate(9,Date.valueOf(dueSuggestion));
+            ps.setString(10,confidence);ps.setString(11,normalizedTitle);
+            if(duplicateOf==null)ps.setNull(12,java.sql.Types.BIGINT);else ps.setLong(12,duplicateOf);
+            ps.setString(13,duplicateReason);return ps;
+        },key);
+        if(key.getKey()==null)throw new IllegalStateException("TODO id was not generated");
+        return key.getKey().longValue();
+    }
+
+    /**
+     * A person registering a document can also register the follow-up work it implies, so this skips
+     * the AI-review queue entirely: it is CONFIRMED and ACTIVE from the moment it is written.
+     */
+    public long createConfirmed(long projectId,Long versionId,String title,Long assigneeId,String assigneeText,
+                                LocalDate dueDate,long actorId){
+        String normalizedTitle=normalizeTitle(title);
+        KeyHolder key=new GeneratedKeyHolder();
+        jdbc.update(connection->{
+            PreparedStatement ps=connection.prepareStatement("""
+                INSERT INTO todo(project_id,source_document_version_id,title,assignee_id,assignee_text,due_date,
+                    review_status,task_status,assignment_status,confirmed_by,confirmed_at,normalized_title)
+                VALUES(?,?,?,?,?,?,'CONFIRMED','TODO','ACTIVE',?,CURRENT_TIMESTAMP,?)
+                """, new String[]{"id"});
+            ps.setLong(1,projectId);
+            if(versionId==null)ps.setNull(2,java.sql.Types.BIGINT);else ps.setLong(2,versionId);
+            ps.setString(3,title);
+            if(assigneeId==null)ps.setNull(4,java.sql.Types.BIGINT);else ps.setLong(4,assigneeId);
+            ps.setString(5,assigneeText);
+            if(dueDate==null)ps.setNull(6,java.sql.Types.DATE);else ps.setDate(6,Date.valueOf(dueDate));
+            ps.setLong(7,actorId);ps.setString(8,normalizedTitle);
+            return ps;
         },key);
         if(key.getKey()==null)throw new IllegalStateException("TODO id was not generated");
         return key.getKey().longValue();
@@ -86,6 +116,13 @@ public class TodoRepository {
         return updated==1;
     }
 
+    public boolean editCandidate(long todoId,String title,String description){
+        return jdbc.update("""
+            UPDATE todo SET title=?,description=?,normalized_title=?,updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')
+            """,title,description,normalizeTitle(title),todoId)==1;
+    }
+
     public boolean reject(long todoId,long actorId){
         return jdbc.update("""
             UPDATE todo SET review_status='REJECTED',confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
@@ -112,6 +149,23 @@ public class TodoRepository {
                 """,newAssigneeId,assigneeText,todoId)==1;
     }
 
+
+    /**
+     * Retention cleanup only: removes long-finished todos (never anything still open) so the table does
+     * not grow forever. Storage/documents/evidence content is never touched by this - only the todo row
+     * and its own review-workflow links (todo_evidence, reassignment_queue) go, via ON DELETE CASCADE.
+     * possible_duplicate_of_id is a self-reference with no cascade, so it is detached first.
+     */
+    public int purgeCompletedOlderThan(LocalDate cutoff){
+        jdbc.update("""
+                UPDATE todo SET possible_duplicate_of_id=NULL WHERE possible_duplicate_of_id IN (
+                  SELECT id FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND due_date<?
+                )
+                """, Date.valueOf(cutoff));
+        return jdbc.update(
+                "DELETE FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND due_date<?",
+                Date.valueOf(cutoff));
+    }
 
     public List<TitleRow> recentOpenTitles(long projectId,int limit){
         return jdbc.query("""

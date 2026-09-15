@@ -31,7 +31,7 @@ public class AuthService {
     }
 
     @Transactional(noRollbackFor = AuthException.class)
-    public SessionTokens login(String identifier, String password, String userAgent, String ipAddress) {
+    public SessionTokens login(String identifier, String password, String requestedRole, String userAgent, String ipAddress) {
         String normalized=identifier==null?"":identifier.trim().toLowerCase();
         users.clearExpiredLockByIdentifier(normalized);
         var optional=users.findAuthByIdentifier(normalized);
@@ -52,6 +52,11 @@ public class AuthService {
         if(!account.active()) {
             if("WITHDRAWN".equals(account.accountStatus())) throw new AuthException("ACCOUNT_WITHDRAWN","탈퇴 처리된 계정입니다.");
             throw new AuthException("ACCOUNT_SUSPENDED","정지된 계정입니다. 관리자에게 문의해 주세요.");
+        }
+        if (requestedRole != null && !requestedRole.isBlank()
+                && !requestedRole.trim().toUpperCase().equals(account.globalRole())) {
+            String expected = "ADMIN".equals(account.globalRole()) ? "관리자" : "일반회원";
+            throw new AuthException("ROLE_MISMATCH", expected + " 로그인 화면에서 로그인해 주세요.");
         }
         users.recordSuccessfulLogin(account.id());
         return issueSession(account.asUser(),account.authVersion(),newFamilyId(),userAgent,ipAddress);

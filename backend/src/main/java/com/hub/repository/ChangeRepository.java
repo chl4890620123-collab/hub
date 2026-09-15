@@ -72,6 +72,10 @@ public class ChangeRepository {
         return jdbc.update("UPDATE change_item SET review_status='CONFIRMED' WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')", itemId) == 1;
     }
 
+    public boolean rejectItem(long itemId) {
+        return jdbc.update("UPDATE change_item SET review_status='REJECTED' WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')", itemId) == 1;
+    }
+
     public List<Map<String, Object>> pending(long projectId) {
         return jdbc.queryForList(
                 """

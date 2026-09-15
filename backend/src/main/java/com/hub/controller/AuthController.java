@@ -36,13 +36,13 @@ public class AuthController {
         this.props = props;
     }
 
-    public record LoginRequest(@NotBlank String identifier, @NotBlank String password) {}
+    public record LoginRequest(@NotBlank String identifier, @NotBlank String password, String role) {}
     public record PasswordChangeRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
 
     @PostMapping("/login")
     public Map<String, Object> login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest,
                                      HttpServletResponse response) {
-        var tokens = authService.login(request.identifier(), request.password(), servletRequest.getHeader("User-Agent"), servletRequest.getRemoteAddr());
+        var tokens = authService.login(request.identifier(), request.password(), request.role(), servletRequest.getHeader("User-Agent"), servletRequest.getRemoteAddr());
         writeSessionCookies(response, tokens);
         return Map.of("user", tokens.user(), "accessExpiresAt", tokens.accessExpiresAt().toString());
     }

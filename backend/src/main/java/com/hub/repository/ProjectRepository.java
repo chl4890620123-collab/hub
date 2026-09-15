@@ -16,6 +16,23 @@ public class ProjectRepository {
     private final JdbcTemplate jdbc;
     public ProjectRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
+    public record ProjectOption(long id, String name) {}
+
+    /** Names only, for the signup screen's project picker - shown before the visitor has any access. */
+    public List<ProjectOption> listAll() {
+        return jdbc.query("SELECT id,name FROM project ORDER BY name,id",
+                (rs, n) -> new ProjectOption(rs.getLong("id"), rs.getString("name")));
+    }
+
+    public void rename(long projectId, String name, String description) {
+        jdbc.update("UPDATE project SET name=?,description=? WHERE id=?", name, description, projectId);
+    }
+
+    public boolean exists(long projectId) {
+        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM project WHERE id=?", Long.class, projectId);
+        return count != null && count > 0;
+    }
+
     public List<Project> listForUser(long userId, boolean admin) {
         if (admin) {
             return jdbc.query("SELECT p.id,p.name,p.description,p.created_by FROM project p ORDER BY p.id",

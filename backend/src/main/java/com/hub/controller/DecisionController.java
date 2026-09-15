@@ -83,4 +83,14 @@ public class DecisionController {
         );
         return Map.of("status", "CONFIRMED");
     }
+
+    @PostMapping("/api/decisions/{id}/reject")
+    public Map<String, Object> reject(@PathVariable long id, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        long projectId = decisions.projectId(id);
+        projectAccess.requireAdmin(projectId, user);
+        if (!decisions.reject(id, user.id())) throw new com.hub.service.StateConflictException("이미 처리된 결정 후보입니다.");
+        revisions.add(projectId, "DECISION", id, user.id(), "REJECT", null, "{\"reviewStatus\":\"REJECTED\"}");
+        return Map.of("status", "REJECTED");
+    }
 }

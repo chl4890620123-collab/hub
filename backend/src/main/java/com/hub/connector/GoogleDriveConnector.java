@@ -127,7 +127,9 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
                 .queryParam("pageSize", 50)
                 .queryParam("fields", "nextPageToken,files(id,name,mimeType,modifiedTime,webViewLink)");
         if (pageToken != null && !pageToken.isBlank()) builder.queryParam("pageToken", pageToken);
-        return getJson(builder.build().encode().toUriString(), token);
+        // RestClient encodes the URI it is given, so encoding here too turned every %27 into %2527 and
+        // Drive rejected the query: the folder listing failed for every import.
+        return getJson(builder.build().toUriString(), token);
     }
 
     private Downloaded download(String id, String name, String mime, String token) {
@@ -229,4 +231,22 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
 
     private record FolderScope(String id, String name, String path, int depth) {}
     private record Downloaded(String filename, String contentType, String text, byte[] bytes) {}
+
+    /** Folders the connected Google account can read. */
+    @Override
+    public List<ConnectorTarget> targets(String token) {
+        List<ConnectorTarget> out = new ArrayList<>();
+        // RestClient encodes the query itself; pre-encoding here would escape the percent signs again.
+        JsonNode body = getJson("/drive/v3/files?q=mimeType='application/vnd.google-apps.folder'"
+                + " and trashed=false&fields=files(id,name)&pageSize=100&orderBy=name", token);
+        JsonNode files = body.path("files");
+        if (files.isArray()) {
+            for (JsonNode folder : files) {
+                String id = folder.path("id").asText("");
+                if (id.isBlank()) continue;
+                out.add(new ConnectorTarget(id, folder.path("name").asText("이름 없음"), "Drive 폴더"));
+            }
+        }
+        return out;
+    }
 }

@@ -121,7 +121,7 @@ public class DocumentRepository {
         jdbc.update(
                 """
                 UPDATE document
-                SET original_name=?,storage_path=?,archived=FALSE,source_deleted=FALSE
+                SET original_name=?,storage_path=?,archived=FALSE,source_deleted=FALSE,archived_at=NULL
                 WHERE id=?
                 """,
                 originalName, storagePath, documentId
@@ -239,6 +239,7 @@ public class DocumentRepository {
         return value.length() <= max ? value : value.substring(0, max);
     }
 
+    /** Capped like the audit log: newest first, so a long-lived project's list stays a manageable page instead of every document ever imported. */
     public List<Map<String, Object>> listDocuments(long projectId) {
         return jdbc.queryForList(
                 """
@@ -248,6 +249,7 @@ public class DocumentRepository {
                 WHERE d.project_id=?
                 GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at
                 ORDER BY d.id DESC
+                LIMIT 500
                 """,
                 projectId
         );
@@ -269,8 +271,49 @@ public class DocumentRepository {
         return jdbc.queryForObject("SELECT project_id FROM document WHERE id=?", Long.class, documentId);
     }
 
+    public record DocumentMeta(long id, long projectId, String sourceType, String originalName, boolean archived) {}
+
+    public Optional<DocumentMeta> findMeta(long documentId) {
+        List<DocumentMeta> rows = jdbc.query(
+                "SELECT id,project_id,source_type,original_name,archived FROM document WHERE id=?",
+                (rs, n) -> new DocumentMeta(rs.getLong("id"), rs.getLong("project_id"), rs.getString("source_type"),
+                        rs.getString("original_name"), rs.getBoolean("archived")),
+                documentId);
+        return rows.stream().findFirst();
+    }
+
     public void archive(long documentId) {
-        jdbc.update("UPDATE document SET archived=TRUE WHERE id=?", documentId);
+        jdbc.update("UPDATE document SET archived=TRUE,archived_at=CURRENT_TIMESTAMP WHERE id=?", documentId);
+    }
+
+    private static final String ARCHIVED_CONTENT_PLACEHOLDER = "[보관 기간이 지나 본문이 정리되었습니다]";
+
+    /**
+     * Retention cleanup only: clears the heavy text/embedding content of versions belonging to documents
+     * archived long enough ago. The document/document_version/document_chunk ROWS themselves are kept -
+     * evidence/decision/todo/change records cite them by id - only full_text/content/embedding_json are
+     * cleared. Every search/RAG query already excludes archived=TRUE documents, so this has no effect
+     * beyond reclaiming space. Idempotent: already-cleared versions are skipped on later runs.
+     */
+    public int purgeArchivedContentOlderThan(java.time.LocalDate cutoff) {
+        java.sql.Date cutoffDate = java.sql.Date.valueOf(cutoff);
+        jdbc.update(
+                """
+                UPDATE document_chunk SET content=?,embedding_json=NULL
+                WHERE version_id IN (
+                  SELECT v.id FROM document_version v JOIN document d ON d.id=v.document_id
+                  WHERE d.archived=TRUE AND d.archived_at<? AND v.full_text<>?
+                )
+                """,
+                ARCHIVED_CONTENT_PLACEHOLDER, cutoffDate, ARCHIVED_CONTENT_PLACEHOLDER);
+        return jdbc.update(
+                """
+                UPDATE document_version SET full_text=?
+                WHERE full_text<>? AND document_id IN (
+                  SELECT id FROM document WHERE archived=TRUE AND archived_at<?
+                )
+                """,
+                ARCHIVED_CONTENT_PLACEHOLDER, ARCHIVED_CONTENT_PLACEHOLDER, cutoffDate);
     }
 
     public String versionText(long versionId) {
@@ -298,6 +341,10 @@ public class DocumentRepository {
                 JOIN document d ON d.id=v.document_id
                 WHERE v.id=?
                 """, versionId);
+    }
+
+    public long documentIdForVersion(long versionId) {
+        return jdbc.queryForObject("SELECT document_id FROM document_version WHERE id=?", Long.class, versionId);
     }
 
     public long projectIdForVersion(long versionId) {

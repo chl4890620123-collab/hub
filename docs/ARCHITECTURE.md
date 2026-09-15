@@ -9,7 +9,7 @@ Hub의 본체는 **사내 통합 검색**입니다. 자료 입력과 회의 STT�
 ## 2. 실행 구조
 
 ```text
-Browser - one responsive web app
+Browser - one desktop web app
         │
         ▼
 Spring Boot / Java 21
@@ -42,7 +42,7 @@ Spring이 인증, 권한, DB, 검색, RAG 오케스트레이션, Evidence 검증
 - 계정 정지·복구 / 프로젝트 이동 / 미완료 TODO 재배정
 - Slack / Notion / Google Drive / GitHub read-only Connector
 
-별도 모바일 앱, 모바일 전용 API, 카메라 capture API는 없습니다. 좁은 화면에서도 동일한 웹 기능을 반응형으로 보여줍니다.
+별도 모바일 앱, 모바일 전용 API, 카메라 capture API는 없습니다. 화면은 사내 PC 브라우저 기준 단일 데스크톱 레이아웃이며 반응형 분기를 두지 않습니다.
 
 ## 4. 검색 파이프라인
 
