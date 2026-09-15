@@ -26,7 +26,7 @@ RUN python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirement
         echo "[hub-ai] torch install attempt $attempt failed, retrying..."; \
         sleep 10; \
       done; \
-      [ "$ok" = "1" ] || (echo "[hub-ai] torch install failed after 3 attempts" && exit 1); \
+      if [ "$ok" != "1" ]; then echo "[hub-ai] torch install failed after 3 attempts" >&2; exit 1; fi; \
       python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements-local.txt; \
     fi
 RUN mkdir -p /opt/huggingface && \
