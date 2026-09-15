@@ -257,3 +257,4 @@ docker compose --env-file .env -f deploy/compose.yml --profile https up -d --bui
 - `docs/API_CONTRACT.md`
 - `docs/OPERATIONS.md`
 - `docs/VALIDATION.md`
+- `docs/DEPLOYMENT.md`

@@ -43,7 +43,11 @@ OCR/STT provider 선택용 ENV는 제거했습니다. 실제 모드에서 OCR은
 
 ## 5. CI/CD
 
-`.env`는 저장소에 커밋하지 않습니다. GitHub Actions에서는 `.env.example`과 같은 변수 이름을 Secrets/Variables에 등록해 주입합니다. Hub용 GitHub PAT는 Actions 기본 `GITHUB_TOKEN`과 구분하기 위해 배포 Secret 이름을 `HUB_GITHUB_TOKEN`으로 두고 runtime `GITHUB_TOKEN`에 매핑하는 방식을 권장합니다.
+`.env`는 저장소에 커밋하지 않습니다. CI(`web-and-config`/`ai`/`backend` job)는 앱 시크릿 없이 빌드/테스트만 하므로 GitHub Actions Secrets에 커넥터 토큰류를 등록할 필요가 없습니다.
+
+배포 서버에 SSH로 접속해 `git pull` + `docker compose up`을 실행하는 `deploy` job만 예외로, 이때 Actions Secrets에는 배포 접속 정보 4개(`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`)만 등록합니다. `GEMINI_API_KEY`/`GITHUB_TOKEN`/`DB_PASSWORD` 같은 앱 런타임 값은 Actions를 거치지 않고 배포 서버의 로컬 `.env` 파일에만 있으면 됩니다 - 상세 절차는 `docs/DEPLOYMENT.md` 참고.
+
+(참고: GitHub Actions는 `GITHUB_`로 시작하는 이름을 저장소 Secret으로 등록하지 못하게 막아둡니다. 위 방식에서는 해당하지 않지만, 혹시 커넥터 토큰을 Actions Secret으로 직접 등록해야 하는 다른 상황이 생기면 `HUB_GITHUB_TOKEN`처럼 접두사를 바꾼 이름으로 등록하고 워크플로에서 런타임 이름(`GITHUB_TOKEN`)으로 매핑해야 합니다.)
 
 ## 6. 고급 튜닝
 

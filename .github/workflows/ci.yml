@@ -70,3 +70,25 @@ jobs:
         with:
           name: hub-backend-jar
           path: backend/build/libs/hub-backend.jar
+
+  # Runs only after every check above passes, and only for a real push to main (never for a PR or a
+  # manual workflow_dispatch run on another branch). See docs/DEPLOYMENT.md for the one-time server
+  # setup and the four repository secrets this step needs.
+  deploy:
+    needs: [backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose --env-file .env -f deploy/compose.yml up -d --build
+            docker image prune -f
