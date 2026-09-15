@@ -1,8 +1,8 @@
 # 배포 (yellow.it.kr 서버 자동배포)
 
 `main` 브랜치에 push되면 GitHub Actions가 테스트를 통과한 뒤 SSH로 서버에 접속해
-`git pull` + `docker compose up -d --build`를 실행합니다. 워크플로 정의는
-`.github/workflows/ci.yml`의 `deploy` job입니다.
+`git pull` + `docker compose --profile https up -d --build`를 실행합니다 (Caddy로 HTTPS까지
+같이 띄움 - 로그인 쿠키가 있으므로 필수). 워크플로 정의는 `.github/workflows/ci.yml`의 `deploy` job입니다.
 
 ## 1. 서버에서 한 번만 준비할 것
 
@@ -41,7 +41,11 @@
 | `HUB_STT_PII_HASH_KEY` | 무작위 문자열. `openssl rand -base64 32` 로 생성 (재시작해도 같은 값 유지 - 5번 해시키 기능이 이 값을 씁니다) |
 | `DB_PASSWORD` | PostgreSQL 비밀번호로 쓸 값 직접 정하기 |
 | `GEMINI_API_KEY` | Google AI Studio에서 발급 |
-| `HUB_PUBLIC_BASE_URL` | `https://yellow.it.kr` (실제 접속 도메인) |
+| `HUB_PUBLIC_BASE_URL` | `https://yellow.it.kr` (실제 접속 도메인, `https://` 포함) |
+| `HUB_TLS_DOMAIN` | `yellow.it.kr` (`https://` 없이 도메인만 - Caddy가 이 값으로 인증서 발급) |
+| `HUB_COOKIE_SECURE` | `true`로 설정 (HTTPS로 서비스하므로) |
+| `HUB_ENFORCE_SECURE_CONFIG` | `true`로 설정 (위 값들을 제대로 채운 뒤) |
+| `HUB_ADMIN_SETUP_KEY` | 무작위 문자열 16자 이상. `openssl rand -base64 24`로 생성 - 이 값을 아는 사람만 최초 관리자가 될 수 있음 (아래 6번 참고) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` | Google Drive 연동을 쓸 경우만. OAuth 동의화면 redirect URI를 `HUB_PUBLIC_BASE_URL` 기준으로 등록해야 함 |
 | `GITHUB_TOKEN` 또는 `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` | GitHub 연동을 쓸 경우만 |
 | `SLACK_TOKEN` 또는 `SLACK_CLIENT_ID`/`SLACK_CLIENT_SECRET` | Slack 연동을 쓸 경우만 |
@@ -67,10 +71,27 @@
    `docker compose ... up -d --build`로 backend/ai만 띄웁니다.
 5. 나머지는 동일 - 앱이 처음 뜰 때 Flyway가 스키마를 자동으로 만듭니다.
 
-## 5. 참고 - 아직 안 한 것
+## 5. HTTPS (Caddy, Let's Encrypt 자동발급)
 
-- **공인 도메인용 HTTPS**: `deploy/compose.yml`의 `caddy` 서비스(`--profile https`)는 현재
-  `tls internal`(사내망용 자체서명 인증서)로 되어 있어 공인 도메인(yellow.it.kr)에 그대로 쓰면
-  브라우저 경고가 뜹니다. 실제 도메인 인증서(Let's Encrypt 자동발급)가 필요하면 `deploy/Caddyfile`을
-  `https://yellow.it.kr { reverse_proxy backend:8080 ... }` 형태로 바꾸고 서버 80/443 포트를 열어야
-  합니다 - 필요하시면 이어서 설정해 드리겠습니다.
+로그인이 쿠키 기반이라 HTTPS가 필수입니다. `deploy/compose.yml`의 `caddy` 서비스를 `--profile https`로
+같이 띄우면 `HUB_TLS_DOMAIN`(예: `yellow.it.kr`) 도메인으로 인증서를 자동 발급/갱신합니다.
+
+1. yellow.it.kr의 DNS A 레코드가 이 서버의 공인 IP를 가리키고 있어야 합니다.
+2. 서버 방화벽/보안그룹에서 80, 443 포트를 외부에 열어야 합니다 (80은 인증서 발급/HTTP→HTTPS 리다이렉트용).
+3. **8080 포트는 외부에 열지 않습니다.** Caddy가 내부 Docker 네트워크로 `backend:8080`에 접속하므로
+   외부는 80/443만 열면 되고, 8080이 공개되어 있으면 HTTPS를 건너뛰고 평문으로 로그인 요청을 보낼 수
+   있게 됩니다. `docker compose ... up -d`는 여전히 호스트의 8080도 게시하니, 방화벽에서 8080에 대한
+   외부 접근만 막아 주세요 (같은 서버 내부/SSH 터널로 직접 확인하는 용도는 유지됩니다).
+4. `.env`에서 `HUB_TLS_DOMAIN=yellow.it.kr`, `HUB_PUBLIC_BASE_URL=https://yellow.it.kr`,
+   `HUB_COOKIE_SECURE=true`, `HUB_ENFORCE_SECURE_CONFIG=true`를 설정합니다 (위 3번 표에도 있음).
+5. 배포 워크플로가 자동으로 `--profile https`를 붙여 실행합니다 - 수동으로 띄울 때만 직접 플래그를
+   챙기면 됩니다.
+
+## 6. 최초 관리자 계정 만들기
+
+가입 화면에서 "관리자 가입"을 선택하면 "관리자 설정 키" 입력란이 있습니다. 이 서버에 관리자가 아직
+한 명도 없는 상태에서만 의미가 있고, `.env`의 `HUB_ADMIN_SETUP_KEY`와 정확히 같은 값을 넣어야 그
+자리에서 바로 관리자 계정이 만들어집니다 (틀리면 거부됩니다). 이미 관리자가 있는 상태에서 관리자
+가입을 하면 이 키와 무관하게 항상 기존 관리자 승인 대기 상태로 접수됩니다. `HUB_ADMIN_SETUP_KEY`는
+그 키를 아는 사람 누구나 첫 관리자가 될 수 있다는 뜻이므로, 실제 관리자가 될 사람 외에는 알려주지
+마세요.

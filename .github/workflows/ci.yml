@@ -90,5 +90,5 @@ jobs:
             cd "${{ secrets.DEPLOY_PATH }}"
             git fetch origin main
             git reset --hard origin/main
-            docker compose --env-file .env -f deploy/compose.yml up -d --build
+            docker compose --env-file .env -f deploy/compose.yml --profile https up -d --build
             docker image prune -f

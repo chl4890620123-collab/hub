@@ -15,7 +15,16 @@
       "Bash(node \"C:\\\\Users\\\\samsung\\\\.claude\\\\skills\\\\browser-automation\\\\browser.mjs\" --session hubqa --snapshot)",
       "PowerShell(Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Get-Process -Id $_ | Select-Object Id,ProcessName,Path })",
       "PowerShell(Stop-Process -Id 23168 -Force)",
-      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'git' } | Select-Object Id,ProcessName,StartTime)"
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'git' } | Select-Object Id,ProcessName,StartTime)",
+      "Bash(python scripts/validate_env.py --file .env.example --mode example)",
+      "Bash(\"C:/Users/samsung/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/bin/gradle.bat\" test *)",
+      "Bash(python scripts/verify.py)",
+      "Bash(python -c \"import yaml; yaml.safe_load\\(open\\('.github/workflows/ci.yml', encoding='utf-8'\\)\\)\")",
+      "Bash(python -c \"import yaml; yaml.safe_load\\(open\\('deploy/compose.yml', encoding='utf-8'\\)\\)\")",
+      "Bash(git status *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

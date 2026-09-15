@@ -1,5 +1,4 @@
-https://{$HUB_LAN_HOST} {
-    tls internal
+{$HUB_TLS_DOMAIN} {
     encode zstd gzip
     reverse_proxy backend:8080
     header {

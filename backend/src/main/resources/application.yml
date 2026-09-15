@@ -94,6 +94,10 @@ hub:
   # transcripts before they are stored or searched. Admin-set and secret: without it, a random
   # key is generated per run (redacted values then won't match across restarts).
   stt-pii-hash-key: ${HUB_STT_PII_HASH_KEY:}
+  # Gate on the very first admin signup (an install with zero admins yet). Blank (the local/intranet
+  # default) leaves that one signup open to whoever gets there first; set it once a Hub instance is
+  # reachable from outside a trusted network so only someone who knows this value can become admin.
+  admin-setup-key: ${HUB_ADMIN_SETUP_KEY:}
   jwt:
     secret: ${HUB_JWT_SECRET:hub-local-only-secret-ChangeMe-1234567890}
     issuer: ${HUB_JWT_ISSUER:hub}

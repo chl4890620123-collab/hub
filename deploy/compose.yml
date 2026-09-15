@@ -93,7 +93,9 @@ services:
       start_period: 30s
       retries: 20
 
-  # Optional HTTPS endpoint for browser microphone use from other intranet PCs.
+  # HTTPS for a real public domain (e.g. login cookies must not go out over plain HTTP). Caddy issues
+  # and renews a Let's Encrypt certificate for HUB_TLS_DOMAIN automatically - DNS for that domain must
+  # already point at this server, and ports 80/443 must be reachable from the internet.
   # Start with: docker compose --env-file .env -f deploy/compose.yml --profile https up -d --build
   caddy:
     image: caddy:2
@@ -103,8 +105,9 @@ services:
       backend:
         condition: service_healthy
     environment:
-      HUB_LAN_HOST: ${HUB_LAN_HOST:-localhost}
+      HUB_TLS_DOMAIN: ${HUB_TLS_DOMAIN:?HUB_TLS_DOMAIN is required for the https profile, e.g. yellow.it.kr}
     ports:
+      - "80:80"
       - "443:443"
       - "443:443/udp"
     volumes:
