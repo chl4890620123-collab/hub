@@ -12,13 +12,21 @@ COPY requirements.txt requirements-local.txt ./
 # CUDA sub-packages) - installing the CPU-only build first keeps sentence-transformers (pulled in
 # by requirements-local.txt) from redownloading the huge GPU one afterward.
 # --timeout/--retries bound pip's own per-read wait so a stalled download fails in minutes instead
-# of hanging silently for the build's entire time budget (observed: a 196MB torch wheel stopped
-# mid-download with zero further progress for 49 minutes on one deploy attempt, undetected by
-# every timeout upstream of pip itself). The outer `timeout` is a hard backstop in case pip's own
-# retry logic doesn't trigger for some reason.
+# of hanging silently for the build's entire time budget (observed twice: a 196MB torch wheel
+# stopped mid-download with zero further progress for 49 minutes, undetected by every timeout
+# upstream of pip itself). The torch download from download.pytorch.org specifically has stalled
+# out this way on two separate deploy attempts even though ordinary PyPI packages fetch fine, so
+# it also gets its own outer retry loop with a fresh `timeout`-bounded attempt each time, rather
+# than relying only on pip's internal retries against what may be the same degraded connection.
 RUN python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements.txt && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ]; then \
-      timeout 600 python -m pip install --no-cache-dir --timeout 20 --retries 3 torch --index-url https://download.pytorch.org/whl/cpu && \
+      ok=0; \
+      for attempt in 1 2 3; do \
+        if timeout 300 python -m pip install --no-cache-dir --timeout 20 --retries 2 torch --index-url https://download.pytorch.org/whl/cpu; then ok=1; break; fi; \
+        echo "[hub-ai] torch install attempt $attempt failed, retrying..."; \
+        sleep 10; \
+      done; \
+      [ "$ok" = "1" ] || (echo "[hub-ai] torch install failed after 3 attempts" && exit 1); \
       python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements-local.txt; \
     fi
 RUN mkdir -p /opt/huggingface && \
