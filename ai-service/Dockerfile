@@ -11,10 +11,15 @@ COPY requirements.txt requirements-local.txt ./
 # torch has no GPU here, and its default PyPI wheel is the CUDA build (500+MB plus several more
 # CUDA sub-packages) - installing the CPU-only build first keeps sentence-transformers (pulled in
 # by requirements-local.txt) from redownloading the huge GPU one afterward.
-RUN python -m pip install --no-cache-dir -r requirements.txt && \
+# --timeout/--retries bound pip's own per-read wait so a stalled download fails in minutes instead
+# of hanging silently for the build's entire time budget (observed: a 196MB torch wheel stopped
+# mid-download with zero further progress for 49 minutes on one deploy attempt, undetected by
+# every timeout upstream of pip itself). The outer `timeout` is a hard backstop in case pip's own
+# retry logic doesn't trigger for some reason.
+RUN python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements.txt && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ]; then \
-      python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-      python -m pip install --no-cache-dir -r requirements-local.txt; \
+      timeout 600 python -m pip install --no-cache-dir --timeout 20 --retries 3 torch --index-url https://download.pytorch.org/whl/cpu && \
+      python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements-local.txt; \
     fi
 RUN mkdir -p /opt/huggingface && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ] && [ "$HUB_PRELOAD_E5" = "true" ]; then \
