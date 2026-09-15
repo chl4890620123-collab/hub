@@ -11,22 +11,18 @@ COPY requirements.txt requirements-local.txt ./
 # torch has no GPU here, and its default PyPI wheel is the CUDA build (500+MB plus several more
 # CUDA sub-packages) - installing the CPU-only build first keeps sentence-transformers (pulled in
 # by requirements-local.txt) from redownloading the huge GPU one afterward.
-# --timeout/--retries bound pip's own per-read wait so a stalled download fails in minutes instead
-# of hanging silently for the build's entire time budget (observed twice: a 196MB torch wheel
-# stopped mid-download with zero further progress for 49 minutes, undetected by every timeout
-# upstream of pip itself). The torch download from download.pytorch.org specifically has stalled
-# out this way on two separate deploy attempts even though ordinary PyPI packages fetch fine, so
-# it also gets its own outer retry loop with a fresh `timeout`-bounded attempt each time, rather
-# than relying only on pip's internal retries against what may be the same degraded connection.
+# The CPU wheel used to come straight from download.pytorch.org, but that download stalled at
+# zero progress on 6/6 consecutive attempts across two production deploys (each attempt bounded to
+# 5 minutes and retried 3x - all 18 stalled identically), pointing to a persistent network/routing
+# problem reaching that specific host from the production machine, not a transient blip. Mirrored
+# as a GitHub Release asset instead (same torch-2.14.0+cpu wheel, sha256 pinned below) so the
+# download goes over github.com's release CDN, which that machine already reaches reliably for
+# every git operation in this same deploy.
+ARG HUB_TORCH_CPU_WHEEL_URL=https://github.com/chl4890620123-collab/hub/releases/download/torch-cpu-2.14.0/torch-2.14.0%2Bcpu-cp313-cp313-manylinux_2_28_x86_64.whl
+ARG HUB_TORCH_CPU_WHEEL_SHA256=160e1bc46aeded3111d2801f8ae10dc9a1b946843a7e126b4dbf5e19c5706e95
 RUN python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements.txt && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ]; then \
-      ok=0; \
-      for attempt in 1 2 3; do \
-        if timeout 300 python -m pip install --no-cache-dir --timeout 20 --retries 2 torch --index-url https://download.pytorch.org/whl/cpu; then ok=1; break; fi; \
-        echo "[hub-ai] torch install attempt $attempt failed, retrying..."; \
-        sleep 10; \
-      done; \
-      if [ "$ok" != "1" ]; then echo "[hub-ai] torch install failed after 3 attempts" >&2; exit 1; fi; \
+      python -m pip install --no-cache-dir --timeout 20 --retries 3 "${HUB_TORCH_CPU_WHEEL_URL}#sha256=${HUB_TORCH_CPU_WHEEL_SHA256}" && \
       python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirements-local.txt; \
     fi
 RUN mkdir -p /opt/huggingface && \
