@@ -8,8 +8,12 @@ ARG HUB_INSTALL_LOCAL_MODELS=true
 ARG HUB_PRELOAD_E5=false
 ARG HUB_EMBED_MODEL=intfloat/multilingual-e5-base
 COPY requirements.txt requirements-local.txt ./
+# torch has no GPU here, and its default PyPI wheel is the CUDA build (500+MB plus several more
+# CUDA sub-packages) - installing the CPU-only build first keeps sentence-transformers (pulled in
+# by requirements-local.txt) from redownloading the huge GPU one afterward.
 RUN python -m pip install --no-cache-dir -r requirements.txt && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ]; then \
+      python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
       python -m pip install --no-cache-dir -r requirements-local.txt; \
     fi
 RUN mkdir -p /opt/huggingface && \
