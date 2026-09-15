@@ -28,7 +28,7 @@ RUN python -m pip install --no-cache-dir --timeout 20 --retries 3 -r requirement
 RUN mkdir -p /opt/huggingface && \
     if [ "$HUB_INSTALL_LOCAL_MODELS" = "true" ] && [ "$HUB_PRELOAD_E5" = "true" ]; then \
       python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${HUB_EMBED_MODEL}')"; \
-    fi && chmod -R a+rX /opt/huggingface
+    fi && chown -R hubai:hubai /opt/huggingface
 COPY app ./app
 RUN chown -R hubai:hubai /app
 USER hubai
