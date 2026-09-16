@@ -154,19 +154,22 @@ public class UserRepository {
     }
 
     /**
-     * Bootstrap-only: creates the one admin BootstrapService seeds when an install has zero admins yet
-     * (every other admin account is created through the normal signup/approve path). must_change_password
-     * is always TRUE since the operator-supplied password may have passed through a shell/CI log.
+     * Bootstrap-only: creates the one admin an install gets when it has zero admins yet, either through
+     * BootstrapService (operator-supplied password, mustChangePassword always true since that value may
+     * have passed through a shell/CI log) or through SignupService.registerAdmin's first-admin path (the
+     * applicant's own freshly-chosen password, mustChangePassword false - they already know it). Every
+     * other admin account is created through the normal signup/approve path instead.
      */
-    public long createBootstrapAdmin(String loginId, String email, String passwordHash, String displayName) {
+    public long createBootstrapAdmin(String loginId, String email, String passwordHash, String displayName, boolean mustChangePassword) {
         KeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO app_user(login_id,email,password_hash,display_name,
                                          global_role,requested_role,account_status,must_change_password,approval_status,approved_at,privacy_consent_at)
-                    VALUES(?,?,?,?,'ADMIN','ADMIN','ACTIVE',TRUE,'APPROVED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    VALUES(?,?,?,?,'ADMIN','ADMIN','ACTIVE',?,'APPROVED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
                     """, new String[]{"id"});
             ps.setString(1, loginId); ps.setString(2, email); ps.setString(3, passwordHash); ps.setString(4, displayName);
+            ps.setBoolean(5, mustChangePassword);
             return ps;
         }, key);
         if (key.getKey() == null) throw new IllegalStateException("Admin id was not generated");

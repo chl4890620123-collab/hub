@@ -49,7 +49,7 @@ public class SignupService {
     public record RegisterCommand(String loginId, String email, String password, String displayName,
                                   String companyName, String departmentName, String teamName,
                                   String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {}
-    public record RegisterResult(long id, String status, String requestedRole, boolean reopened) {}
+    public record RegisterResult(long id, String status, String requestedRole, boolean reopened, boolean firstAdminCreated) {}
     public record LoginIdAvailability(String loginId, boolean available, String message) {}
 
     /** Public signup helper. It only reports login-id availability; email existence is never exposed. */
@@ -69,15 +69,30 @@ public class SignupService {
     }
 
     /**
-     * Admin signup never self-approves, even for the very first admin - it always lands PENDING, same
-     * as a member signup, and must be approved by an existing admin (see approve(), which already has
-     * dedicated handling for an ADMIN requestedRole). An install with zero admins yet is bootstrapped
-     * separately, from an operator-supplied password rather than anything this codebase generates or
-     * stores (see BootstrapService).
+     * Only the very first admin (bootstrapping an empty install) self-approves - anyone can sign up and
+     * be in immediately, no setup key, no server/.env access needed, since requiring an operator step
+     * here left a fresh install permanently locked out the moment nobody had touched the server's own
+     * .env yet (see BootstrapService for that separate, operator-driven route - either one can win the
+     * race to create the first admin, whichever happens first). Every admin signup after that goes
+     * through the same PENDING/approve() workflow as a member signup - see approve(), which already has
+     * dedicated handling for an ADMIN requestedRole.
      */
     @Transactional
     public RegisterResult registerAdmin(RegisterCommand command) {
-        return registerPending(command, "ADMIN", false);
+        // Serialize the first-admin check so only one signup can win the bootstrap race.
+        users.lockFirstAdminGuard();
+        if (users.countApprovedAdmins() > 0) return registerPending(command, "ADMIN", false);
+
+        Validated v = validate(command, false);
+        if (users.findAuthByIdentifier(v.loginId()).isPresent()) throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        if (users.findAuthByEmail(v.email()).isPresent()) throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+        try {
+            long id = users.createBootstrapAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), false);
+            audit.add(id, null, "FIRST_ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
+            return new RegisterResult(id, "APPROVED", "ADMIN", false, true);
+        } catch (DataIntegrityViolationException conflict) {
+            throw new StateConflictException("아이디 또는 이메일이 방금 다른 계정에 사용되었습니다. 다른 값을 입력해 주세요.");
+        }
     }
 
     private RegisterResult registerPending(RegisterCommand command, String requestedRole, boolean allowMemberExtras) {
@@ -95,7 +110,7 @@ public class SignupService {
                         v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
                 if (!reopened) throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
                 audit.add(null, null, "SIGNUP_REOPEN", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
-                return new RegisterResult(id, "PENDING", requestedRole, true);
+                return new RegisterResult(id, "PENDING", requestedRole, true, false);
             }
             if (byLogin.isPresent()) throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
@@ -104,7 +119,7 @@ public class SignupService {
             long id = users.createSignup(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), v.company(),
                     v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
             audit.add(null, null, "SIGNUP_REQUEST", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
-            return new RegisterResult(id, "PENDING", requestedRole, false);
+            return new RegisterResult(id, "PENDING", requestedRole, false, false);
         } catch (DataIntegrityViolationException conflict) {
             throw new StateConflictException("아이디 또는 이메일이 방금 다른 신청에 사용되었습니다. 다른 값을 입력해 주세요.");
         }

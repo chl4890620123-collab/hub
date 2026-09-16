@@ -50,7 +50,7 @@ public class BootstrapService implements ApplicationRunner {
             return;
         }
         users.createBootstrapAdmin(bootstrapLoginId, bootstrapLoginId + "@bootstrap.local",
-                encoder.encode(bootstrapPassword), "관리자");
+                encoder.encode(bootstrapPassword), "관리자", true);
         log.warn("Created bootstrap ADMIN '{}' from HUB_BOOTSTRAP_ADMIN_PASSWORD. It must change its password on first login.",
                 bootstrapLoginId);
     }
