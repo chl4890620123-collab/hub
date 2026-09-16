@@ -1,6 +1,5 @@
 package com.hub.service;
 
-import com.hub.config.HubProperties;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.UserRepository;
@@ -29,9 +28,7 @@ class SignupServiceAvailabilityTest {
 
     @BeforeEach
     void setUp() {
-        HubProperties props = new HubProperties(null, null, false, null, null,
-                0, 0, 0, 0, 0, null, null, null, null, null, null, null);
-        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, props, memberships, "");
+        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, memberships);
     }
 
     @Test

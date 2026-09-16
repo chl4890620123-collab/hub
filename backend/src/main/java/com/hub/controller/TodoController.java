@@ -64,7 +64,7 @@ public class TodoController {
     @GetMapping("/api/projects/{projectId}/review/todos")
     public List<TodoItem> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireAdmin(projectId, user);
+        projectAccess.requireConfirmPermission(projectId, user);
         return todoService.pending(projectId);
     }
 
@@ -85,7 +85,7 @@ public class TodoController {
                                        Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem before = todos.find(todoId);
-        projectAccess.requireAdmin(before.projectId(), user);
+        projectAccess.requireConfirmPermission(before.projectId(), user);
         todoService.confirm(before, request.assigneeId(), request.dueDate(), user);
         return Map.of("status", "CONFIRMED");
     }
@@ -98,7 +98,7 @@ public class TodoController {
                                             Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem before=todos.find(todoId);
-        projectAccess.requireAdmin(before.projectId(),user);
+        projectAccess.requireConfirmPermission(before.projectId(),user);
         todoService.editCandidate(before,request.title(),request.description(),user);
         return Map.of("status","UPDATED");
     }
@@ -110,7 +110,7 @@ public class TodoController {
                                           @RequestBody BulkConfirm request,
                                           Authentication authentication){
         User user=currentUser.requireOperational(authentication);
-        projectAccess.requireAdmin(projectId,user);
+        projectAccess.requireConfirmPermission(projectId,user);
         if(request.todoIds()==null||request.todoIds().isEmpty())throw new IllegalArgumentException("선택된 할 일이 없습니다.");
         Map<Long,String> results=todoService.bulkConfirm(projectId,request.todoIds(),request.assigneeId(),request.dueDate(),user);
         return Map.of("results",results);
@@ -120,7 +120,7 @@ public class TodoController {
     public Map<String,Object> reject(@PathVariable long todoId,Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem before=todos.find(todoId);
-        projectAccess.requireAdmin(before.projectId(),user);
+        projectAccess.requireConfirmPermission(before.projectId(),user);
         todoService.reject(before,user);
         return Map.of("status","REJECTED");
     }
@@ -130,7 +130,7 @@ public class TodoController {
     public Map<String,Object> mergeDuplicate(@PathVariable long todoId,Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem candidate=todos.find(todoId);
-        projectAccess.requireAdmin(candidate.projectId(),user);
+        projectAccess.requireConfirmPermission(candidate.projectId(),user);
         todoService.mergeDuplicate(candidate,user);
         return Map.of("status","MERGED");
     }

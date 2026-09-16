@@ -92,9 +92,6 @@ function applyFromHash() {
         default: showScreen("login", false);
     }
 }
-async function loadSetupStatus() {
-    adminSignupSubmitEl.textContent = "관리자 계정 만들기";
-}
 async function checkLoginId(input, status, button) {
     const loginId = input.value.trim();
     status.classList.remove("available", "unavailable");
@@ -282,12 +279,7 @@ async function submitSignup(form, endpoint, extra = {}) {
     form.reset();
     loginFormEl.elements.namedItem("identifier").value = loginId;
     showScreen("login");
-    const nextStep = payload.firstAdminCreated
-        ? "최초 관리자 계정이 준비되었습니다. 지금 로그인하세요."
-        : "가입 신청이 접수되었습니다. 관리자가 승인한 뒤 같은 아이디와 비밀번호로 로그인하세요.";
-    showMessage(payload.message || nextStep, true);
-    if (payload.firstAdminCreated)
-        await loadSetupStatus();
+    showMessage(payload.message || "가입 신청이 접수되었습니다. 관리자가 승인한 뒤 같은 아이디와 비밀번호로 로그인하세요.", true);
 }
 memberSignupFormEl.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -302,16 +294,14 @@ memberSignupFormEl.addEventListener("submit", async (event) => {
 adminSignupFormEl.addEventListener("submit", async (event) => {
     event.preventDefault();
     messageEl.hidden = true;
-    const setupKey = adminSignupFormEl.elements.namedItem("setupKey")?.value ?? "";
     try {
-        await submitSignup(adminSignupFormEl, "/api/auth/signup/admin", { setupKey });
+        await submitSignup(adminSignupFormEl, "/api/auth/signup/admin");
     }
     catch (error) {
         showMessage(error instanceof Error ? error.message : "관리자 가입 처리에 실패했습니다.");
     }
 });
 applyFromHash();
-void loadSetupStatus();
 void loadSignupProjects();
 void resumeExistingSession();
 async function resumeExistingSession() {

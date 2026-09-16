@@ -53,7 +53,7 @@ public class ProjectController {
         String name = request.name().trim();
         String description = request.description() == null ? null : request.description().trim();
         long id = projects.create(name, description, user.id());
-        return new Project(id, name, description, user.id(), "ADMIN");
+        return new Project(id, name, description, user.id(), "ADMIN", true);
     }
 
     @GetMapping("/{projectId}/members")

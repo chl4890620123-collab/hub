@@ -1,4 +1,5 @@
-// comparison remains available to members, while only ADMIN can commit a one-way confirmed change.
+// comparison remains available to members, while committing a one-way confirmed change needs
+// project-scoped confirm permission (or global ADMIN).
 package com.hub.controller;
 
 import com.hub.dto.AiDtos;
@@ -79,7 +80,7 @@ public class ChangeController {
     @GetMapping("/review")
     public List<Map<String, Object>> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireAdmin(projectId, user);
+        projectAccess.requireConfirmPermission(projectId, user);
         return changes.pending(projectId);
     }
 
@@ -100,7 +101,7 @@ public class ChangeController {
                                        @PathVariable long itemId,
                                        Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireAdmin(projectId, user);
+        projectAccess.requireConfirmPermission(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
             throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }
@@ -122,7 +123,7 @@ public class ChangeController {
                                       @PathVariable long itemId,
                                       Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireAdmin(projectId, user);
+        projectAccess.requireConfirmPermission(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
             throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }

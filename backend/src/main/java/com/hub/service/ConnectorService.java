@@ -6,6 +6,7 @@ import com.hub.config.HubProperties;
 import com.hub.connector.ExternalContent;
 import com.hub.connector.ReadOnlyConnector;
 import com.hub.model.User;
+import com.hub.repository.ConnectorPolicyRepository;
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.TimelineRepository;
 import com.hub.util.UnicodeText;
@@ -27,6 +28,7 @@ public class ConnectorService {
     private final HubProperties props;
     private final GoogleAccessTokenProvider googleTokens;
     private final ExternalOAuthService externalOAuth;
+    private final ConnectorPolicyRepository policy;
 
     public ConnectorService(List<ReadOnlyConnector> adapters,
                             ConnectorRepository repository,
@@ -34,7 +36,8 @@ public class ConnectorService {
                             TimelineRepository timeline,
                             ObjectMapper json,
                             HubProperties props,
-                            GoogleAccessTokenProvider googleTokens, ExternalOAuthService externalOAuth) {
+                            GoogleAccessTokenProvider googleTokens, ExternalOAuthService externalOAuth,
+                            ConnectorPolicyRepository policy) {
         adapters.forEach(adapter -> this.adapters.put(adapter.type(), adapter));
         this.repository = repository;
         this.documents = documents;
@@ -43,6 +46,7 @@ public class ConnectorService {
         this.props = props;
         this.googleTokens = googleTokens;
         this.externalOAuth = externalOAuth;
+        this.policy = policy;
     }
 
     /**
@@ -55,6 +59,7 @@ public class ConnectorService {
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
         if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
+        if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         String token = resolveToken(normalizedType, user);
         if (token == null || token.isBlank())
             return java.util.Map.of("connected", false, "linkedByUser", false, "targets", java.util.List.of());
@@ -98,6 +103,7 @@ public class ConnectorService {
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
         if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
+        if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         if (scope == null || scope.isBlank()) throw new IllegalArgumentException("가져올 범위를 입력해 주세요.");
 
         String cleanScope=scope.trim();

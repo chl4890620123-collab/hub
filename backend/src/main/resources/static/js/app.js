@@ -74,13 +74,23 @@ function bindFilePickerLabel(input){
  const label=input.closest('.file-picker');if(!label)return;const nameEl=label.querySelector('.file-picker-name');if(!nameEl)return;
  input.addEventListener('change',()=>{const files=[...(input.files||[])];nameEl.textContent=files.length?files.map(f=>f.name).join(', '):'선택된 파일이 없습니다.';});
 }
-function viewAllowed(name){if(!document.getElementById(`view-${name}`))return false;if((name==='admin'||name==='review')&&currentUser?.globalRole!=='ADMIN')return false;return true;}
+function canConfirmCurrentProject(){return currentUser?.globalRole==='ADMIN'||Boolean(projects.find(p=>Number(p.id)===Number(currentProject))?.canConfirm);}
+function viewAllowed(name){if(!document.getElementById(`view-${name}`))return false;if(name==='admin'&&currentUser?.globalRole!=='ADMIN')return false;if(name==='review'&&!canConfirmCurrentProject())return false;return true;}
 function preferredInitialView(){const saved=sessionStorage.getItem('hub.lastView');if(saved&&viewAllowed(saved))return saved;return 'search';}
 function setProjectAvailability(available){const onboarding=document.getElementById('emptyProjectOnboarding');if(!onboarding)return;if(available){onboarding.hidden=true;document.querySelectorAll('.project-required').forEach(x=>x.removeAttribute('disabled'));return;}onboarding.hidden=false;const admin=currentUser?.globalRole==='ADMIN';document.getElementById('emptyProjectTitle').textContent=admin?'첫 프로젝트를 만들어 주세요':'프로젝트 배정을 기다리고 있습니다';document.getElementById('emptyProjectMessage').textContent=admin?'프로젝트를 만든 뒤 문서, 회의, 연결 서비스를 사용할 수 있습니다.':'관리자가 프로젝트를 만든 뒤 배정하면 문서, 회의, 검색 기능을 사용할 수 있습니다.';document.getElementById('emptyProjectCreate').hidden=!admin;document.querySelectorAll('.project-required').forEach(x=>x.setAttribute('disabled','disabled'));}
 function requireCurrentProject(){if(currentProject)return true;flash(currentUser?.globalRole==='ADMIN'?'먼저 프로젝트를 만들어 주세요.':'아직 배정된 프로젝트가 없습니다. 관리자에게 요청해 주세요.',false);return false;}
 function switchView(name){const target=viewAllowed(name)?name:'search';if(target==='connectors')setTimeout(()=>void refreshConnectorStates(),0);document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view===target));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${target}`));sessionStorage.setItem('hub.lastView',target);if(target==='admin')loadAdmin();}
 
 const CONNECTOR_LABELS={GOOGLE_DRIVE:'Google Drive',GITHUB:'GitHub',SLACK:'Slack',NOTION:'Notion',EXTERNAL:'연결 서비스'};
+/** Admin-off connector types stay hidden from the connectors screen entirely, not just blocked server-side. */
+async function applyConnectorPolicy(){
+ try{
+  const policy=await api('/api/connector-policy');
+  document.querySelectorAll('.connectorForm').forEach(node=>{node.hidden=policy[node.dataset.type]===false;});
+ }catch{
+  document.querySelectorAll('.connectorForm').forEach(node=>node.hidden=false);
+ }
+}
 // The OAuth callback returns here with its outcome in the query string; without this the operator is sent
 // back to a silent home screen and cannot tell whether the connection actually worked.
 function reportConnectorResult(){
@@ -192,10 +202,14 @@ async function init(){
  if(currentUser.mustChangePassword){document.getElementById('passwordChangeNotice').hidden=false;switchView('account');return;}
  // The violet "관리자" section label is only meaningful once at least one admin-only button sits
  // under it; left unconditional, a general user sees an empty violet-highlighted admin heading.
- const adminGroupLabel=document.querySelector('.nav-group-label-admin'),searchHero=document.getElementById('searchHero');
- document.querySelectorAll('.connectorForm').forEach(node=>node.hidden=false);
- if(currentUser.globalRole==='ADMIN'){document.getElementById('adminNav').hidden=false;document.getElementById('newProjectBtn').hidden=false;document.getElementById('renameProjectBtn').hidden=false;document.querySelectorAll('[data-view="review"]').forEach(node=>node.hidden=false);if(adminGroupLabel)adminGroupLabel.hidden=false;const dashOverview=document.getElementById('dashboardAdminOverview');if(dashOverview)dashOverview.hidden=false;const dashLink=document.getElementById('dashboardAdminLink');if(dashLink)dashLink.hidden=false;}else{document.getElementById('newProjectBtn').hidden=true;document.getElementById('renameProjectBtn').hidden=true;document.querySelectorAll('[data-view="review"]').forEach(node=>node.hidden=true);if(adminGroupLabel)adminGroupLabel.hidden=true;if(searchHero)searchHero.hidden=true;}
- await loadProjects();setProjectAvailability(Boolean(currentProject));document.getElementById('monthInput').value=localMonth();const documentMonthInput=document.getElementById('documentMonthInput');if(documentMonthInput)documentMonthInput.value=localMonth();renderRecentViews();if(currentProject)await refreshAll();if(currentUser.globalRole==='ADMIN')loadAdmin().catch(()=>{});switchView(preferredInitialView());reportConnectorResult();
+ const adminGroupLabel=document.querySelector('.nav-group-label-admin');
+ await applyConnectorPolicy();
+ if(currentUser.globalRole==='ADMIN'){document.getElementById('adminNav').hidden=false;document.getElementById('newProjectBtn').hidden=false;document.getElementById('renameProjectBtn').hidden=false;if(adminGroupLabel)adminGroupLabel.hidden=false;const dashOverview=document.getElementById('dashboardAdminOverview');if(dashOverview)dashOverview.hidden=false;const dashLink=document.getElementById('dashboardAdminLink');if(dashLink)dashLink.hidden=false;}else{document.getElementById('newProjectBtn').hidden=true;document.getElementById('renameProjectBtn').hidden=true;if(adminGroupLabel)adminGroupLabel.hidden=true;}
+ await loadProjects();setProjectAvailability(Boolean(currentProject));
+ // "담당자 배정" used to be admin-only; now anyone holding confirm-permission on at least one of
+ // their own projects sees it too (each project's own grant still gates the screen's actual data).
+ document.querySelectorAll('[data-view="review"]').forEach(node=>node.hidden=!(currentUser.globalRole==='ADMIN'||projects.some(p=>p.canConfirm)));
+ document.getElementById('monthInput').value=localMonth();const documentMonthInput=document.getElementById('documentMonthInput');if(documentMonthInput)documentMonthInput.value=localMonth();renderRecentViews();if(currentProject)await refreshAll();if(currentUser.globalRole==='ADMIN')loadAdmin().catch(()=>{});switchView(preferredInitialView());reportConnectorResult();
 }
 async function loadProjects(){projects=await api('/api/projects');const sel=document.getElementById('projectSelect');sel.replaceChildren();projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});const savedProject=Number(sessionStorage.getItem('hub.projectId'));const candidate=projects.some(p=>Number(p.id)===Number(currentProject))?currentProject:(projects.some(p=>Number(p.id)===savedProject)?savedProject:projects[0]?.id||null);currentProject=candidate;sel.value=currentProject||'';if(currentProject)sessionStorage.setItem('hub.projectId',String(currentProject));sel.onchange=async()=>{currentProject=Number(sel.value);sessionStorage.setItem('hub.projectId',String(currentProject));await refreshAll();};}
 function bindNav(){document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>switchView(b.dataset.view));document.querySelectorAll('[data-open-view]').forEach(a=>a.onclick=e=>{e.preventDefault();switchView(a.dataset.openView);});}
@@ -283,7 +297,7 @@ function bindForms(){
 }
 
 
-async function refreshAll(){if(!currentProject)return;await loadMembers();const isAdmin=currentUser?.globalRole==='ADMIN';await Promise.all([loadTodos(),...(isAdmin?[loadReview()]:[]),loadTimeline(),loadDocuments(),loadProcessingJobs(),loadTopSearches(),loadConnectorStatus(),loadFileTransfers()]);renderSummary();renderDashboardTodos();}
+async function refreshAll(){if(!currentProject)return;await loadMembers();await Promise.all([loadTodos(),...(canConfirmCurrentProject()?[loadReview()]:[]),loadTimeline(),loadDocuments(),loadProcessingJobs(),loadTopSearches(),loadConnectorStatus(),loadFileTransfers()]);renderSummary();renderDashboardTodos();}
 function memberDisplayName(userId){if(Number(currentUser?.id)===Number(userId))return `${currentUser.displayName||'나'} (나)`;const m=projectMembers.find(x=>Number(value(x,'user_id'))===Number(userId));return m?value(m,'display_name'):`사용자 #${userId}`;}
 async function loadFileTransfers(){
  if(!currentProject)return;const root=document.getElementById('fileTransferList');if(!root)return;
@@ -366,30 +380,51 @@ const CALENDAR_CHIP_LIMIT=3;
 function renderCalendar(y,m){const cal=document.getElementById('todoCalendar'),undatedRoot=document.getElementById('todoUndated'),rows=visibleTodos();cal.className='calendar';cal.replaceChildren();undatedRoot.replaceChildren();const first=new Date(y,m-1,1),days=new Date(y,m,0).getDate();for(let i=0;i<first.getDay();i++)cal.appendChild(el('div','day'));for(let d=1;d<=days;d++){const day=el('div','day');day.appendChild(el('div','date',String(d)));const date=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const dayTodos=rows.filter(t=>t.dueDate===date);dayTodos.forEach((t,idx)=>{const chip=el('span','todo-chip',`${t.title} · ${taskStatusLabel(t.taskStatus)}`);chip.title=todoReadiness(t).label;if(idx>=CALENDAR_CHIP_LIMIT)chip.classList.add('day-chip-extra');day.appendChild(chip);});if(dayTodos.length>CALENDAR_CHIP_LIMIT){const extra=dayTodos.length-CALENDAR_CHIP_LIMIT,more=el('button','day-more',`+${extra}개 더보기`);more.type='button';more.onclick=()=>{const expanded=day.classList.toggle('day-expanded');more.textContent=expanded?'접기':`+${extra}개 더보기`;};day.appendChild(more);}cal.appendChild(day);}const undated=rows.filter(t=>!t.dueDate);if(undated.length){const box=el('div','panel');box.appendChild(el('h3','',`기한 미정 ${undated.length}건`));undated.forEach(t=>{const line=el('div','item');line.append(statusPill(t),el('span','',t.title));box.appendChild(line);});undatedRoot.appendChild(box);}}
 function todoStagePercent(t){return t.taskStatus==='DONE'?100:t.taskStatus==='IN_PROGRESS'?55:t.taskStatus==='BLOCKED'?25:8;}
 function relatedMaterialButton(todoId,label='관련 자료 보기'){const b=evidenceButton(`/api/todos/${todoId}/evidence`,label);b.classList.add('related-material-btn');return b;}
+/** Not a menu: one click on the status badge moves forward. BLOCKED is a status you can filter/see (kept for future use) but isn't part of this quick cycle - a click from BLOCKED just re-enters it at TODO instead of dead-ending. */
+const TASK_STATUS_CYCLE=['TODO','IN_PROGRESS','DONE'];
+function nextTaskStatus(status){const idx=TASK_STATUS_CYCLE.indexOf(status);return idx===-1?TASK_STATUS_CYCLE[0]:TASK_STATUS_CYCLE[(idx+1)%TASK_STATUS_CYCLE.length];}
+function buildTodoCard(t,isAdmin,muted){
+ const item=el('article',`item todo-card${muted?' todo-card-muted':''}`);
+ const top=el('div','todo-card-top'),titleWrap=el('div','todo-card-title'),side=el('div','todo-card-status');
+ titleWrap.append(el('strong','',t.title));if(t.description)titleWrap.append(el('p','muted',t.description));side.appendChild(statusPill(t));top.append(titleWrap,side);item.appendChild(top);
+ const facts=el('div','todo-facts');
+ const assignee=el('div','todo-fact');assignee.append(el('span','','담당자'),el('strong','',t.assigneeText||t.assigneeSuggestionText||'아직 정하지 않음'));
+ const due=el('div','todo-fact');due.append(el('span','','기한'),el('strong','',t.dueDate||t.dueDateSuggestion||'기한 미정'));
+ facts.append(assignee,due);item.appendChild(facts);
+ const progress=el('div','todo-stage'),stageHead=el('div','todo-stage-head');stageHead.append(el('span','','진행 상태'));const track=el('div','todo-stage-track'),fill=el('i','');fill.style.width=`${todoStagePercent(t)}%`;track.appendChild(fill);progress.append(stageHead,track);item.appendChild(progress);
+ const actions=el('div','todo-card-actions');
+ const statusBtn=el('button',`status-cycle-btn status-${(t.taskStatus||'TODO').toLowerCase()}`,taskStatusLabel(t.taskStatus));
+ statusBtn.type='button';statusBtn.title='클릭하면 다음 상태로 바뀝니다 (메뉴 없이 계속 눌러 되돌릴 수 있어요)';
+ statusBtn.disabled=t.assignmentStatus==='REASSIGNMENT_REQUIRED'||!(isAdmin||(t.reviewStatus==='CONFIRMED'&&Number(t.assigneeId)===Number(currentUser?.id)));
+ statusBtn.onclick=async()=>{const next=nextTaskStatus(t.taskStatus);try{await api(`/api/todos/${t.id}/status`,{method:'PATCH',body:JSON.stringify({status:next})});await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+ const attachBtn=el('button','ghost compact-button','📎 첨부파일');attachBtn.type='button';
+ const attachBox=el('div','todo-attachments');attachBox.hidden=true;
+ attachBtn.onclick=async()=>{
+  attachBox.hidden=!attachBox.hidden;
+  if(!attachBox.hidden)await renderTodoAttachments(attachBox,t.id);
+ };
+ actions.append(statusBtn,relatedMaterialButton(t.id),attachBtn);item.append(actions,attachBox);
+ return item;
+}
 function renderTodoList(){
  const root=document.getElementById('todoList');root.replaceChildren();const isAdmin=currentUser?.globalRole==='ADMIN',rows=visibleTodos();
  if(!rows.length){root.appendChild(el('div','dashboard-empty','현재 조건에 맞는 할 일이 없습니다.'));return;}
- rows.forEach(t=>{
-  const item=el('article','item todo-card');
-  const top=el('div','todo-card-top'),titleWrap=el('div','todo-card-title'),side=el('div','todo-card-status');
-  titleWrap.append(el('strong','',t.title));if(t.description)titleWrap.append(el('p','muted',t.description));side.appendChild(statusPill(t));top.append(titleWrap,side);item.appendChild(top);
-  const facts=el('div','todo-facts');
-  const assignee=el('div','todo-fact');assignee.append(el('span','','담당자'),el('strong','',t.assigneeText||t.assigneeSuggestionText||'아직 정하지 않음'));
-  const due=el('div','todo-fact');due.append(el('span','','기한'),el('strong','',t.dueDate||t.dueDateSuggestion||'기한 미정'));
-  facts.append(assignee,due);item.appendChild(facts);
-  const progress=el('div','todo-stage'),stageHead=el('div','todo-stage-head');stageHead.append(el('span','','진행 상태'),el('strong','',taskStatusLabel(t.taskStatus)));const track=el('div','todo-stage-track'),fill=el('i','');fill.style.width=`${todoStagePercent(t)}%`;track.appendChild(fill);progress.append(stageHead,track);item.appendChild(progress);
-  const actions=el('div','todo-card-actions'),select=document.createElement('select');select.setAttribute('aria-label','진행 상태 바꾸기');
-  ['TODO','IN_PROGRESS','DONE','BLOCKED'].forEach(status=>{const o=document.createElement('option');o.value=status;o.textContent=taskStatusLabel(status);o.selected=t.taskStatus===status;select.appendChild(o);});
-  select.disabled=t.assignmentStatus==='REASSIGNMENT_REQUIRED'||!(isAdmin||(t.reviewStatus==='CONFIRMED'&&Number(t.assigneeId)===Number(currentUser?.id)));
-  select.onchange=async()=>{try{await api(`/api/todos/${t.id}/status`,{method:'PATCH',body:JSON.stringify({status:select.value})});await loadTodos();}catch(err){flash(err.message,false);}};
-  const attachBtn=el('button','ghost compact-button','📎 첨부파일');attachBtn.type='button';
-  const attachBox=el('div','todo-attachments');attachBox.hidden=true;
-  attachBtn.onclick=async()=>{
-   attachBox.hidden=!attachBox.hidden;
-   if(!attachBox.hidden)await renderTodoAttachments(attachBox,t.id);
-  };
-  actions.append(select,relatedMaterialButton(t.id),attachBtn);item.append(actions,attachBox);root.appendChild(item);
- });
+ // 기한 임박순 - 기한 없는 항목은 뒤로. 완료 항목은 목록에서 사라지지 않고 맨 아래로 밀리며, 오늘
+ // 완료한 것만 회색으로 계속 보이고 그 전에 완료한 것은 접어 둔다 (주간보고·회고용 기록이라 삭제 금지).
+ const sorted=[...rows].sort((a,b)=>{const ad=a.dueDate||'9999-12-31',bd=b.dueDate||'9999-12-31';return ad<bd?-1:ad>bd?1:0;});
+ const today=localDate();
+ const active=sorted.filter(t=>t.taskStatus!=='DONE');
+ const doneToday=sorted.filter(t=>t.taskStatus==='DONE'&&String(t.updatedAt||'').slice(0,10)===today);
+ const doneEarlier=sorted.filter(t=>t.taskStatus==='DONE'&&String(t.updatedAt||'').slice(0,10)!==today);
+ active.forEach(t=>root.appendChild(buildTodoCard(t,isAdmin,false)));
+ if(doneEarlier.length){
+  const toggle=el('button','ghost todo-done-toggle',`완료 ${doneEarlier.length}건 더보기`);toggle.type='button';
+  const box=el('div','todo-done-collapsed');box.hidden=true;
+  doneEarlier.forEach(t=>box.appendChild(buildTodoCard(t,isAdmin,true)));
+  toggle.onclick=()=>{box.hidden=!box.hidden;toggle.textContent=box.hidden?`완료 ${doneEarlier.length}건 더보기`:'완료한 지난 항목 접기';};
+  root.append(toggle,box);
+ }
+ doneToday.forEach(t=>root.appendChild(buildTodoCard(t,isAdmin,true)));
 }
 async function renderTodoAttachments(box,todoId){
  box.replaceChildren(el('div','muted','불러오는 중...'));
@@ -439,7 +474,7 @@ async function loadReview(){
    const bulkBar=el('div','panel review-bulk-bar');
    const bulkAssignee=document.createElement('select'),bulkNone=document.createElement('option');bulkNone.value='';bulkNone.textContent='담당자 선택';bulkAssignee.appendChild(bulkNone);
    projectMembers.forEach(m=>{const o=document.createElement('option');o.value=value(m,'user_id');o.textContent=value(m,'display_name');bulkAssignee.appendChild(o);});
-   const bulkDue=document.createElement('input');bulkDue.type='date';
+   const bulkDue=document.createElement('input');bulkDue.type='date';bulkDue.value=localDate();
    const bulkCount=el('span','muted','0건 선택됨');
    const bulkBtn=el('button','','선택한 항목 일괄 배정');bulkBtn.type='button';
    bulkBtn.onclick=async()=>{
@@ -467,7 +502,7 @@ async function loadReview(){
    item.appendChild(el('div','muted',`원문에 적힌 담당자: ${t.assigneeText||'없음'} · AI가 찾은 담당자 후보: ${t.assigneeSuggestionText||'없음'} · 예상 기한: ${t.dueDateSuggestion||'미정'} · AI가 찾은 내용의 확실함: ${confidenceLabel(t.confidence)}`));
    const row=el('div','review-actions'),assignee=document.createElement('select'),none=document.createElement('option');none.value='';none.textContent='담당자 미정';assignee.appendChild(none);
    projectMembers.forEach(m=>{const o=document.createElement('option'),id=value(m,'user_id');o.value=id;o.textContent=value(m,'display_name');if(Number(t.assigneeSuggestionId)===Number(id))o.selected=true;assignee.appendChild(o);});
-   const due=document.createElement('input');due.type='date';due.value=t.dueDateSuggestion||'';
+   const due=document.createElement('input');due.type='date';due.value=t.dueDateSuggestion||localDate();
    const confirmBtn=el('button','', '이 사람에게 배정');confirmBtn.onclick=async()=>{if(!assignee.value){flash('업무 확정 전에 실제 팀원을 선택해 주세요.',false);return;}await api(`/api/todos/${t.id}/confirm`,{method:'POST',body:JSON.stringify({assigneeId:Number(assignee.value),dueDate:due.value||null})});flash('담당자와 기한을 정해 할 일을 배정했습니다.');await refreshAll();};
    const editBtn=el('button','ghost compact-button','✏️ 수정');editBtn.type='button';editBtn.onclick=async()=>{
     const result=await requestManualEdit(t.title,t.description||'');
@@ -646,7 +681,9 @@ async function loadAdmin(){
   i.appendChild(actions);userRoot.appendChild(i);
   if(u.globalRole==='MEMBER'&&u.accountStatus==='ACTIVE'){const o=document.createElement('option');o.value=u.id;o.textContent=`${u.displayName} (@${u.loginId})`;select.appendChild(o);}
  });
- const memberRoot=document.getElementById('adminProjectMembers');if(memberRoot){memberRoot.replaceChildren();const members=currentProject?await api(`/api/projects/${currentProject}/members`):[];if(!members.length)memberRoot.appendChild(el('div','muted','이 프로젝트에 추가된 사람이 없습니다.'));members.forEach(m=>{const row=el('div','row between member-admin-row'),label=el('span','',`${value(m,'display_name')} · ${value(m,'email')}`),actions=el('div','row'),move=el('button','ghost','다른 프로젝트로 옮기기'),remove=el('button','ghost','이 프로젝트에서 빼기');move.type=remove.type='button';move.onclick=async()=>{const choices=projects.filter(p=>Number(p.id)!==Number(currentProject));if(!choices.length){flash('이동할 다른 프로젝트가 없습니다.',false);return;}const raw=await requestChoice('이동할 프로젝트 선택',choices.map(p=>({value:p.id,label:p.name})));if(!raw)return;const target=choices.find(p=>Number(p.id)===Number(raw));if(!target){flash('올바른 프로젝트를 선택해 주세요.',false);return;}try{const d=await api(`/api/admin/projects/${currentProject}/members/move`,{method:'POST',body:JSON.stringify({userId:Number(value(m,'user_id')),toProjectId:Number(target.id)})});flash(`프로젝트를 옮겼습니다. 담당자를 다시 정할 일 ${d.reassignmentCount||0}건`);await loadMembers();await loadAdmin();}catch(err){flash(errorMessage(err),false);}};remove.onclick=async()=>{try{const d=await api(`/api/admin/projects/${currentProject}/members/${value(m,'user_id')}`,{method:'DELETE'});flash(`프로젝트에서 제외했습니다. 담당자를 다시 정할 일 ${d.reassignmentCount||0}건`);await loadMembers();await loadAdmin();}catch(err){flash(errorMessage(err),false);}};actions.append(move,remove);row.append(label,actions);memberRoot.appendChild(row);});}
+ const memberRoot=document.getElementById('adminProjectMembers');if(memberRoot){memberRoot.replaceChildren();const members=currentProject?await api(`/api/projects/${currentProject}/members`):[];if(!members.length)memberRoot.appendChild(el('div','muted','이 프로젝트에 추가된 사람이 없습니다.'));members.forEach(m=>{const row=el('div','row between member-admin-row'),label=el('span','',`${value(m,'display_name')} · ${value(m,'email')}`),actions=el('div','row'),move=el('button','ghost','다른 프로젝트로 옮기기'),remove=el('button','ghost','이 프로젝트에서 빼기');move.type=remove.type='button';move.onclick=async()=>{const choices=projects.filter(p=>Number(p.id)!==Number(currentProject));if(!choices.length){flash('이동할 다른 프로젝트가 없습니다.',false);return;}const raw=await requestChoice('이동할 프로젝트 선택',choices.map(p=>({value:p.id,label:p.name})));if(!raw)return;const target=choices.find(p=>Number(p.id)===Number(raw));if(!target){flash('올바른 프로젝트를 선택해 주세요.',false);return;}try{const d=await api(`/api/admin/projects/${currentProject}/members/move`,{method:'POST',body:JSON.stringify({userId:Number(value(m,'user_id')),toProjectId:Number(target.id)})});flash(`프로젝트를 옮겼습니다. 담당자를 다시 정할 일 ${d.reassignmentCount||0}건`);await loadMembers();await loadAdmin();}catch(err){flash(errorMessage(err),false);}};remove.onclick=async()=>{try{const d=await api(`/api/admin/projects/${currentProject}/members/${value(m,'user_id')}`,{method:'DELETE'});flash(`프로젝트에서 제외했습니다. 담당자를 다시 정할 일 ${d.reassignmentCount||0}건`);await loadMembers();await loadAdmin();}catch(err){flash(errorMessage(err),false);}};
+  const canConfirm=Boolean(value(m,'can_confirm_todos'));const confirmToggle=el('button','ghost',canConfirm?'업무 확정 권한 빼기':'업무 확정 권한 주기');confirmToggle.type='button';confirmToggle.onclick=async()=>{try{await api(`/api/admin/projects/${currentProject}/confirm-permission`,{method:'PUT',body:JSON.stringify({userId:Number(value(m,'user_id')),granted:!canConfirm})});flash(canConfirm?'업무 확정 권한을 뺐습니다.':'업무 확정 권한을 줬습니다.');await loadMembers();await loadAdmin();}catch(err){flash(errorMessage(err),false);}};
+  actions.append(confirmToggle,move,remove);row.append(label,actions);memberRoot.appendChild(row);});}
  const rr=document.getElementById('adminReassignments'),count=document.getElementById('reassignmentCount');
  if(rr){
   rr.replaceChildren();if(count)count.textContent=`${reassignments.length}건`;
@@ -686,7 +723,24 @@ async function loadAdmin(){
   }
  }
  const auditRoot=document.getElementById('auditList');auditRoot.replaceChildren();if(!audits.length)auditRoot.appendChild(el('div','panel muted','아직 바뀐 내용 기록이 없습니다.'));audits.forEach(a=>{const i=el('div','item compact');i.appendChild(el('strong','',`${eventTypeLabel(value(a,'action'))} · ${entityTypeLabel(value(a,'target_type'))}`));i.appendChild(el('div','muted',`${value(a,'display_name')||'시스템 자동 처리'} · ${value(a,'project_name')||'전체 조직'} · ${value(a,'created_at')}`));auditRoot.appendChild(i);});
- await Promise.all([loadSearchRules(),loadRevisions(),loadSensitiveTerms()]);
+ await Promise.all([loadSearchRules(),loadRevisions(),loadSensitiveTerms(),loadConnectorPolicy()]);
+}
+
+async function loadConnectorPolicy(){
+ if(currentUser?.globalRole!=='ADMIN')return;
+ const root=document.getElementById('connectorPolicyList');if(!root)return;
+ try{
+  const policy=await api('/api/connector-policy');
+  root.replaceChildren();
+  Object.keys(policy).forEach(type=>{
+   const enabled=Boolean(policy[type]);
+   const row=el('div','row between');
+   row.appendChild(el('span','',CONNECTOR_LABELS[type]||type));
+   const toggle=el('button','ghost',enabled?'끄기':'켜기');toggle.type='button';
+   toggle.onclick=async()=>{try{await api(`/api/connector-policy/${type}`,{method:'PUT',body:JSON.stringify({enabled:!enabled})});await loadConnectorPolicy();applyConnectorPolicy();}catch(err){flash(errorMessage(err),false);}};
+   row.appendChild(toggle);root.appendChild(row);
+  });
+ }catch(err){root.replaceChildren(el('div','muted',errorMessage(err)));}
 }
 
 async function loadSensitiveTerms(){
@@ -738,6 +792,43 @@ function renderSearchRuleTest(data){
 
 
 function renderSummary(){const root=document.getElementById('summaryCards');root.replaceChildren();const today=localDate(),cards=[['바로 실행',todos.filter(x=>todoReadiness(x).cls==='ready'&&x.taskStatus!=='DONE').length],['AI 검토 필요',todos.filter(x=>x.reviewStatus!=='CONFIRMED').length],['오늘 마감',todos.filter(x=>x.dueDate===today&&x.taskStatus!=='DONE').length],['막힘',todos.filter(x=>x.taskStatus==='BLOCKED').length]];cards.forEach(([k,v])=>{const c=el('div','card');c.append(el('span','muted',k),el('strong','',String(v)));root.appendChild(c);});}
+
+// Global Ctrl+K (Cmd+K on Mac) search overlay - reachable from any view, same /materials/search API
+// and result rendering as the #view-search screen (renderMaterialResults), so results behave identically.
+let globalSearchDebounce=null;
+function openGlobalSearch(){
+ const overlay=document.getElementById('globalSearchOverlay');if(!overlay)return;
+ overlay.hidden=false;
+ const input=document.getElementById('globalSearchQuery');input.value='';input.focus();
+ document.getElementById('globalSearchResults').replaceChildren();
+}
+function closeGlobalSearch(){
+ const overlay=document.getElementById('globalSearchOverlay');if(!overlay||overlay.hidden)return;
+ overlay.hidden=true;clearTimeout(globalSearchDebounce);
+}
+function bindGlobalSearch(){
+ const overlay=document.getElementById('globalSearchOverlay'),form=document.getElementById('globalSearchForm'),
+   input=document.getElementById('globalSearchQuery'),results=document.getElementById('globalSearchResults'),
+   closeBtn=document.getElementById('globalSearchClose');
+ if(!overlay||!form||!input||!results)return;
+ document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();overlay.hidden?openGlobalSearch():closeGlobalSearch();return;}
+  if(e.key==='Escape'&&!overlay.hidden){closeGlobalSearch();}
+ });
+ overlay.addEventListener('click',e=>{if(e.target===overlay)closeGlobalSearch();});
+ closeBtn.onclick=()=>closeGlobalSearch();
+ form.onsubmit=e=>e.preventDefault();
+ const runSearch=async()=>{
+  const q=input.value.trim();
+  if(!q){results.replaceChildren();return;}
+  if(!currentProject){results.replaceChildren(el('div','panel muted','검색할 프로젝트가 없습니다.'));return;}
+  try{const data=await api(`/api/projects/${currentProject}/materials/search?q=${encodeURIComponent(q)}`);renderMaterialResults(results,data,q);}
+  catch(err){results.replaceChildren(el('div','panel muted',errorMessage(err)));}
+ };
+ input.addEventListener('input',()=>{clearTimeout(globalSearchDebounce);globalSearchDebounce=setTimeout(runSearch,200);});
+ results.addEventListener('click',()=>setTimeout(closeGlobalSearch,0));
+}
+bindGlobalSearch();
 
 init().catch(e=>flash(e.message,false));
 

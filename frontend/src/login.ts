@@ -93,10 +93,6 @@ function applyFromHash(): void {
   }
 }
 
-async function loadSetupStatus(): Promise<void> {
-  adminSignupSubmitEl.textContent = "관리자 계정 만들기";
-}
-
 type LoginIdCheckPayload = { loginId?: string; available?: boolean; message?: string };
 async function checkLoginId(input: HTMLInputElement, status: HTMLElement, button: HTMLButtonElement): Promise<void> {
   const loginId = input.value.trim();
@@ -270,16 +266,12 @@ async function submitSignup(form: HTMLFormElement, endpoint: string, extra: Reco
       requestedProjectId: requestedProjectRaw ? Number(requestedProjectRaw) : null, ...extra
     })
   });
-  const payload = await response.json().catch(() => ({ message: "가입 처리에 실패했습니다." })) as { message?: string; firstAdminCreated?: boolean };
+  const payload = await response.json().catch(() => ({ message: "가입 처리에 실패했습니다." })) as { message?: string };
   if (!response.ok) throw new Error(payload.message || "가입 처리에 실패했습니다.");
   form.reset();
   (loginFormEl.elements.namedItem("identifier") as HTMLInputElement).value = loginId;
   showScreen("login");
-  const nextStep = payload.firstAdminCreated
-    ? "최초 관리자 계정이 준비되었습니다. 지금 로그인하세요."
-    : "가입 신청이 접수되었습니다. 관리자가 승인한 뒤 같은 아이디와 비밀번호로 로그인하세요.";
-  showMessage(payload.message || nextStep, true);
-  if (payload.firstAdminCreated) await loadSetupStatus();
+  showMessage(payload.message || "가입 신청이 접수되었습니다. 관리자가 승인한 뒤 같은 아이디와 비밀번호로 로그인하세요.", true);
 }
 
 memberSignupFormEl.addEventListener("submit", async (event: SubmitEvent): Promise<void> => {
@@ -290,13 +282,11 @@ memberSignupFormEl.addEventListener("submit", async (event: SubmitEvent): Promis
 
 adminSignupFormEl.addEventListener("submit", async (event: SubmitEvent): Promise<void> => {
   event.preventDefault(); messageEl.hidden = true;
-  const setupKey = (adminSignupFormEl.elements.namedItem("setupKey") as HTMLInputElement | null)?.value ?? "";
-  try { await submitSignup(adminSignupFormEl, "/api/auth/signup/admin", { setupKey }); }
+  try { await submitSignup(adminSignupFormEl, "/api/auth/signup/admin"); }
   catch (error: unknown) { showMessage(error instanceof Error ? error.message : "관리자 가입 처리에 실패했습니다."); }
 });
 
 applyFromHash();
-void loadSetupStatus();
 void loadSignupProjects();
 void resumeExistingSession();
 

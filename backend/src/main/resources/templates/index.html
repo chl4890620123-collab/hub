@@ -39,6 +39,7 @@
       <button data-view="search" class="nav active"><svg class="ui-icon"><use href="#i-search"/></svg><span>자료 찾기</span></button>
       <button data-view="ask" class="nav"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI에게 묻기</span></button>
       <button data-view="todos" class="nav"><svg class="ui-icon"><use href="#i-check"/></svg><span>할 일 · 일정</span></button>
+      <button data-view="review" class="nav" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span></button>
       <span class="nav-group-label">자료 정리</span>
       <button data-view="documents" class="nav"><svg class="ui-icon"><use href="#i-doc"/></svg><span>문서 요약</span></button>
       <button data-view="meetings" class="nav"><svg class="ui-icon"><use href="#i-mic"/></svg><span>회의 녹음</span></button>
@@ -46,7 +47,6 @@
       <button data-view="connectors" class="nav"><svg class="ui-icon"><use href="#i-link"/></svg><span>연결 서비스</span></button>
       <button data-view="account" class="nav"><svg class="ui-icon"><use href="#i-people"/></svg><span>내 정보</span></button>
       <span class="nav-group-label nav-group-label-admin">관리자</span>
-      <button data-view="review" class="nav nav-admin" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span><span class="nav-admin-badge">ADMIN</span></button>
       <button data-view="admin" id="adminNav" class="nav nav-admin" hidden><svg class="ui-icon"><use href="#i-shield"/></svg><span>회사 관리</span><span class="nav-admin-badge">ADMIN</span></button>
     </nav>
   </aside>
@@ -58,51 +58,34 @@
     </section>
 
     <section id="view-dashboard" class="view">
-      <div class="hero hero-work">
-        <div class="hero-copy"><span class="eyebrow">오늘의 업무</span><h1>안녕하세요, <em>오늘 할 일을 확인해 보세요</em></h1><p>회의를 녹음하거나 문서를 가져오면 중요한 내용과 해야 할 일을 보기 쉽게 정리해 드립니다.</p><div class="hero-actions"><a class="primary-link" href="#" data-open-view="todos">내 할 일 보기 <svg class="ui-icon"><use href="#i-arrow"/></svg></a><a class="soft-link" href="#" data-open-view="search">자료 찾기</a></div></div>
-      </div>
+      <div class="row between"><div><span class="eyebrow">내 업무</span><h2>지금 확인할 할 일</h2></div><button class="ghost" type="button" data-open-view="todos">전체 할 일</button></div>
+      <div id="dashboardTodos"></div>
       <div id="dashboardAdminOverview" class="admin-summary-grid" hidden aria-label="관리 현황">
         <div class="admin-summary-card tone-green"><span class="feature-icon"><svg class="ui-icon"><use href="#i-userplus"/></svg></span><div><span>가입 확인</span><strong id="dashPendingCount">0건</strong><small>새로 가입하려는 사람</small></div></div>
         <div class="admin-summary-card tone-yellow"><span class="feature-icon"><svg class="ui-icon"><use href="#i-check"/></svg></span><div><span>담당자 확인</span><strong id="dashReassignmentCount">0건</strong><small>담당자를 다시 정할 일</small></div></div>
         <div class="admin-summary-card tone-blue"><span class="feature-icon"><svg class="ui-icon"><use href="#i-people"/></svg></span><div><span>사용자</span><strong id="dashUserCount">0명</strong><small>등록된 전체 사용자</small></div></div>
       </div>
       <div id="dashboardAdminLink" class="admin-cta-banner" hidden><span class="nav-admin-badge">ADMIN</span><span>가입 승인 대기와 담당자 없는 업무를 관리자 화면에서 확인하세요.</span><a class="soft-link" href="#" data-open-view="admin">회사 관리로 이동 →</a></div>
-      <div class="workflow-strip" aria-label="핵심 사용자 흐름">
-        <div><span>1</span><strong>자료 찾기</strong><small>사내 자료와 연결 서비스를 한 번에</small></div>
-        <div><span>2</span><strong>근거 확인</strong><small>답변에 사용된 원문과 위치 확인</small></div>
-        <div><span>3</span><strong>할 일 정리</strong><small>문서 · 회의에서 AI가 초안 생성</small></div>
-        <div><span>4</span><strong>사람이 확정</strong><small>담당자 · 기한을 확인하고 실행</small></div>
-      </div>
       <div class="cards" id="summaryCards"></div>
-      <div class="grid2 dashboard-main">
-        <div>
-          <div class="row between"><div><span class="eyebrow">내 업무</span><h2>지금 확인할 할 일</h2></div><button class="ghost" type="button" data-open-view="todos">전체 할 일</button></div>
-          <div id="dashboardTodos"></div>
+      <div class="dashboard-main">
+        <span class="eyebrow">빠른 입력</span><h2>회의·자료를 바로 업무로</h2>
+        <div class="quick-input-grid friendly-actions">
+          <button type="button" class="quick-input-card tone-green" data-open-view="meetings"><span class="feature-icon"><svg class="ui-icon"><use href="#i-mic"/></svg></span><strong>새 녹음</strong><span>지금 바로 회의를 녹음해요</span></button>
         </div>
-        <div>
-          <span class="eyebrow">빠른 입력</span><h2>회의·자료를 바로 업무로</h2>
-          <div class="quick-input-grid friendly-actions">
-            <button type="button" class="quick-input-card tone-green" data-open-view="meetings"><span class="feature-icon"><svg class="ui-icon"><use href="#i-mic"/></svg></span><strong>새 녹음</strong><span>지금 바로 회의를 녹음해요</span></button>
-            <button type="button" class="quick-input-card tone-blue" data-open-view="documents"><span class="feature-icon"><svg class="ui-icon"><use href="#i-doc"/></svg></span><strong>문서 요약</strong><span>내 파일에서 필요한 문서만 골라요</span></button>
-            <button type="button" class="quick-input-card tone-yellow" data-open-view="ask"><span class="feature-icon"><svg class="ui-icon"><use href="#i-spark"/></svg></span><strong>AI에게 묻기</strong><span>등록된 자료를 근거로 바로 답을 받아요</span></button>
-            <button type="button" class="quick-input-card tone-pink" data-open-view="todos"><span class="feature-icon"><svg class="ui-icon"><use href="#i-check"/></svg></span><strong>내 할 일</strong><span>오늘 해야 할 일을 확인해요</span></button>
-          </div>
-          <form id="quickManualForm" class="panel quick-manual">
-            <h3>회의 메모 빠른 입력</h3>
-            <input name="title" placeholder="예: 주간 개발회의" value="주간 개발회의" required>
-            <textarea name="text" placeholder="예: 로그인 오류는 민규님이 금요일까지 수정해야 합니다. 웹 할 일 화면을 먼저 구현하기로 했습니다." required></textarea>
-            <button>저장하고 할 일 정리</button>
-            <div id="quickManualResult"></div>
-          </form>
-        </div>
+        <form id="quickManualForm" class="panel quick-manual">
+          <h3>회의 메모 빠른 입력</h3>
+          <input name="title" placeholder="예: 주간 개발회의" value="주간 개발회의" required>
+          <textarea name="text" placeholder="예: 로그인 오류는 민규님이 금요일까지 수정해야 합니다. 웹 할 일 화면을 먼저 구현하기로 했습니다." required></textarea>
+          <button>저장하고 할 일 정리</button>
+          <div id="quickManualResult"></div>
+        </form>
       </div>
       <div><h2>최근 업무 흐름</h2><div id="dashboardTimeline"></div></div>
     </section>
 
     <section id="view-search" class="view active">
-      <div class="hero"><div><span class="eyebrow">자료 찾기</span><h1>흩어진 업무 자료를 한 곳에서 찾습니다</h1><p>사내 파일과 연결된 서비스의 자료를 한 번에 찾고 원문 위치로 이동합니다. 자료를 근거로 한 AI 답변이 필요하면 <a class="inline-link" href="#" data-open-view="ask">✨ AI에게 묻기 →</a>를 이용하세요.</p></div><a class="primary-link" href="#" data-open-view="documents">파일도 가져오기</a></div><h2>자료 검색</h2>
-      <p class="muted">“어디에 있었지?”를 해결합니다. Slack 메시지, Drive 파일, GitHub의 작업 기록, Notion 페이지와 직접 올린 자료까지 한 번에 찾고 원문 위치로 이동할 수 있습니다.</p>
-      <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지?"><button>자료 찾기</button></form><p class="search-ranking-hint">정확한 파일명·업무 코드도 찾고, 표현이 달라도 의미가 가까운 문서를 추천합니다. 기본 검색은 최신 버전을 사용하며, 작은 문서는 전체 내용까지 읽어 답변합니다.</p><div id="recentViews" class="quick-searches" hidden></div>
+      <h1>자료 검색</h1>
+      <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지? (파일명·업무 코드도 찾아요)"><button>자료 찾기</button></form><p class="search-ranking-hint">표현이 달라도 의미가 가까운 문서를 함께 찾아드립니다.</p><div id="recentViews" class="quick-searches" hidden></div>
       <div id="connectorStatus" class="quick-searches"></div><div id="topSearches" class="quick-searches"></div>
       <div id="searchTodoOverview" class="task-overview-inline" aria-label="현재 할 일 요약"></div>
       
@@ -158,8 +141,8 @@
     <section id="view-todos" class="view todo-workspace">
       <div class="row between todo-heading"><div><span class="eyebrow">내 업무</span><h1>할 일</h1><p class="muted">관리자가 확정해 배정한 업무를 보고, 진행 상태를 바꾸고, 이 일이 나온 관련 자료까지 바로 확인합니다.</p></div><input id="monthInput" type="month" aria-label="볼 달 선택"></div>
       <div id="todoProgress" class="panel todo-progress-panel"></div>
-      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option></select><div class="tabs" aria-label="할 일 보기 방식"><button id="listMode" class="active" type="button">목록</button><button id="todoGridMode" type="button">그리드</button><button id="calendarMode" type="button">달력</button></div></div>
-      <div id="todoList"></div><div id="todoCalendar" style="display:none"></div><div id="todoUndated"></div>
+      <div class="todo-toolbar"><select id="todoAssigneeFilter"><option value="ALL">전체 담당자</option></select><select id="todoStatusFilter"><option value="ALL">전체 상태</option><option value="TODO">시작 전</option><option value="IN_PROGRESS">진행 중</option><option value="DONE">완료</option><option value="BLOCKED">도움 필요</option></select><div class="tabs" aria-label="할 일 보기 방식"><button id="listMode" type="button">목록</button><button id="todoGridMode" type="button">그리드</button><button id="calendarMode" class="active" type="button">달력</button></div></div>
+      <div id="todoList" style="display:none"></div><div id="todoCalendar" style="display:grid"></div><div id="todoUndated"></div>
       <details class="panel">
         <summary><strong>📨 파일 주고받기</strong> <span class="muted">팀원에게 파일을 보내거나 받은 파일을 확인합니다.</span></summary>
         <form id="fileTransferForm" class="stack">
@@ -174,7 +157,7 @@
       </details>
     </section>
 
-    <section id="view-review" class="view"><span class="eyebrow">관리자 확인</span><h1>팀원에게 할 일 배정</h1><p class="muted">회의·문서에서 정리된 할 일을 관련 자료와 함께 확인하고, 담당자와 기한을 정해 팀원에게 배정합니다. 배정 전에는 팀원의 할 일에 나타나지 않습니다.</p><div class="review-legend"><span class="status-pill ready">바로 실행</span><span class="status-pill review">검토 필요</span><span class="status-pill missing">기한 미정</span></div><input id="reviewFilter" type="search" placeholder="🔎 제목·내용으로 후보 찾기" class="review-filter-input"><div id="reviewList"></div></section>
+    <section id="view-review" class="view"><span class="eyebrow">업무 확정</span><h1>팀원에게 할 일 배정</h1><p class="muted">회의·문서에서 정리된 할 일을 관련 자료와 함께 확인하고, 담당자와 기한을 정해 팀원에게 배정합니다. 배정 전에는 팀원의 할 일에 나타나지 않습니다.</p><div class="review-legend"><span class="status-pill ready">바로 실행</span><span class="status-pill review">검토 필요</span><span class="status-pill missing">기한 미정</span></div><input id="reviewFilter" type="search" placeholder="🔎 제목·내용으로 후보 찾기" class="review-filter-input"><div id="reviewList"></div></section>
 
     <section id="view-documents" class="view">
       <h1>📥 문서 요약</h1><div class="web-only-note">파일 경로를 입력하지 않고 Windows 파일 탐색기에서 직접 선택합니다. 선택한 자료는 같은 프로젝트에서 검색·AI 답변에 사용됩니다.</div>
@@ -306,6 +289,14 @@
       </details>
 
       <details class="admin-collapsible">
+        <summary><strong>연결 서비스 허용</strong><span>회사 정책상 막아야 하는 연동 서비스가 있을 때만 끕니다.</span></summary>
+        <div class="admin-collapsible-body">
+          <p class="muted">여기서 끈 서비스는 모든 팀원이 계정을 연결하거나 자료를 가져올 수 없게 됩니다. 이미 연결된 계정이 있어도 새로 가져오기는 막힙니다.</p>
+          <div id="connectorPolicyList" class="stack compact-list"></div>
+        </div>
+      </details>
+
+      <details class="admin-collapsible">
         <summary><strong>바뀐 내용 기록</strong><span>누가 사용자·프로젝트·검색 설정을 바꿨는지 확인해야 할 때만 엽니다.</span></summary>
         <div class="admin-collapsible-body"><p class="muted">운영 중 문제가 생겼을 때 변경한 사람과 시간을 확인할 수 있습니다.</p><div id="auditList"></div></div>
       </details>
@@ -319,6 +310,12 @@
 </main>
 
 <div id="viewer" class="viewer" hidden><div class="viewer-card"><div class="row between"><div><span class="eyebrow">원문 근거</span><h2 id="viewerTitle">원문 확인</h2></div><button id="viewerClose" class="ghost">닫기</button></div><div id="viewerMeta" class="material-location"></div><div class="viewer-split"><section><h3>AI가 사용한 근거</h3><div id="viewerEvidence"></div></section><section><h3>원문 / 요약</h3><div id="viewerSummary" class="summary-box"></div><pre id="viewerText"></pre></section></div></div></div>
+<div id="globalSearchOverlay" class="global-search-overlay" hidden aria-modal="true" role="dialog" aria-label="전역 검색">
+  <div class="global-search-card">
+    <form id="globalSearchForm" class="row search-bar"><input id="globalSearchQuery" placeholder="어디서든 Ctrl+K (Mac은 ⌘K) - 입력하면 바로 찾아요" autocomplete="off"><button id="globalSearchClose" type="button" class="ghost">Esc 닫기</button></form>
+    <div id="globalSearchResults" class="material-results"></div>
+  </div>
+</div>
 <script th:src="@{/js/hub-runtime.js}"></script>
-<script th:src="@{/js/app.js?v=20260915-2}"></script>
+<script th:src="@{/js/app.js?v=20260916-1}"></script>
 </body></html>

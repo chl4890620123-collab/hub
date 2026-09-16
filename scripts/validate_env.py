@@ -68,16 +68,12 @@ def validate(values: dict[str, str], mode: str) -> tuple[list[str], list[str]]:
             errors.append(f"{key}: true 또는 false를 사용하세요.")
 
     jwt = values.get("HUB_JWT_SECRET", "")
-    setup = values.get("HUB_ADMIN_SETUP_KEY", "")
     if jwt and len(jwt) < 32:
         errors.append("HUB_JWT_SECRET은 32자 이상으로 설정하세요.")
-    if setup and len(setup) < 16:
-        errors.append("HUB_ADMIN_SETUP_KEY는 16자 이상으로 설정하세요.")
 
     if mode == "deploy":
         require(values, "DB_PASSWORD", errors, "Docker/PostgreSQL 배포 시 필수")
         require(values, "HUB_JWT_SECRET", errors, "배포 시 필수")
-        require(values, "HUB_ADMIN_SETUP_KEY", errors, "배포 시 필수")
 
     if values.get("HUB_BIND_ADDRESS") == "0.0.0.0" and values.get("HUB_COOKIE_SECURE", "false").lower() != "true":
         warnings.append("LAN 전체 바인딩 중입니다. 다른 PC에서 브라우저 직접 녹음을 쓸 계획이면 HTTPS(Caddy)를 권장합니다.")

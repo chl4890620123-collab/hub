@@ -26,5 +26,6 @@ public record TodoItem(
         String assignmentStatus,
         Long possibleDuplicateOfId,
         String duplicateReason,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {}

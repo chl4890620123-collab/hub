@@ -70,6 +70,17 @@ public class AdminController {
         return Map.of("status","REMOVED","reassignmentCount",queued);
     }
 
+    /** ADMIN still decides who gets this - only the confirm action itself moves off the global-ADMIN gate. */
+    public record ConfirmPermission(long userId,boolean granted){}
+    @PutMapping("/projects/{projectId}/confirm-permission")
+    public Map<String,Object> setConfirmPermission(@PathVariable long projectId,@RequestBody ConfirmPermission request,Authentication authentication){
+        User admin=requireAdmin(authentication);access.requireAdmin(projectId,admin);
+        if(!projects.setConfirmPermission(projectId,request.userId(),request.granted()))
+            throw new IllegalArgumentException("해당 프로젝트의 MEMBER가 아닙니다.");
+        audit.add(admin.id(),projectId,"PROJECT_CONFIRM_PERMISSION","USER",request.userId(),"{\"granted\":"+request.granted()+"}");
+        return Map.of("status","UPDATED");
+    }
+
     public record MoveMember(long userId,long toProjectId){}
     @PostMapping("/projects/{fromProjectId}/members/move")
     public Map<String,Object> moveProjectMember(@PathVariable long fromProjectId,@RequestBody MoveMember request,Authentication authentication){

@@ -54,7 +54,7 @@ clone/fetch하기 때문에, Hub 저장소 자체는 어떤 배포 시크릿도 
 ## 4. 서버 런타임 `.env`에서 액션이 필요한 값
 
 `D:\server-data\hub\runtime\.env`는 첫 배포 때 `deploy-hub.ps1`이 무작위 비밀값으로 자동
-생성합니다 (`DB_PASSWORD`, `HUB_JWT_SECRET`, `HUB_ADMIN_SETUP_KEY`, `HUB_STT_PII_HASH_KEY`).
+생성합니다 (`DB_PASSWORD`, `HUB_JWT_SECRET`, `HUB_STT_PII_HASH_KEY`).
 사람이 직접 채워야 하는 값은 이것뿐입니다:
 
 | 변수 | 어떻게 채우나 |
@@ -89,9 +89,12 @@ Let's Encrypt 인증서를 자동으로 받아옵니다.
 
 ## 6. 최초 관리자 계정 만들기
 
-가입 화면의 "관리자 가입"에서 "관리자 설정 키"에 `D:\server-data\hub\runtime\.env`의
-`HUB_ADMIN_SETUP_KEY` 값을 넣어야 최초 관리자 계정이 그 자리에서 만들어집니다. 이미 관리자가
-있으면 이 값과 무관하게 항상 기존 관리자 승인 대기 상태로 접수됩니다.
+관리자 가입은 항상 기존 관리자 승인 대기 상태로 접수됩니다 (자가 승인 불가). 관리자가 0명인
+설치(첫 배포)에서는 아무도 승인할 수 없으므로, Flyway 마이그레이션(`V26__seed_bootstrap_admin.sql`)이
+승인된 관리자가 하나도 없을 때만 로그인 아이디 `admin`으로 계정 하나를 자동 시드합니다. 최초
+로그인 시 비밀번호 변경이 강제되며, 초기 비밀번호는 마이그레이션 파일 주석에 있습니다. 로그인 후
+다른 사람의 관리자 가입 신청을 승인하고 나면 이 시드 계정은 평범한 관리자 계정으로 계속 써도 되고,
+필요 없으면 계정 정지 처리해도 됩니다.
 
 ## 7. 배포 상태 확인
 
@@ -113,4 +116,4 @@ docker compose --env-file .env -f deploy/compose.yml --profile https up -d --bui
 ```
 
 필요한 `.env` 값은 `.env.example`에 전부 설명되어 있습니다 (`HUB_JWT_SECRET`,
-`HUB_ADMIN_SETUP_KEY`, `HUB_TLS_DOMAIN`, `DB_PASSWORD` 등).
+`HUB_TLS_DOMAIN`, `DB_PASSWORD` 등).

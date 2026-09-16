@@ -26,4 +26,16 @@ public class ProjectAccessService {
             throw new AccessDeniedException("Administrator permission required");
         }
     }
+
+    /** Confirming AI-extracted todos: global ADMIN always passes; otherwise the project's own confirm grant. */
+    public boolean canConfirm(long projectId, User user) {
+        return user != null && (user.isAdmin() || projects.canConfirm(projectId, user.id()));
+    }
+
+    public void requireConfirmPermission(long projectId, User user) {
+        requireAccess(projectId, user);
+        if (!canConfirm(projectId, user)) {
+            throw new AccessDeniedException("Todo confirm permission required");
+        }
+    }
 }

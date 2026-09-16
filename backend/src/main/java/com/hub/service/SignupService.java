@@ -1,19 +1,15 @@
 // MEMBER/ADMIN signup paths share one validation pipeline; ADMIN signup collects only organization identity fields.
 package com.hub.service;
 
-import com.hub.config.HubProperties;
 import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -31,22 +27,17 @@ public class SignupService {
     private final AuditRepository audit;
     private final ProjectRepository projects;
     private final ProjectAccessService projectAccess;
-    private final HubProperties props;
     private final MembershipService memberships;
-    private final String adminSetupKey;
 
     public SignupService(UserRepository users, PasswordEncoder encoder, PasswordPolicy passwordPolicy, AuditRepository audit,
-                         ProjectRepository projects, ProjectAccessService projectAccess, HubProperties props, MembershipService memberships,
-                         @Value("${hub.admin-setup-key:}") String adminSetupKey) {
+                         ProjectRepository projects, ProjectAccessService projectAccess, MembershipService memberships) {
         this.users = users;
         this.encoder = encoder;
         this.passwordPolicy = passwordPolicy;
         this.audit = audit;
         this.projects = projects;
         this.projectAccess = projectAccess;
-        this.props = props;
         this.memberships = memberships;
-        this.adminSetupKey = adminSetupKey == null ? "" : adminSetupKey;
     }
 
     /**
@@ -57,12 +48,9 @@ public class SignupService {
      */
     public record RegisterCommand(String loginId, String email, String password, String displayName,
                                   String companyName, String departmentName, String teamName,
-                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent,
-                                  String setupKey) {}
-    public record RegisterResult(long id, String status, String requestedRole, boolean reopened, boolean firstAdminCreated) {}
+                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {}
+    public record RegisterResult(long id, String status, String requestedRole, boolean reopened) {}
     public record LoginIdAvailability(String loginId, boolean available, String message) {}
-
-    public boolean firstAdminRequired() { return users.countApprovedAdmins() == 0; }
 
     /** Public signup helper. It only reports login-id availability; email existence is never exposed. */
     public LoginIdAvailability checkLoginId(String rawLoginId) {
@@ -81,36 +69,14 @@ public class SignupService {
     }
 
     /**
-     * Only the very first admin (bootstrapping an empty install) is ever auto-approved, and only when
-     * it also presents a matching HUB_ADMIN_SETUP_KEY if one is configured. Every admin signup after
-     * that goes through the same PENDING/approve() workflow as a member signup - see approve(), which
-     * already has dedicated handling for an ADMIN requestedRole.
+     * Admin signup never self-approves, even for the very first admin - it always lands PENDING, same
+     * as a member signup, and must be approved by an existing admin (see approve(), which already has
+     * dedicated handling for an ADMIN requestedRole). An install with zero admins yet is bootstrapped
+     * separately by a Flyway migration that seeds exactly one admin account (see V26__seed_bootstrap_admin.sql).
      */
     @Transactional
     public RegisterResult registerAdmin(RegisterCommand command) {
-        // Serialize the first-admin check so only that account can win the bootstrap race.
-        users.lockFirstAdminGuard();
-        boolean firstAdmin = users.countApprovedAdmins() == 0;
-        if (!firstAdmin) return registerPending(command, "ADMIN", false);
-
-        if (!adminSetupKey.isBlank() && !constantTimeEquals(command.setupKey(), adminSetupKey))
-            throw new IllegalArgumentException("관리자 설정 키가 올바르지 않습니다.");
-        Validated v = validate(command, false);
-        ensureIdentityUnusedForFirstAdmin(v.loginId(), v.email());
-        try {
-            long id = users.createAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(),
-                    v.company(), v.department(), v.team());
-            audit.add(id, null, "FIRST_ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
-            if (props.demoMode()) projects.create("Hub Demo Project", "Local validation project", id);
-            return new RegisterResult(id, "APPROVED", "ADMIN", false, true);
-        } catch (DataIntegrityViolationException conflict) {
-            throw new StateConflictException("아이디 또는 이메일이 방금 다른 계정에 사용되었습니다. 다른 값을 입력해 주세요.");
-        }
-    }
-
-    private static boolean constantTimeEquals(String provided, String expected) {
-        if (provided == null) return false;
-        return MessageDigest.isEqual(provided.getBytes(StandardCharsets.UTF_8), expected.getBytes(StandardCharsets.UTF_8));
+        return registerPending(command, "ADMIN", false);
     }
 
     private RegisterResult registerPending(RegisterCommand command, String requestedRole, boolean allowMemberExtras) {
@@ -128,7 +94,7 @@ public class SignupService {
                         v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
                 if (!reopened) throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
                 audit.add(null, null, "SIGNUP_REOPEN", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
-                return new RegisterResult(id, "PENDING", requestedRole, true, false);
+                return new RegisterResult(id, "PENDING", requestedRole, true);
             }
             if (byLogin.isPresent()) throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
@@ -137,7 +103,7 @@ public class SignupService {
             long id = users.createSignup(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), v.company(),
                     v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
             audit.add(null, null, "SIGNUP_REQUEST", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
-            return new RegisterResult(id, "PENDING", requestedRole, false, false);
+            return new RegisterResult(id, "PENDING", requestedRole, false);
         } catch (DataIntegrityViolationException conflict) {
             throw new StateConflictException("아이디 또는 이메일이 방금 다른 신청에 사용되었습니다. 다른 값을 입력해 주세요.");
         }
@@ -190,11 +156,6 @@ public class SignupService {
         if (requestedProjectId == null) return null;
         if (!projects.exists(requestedProjectId)) throw new IllegalArgumentException("존재하지 않는 프로젝트입니다. 다시 선택해 주세요.");
         return requestedProjectId;
-    }
-
-    private void ensureIdentityUnusedForFirstAdmin(String loginId, String email) {
-        if (users.findAuthByIdentifier(loginId).isPresent()) throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
-        if (users.findAuthByEmail(email).isPresent()) throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
     }
 
     private record Validated(String loginId, String email, String name, String company, String department,

@@ -184,7 +184,7 @@ public class TodoRepository {
     private static String selectColumns(){return """
         SELECT id,project_id,title,description,assignee_id,assignee_text,assignee_suggestion_id,
                assignee_suggestion_text,due_date,due_date_suggestion,confidence,review_status,task_status,
-               assignment_status,possible_duplicate_of_id,duplicate_reason,created_at
+               assignment_status,possible_duplicate_of_id,duplicate_reason,created_at,updated_at
         """;}
     private TodoItem map(java.sql.ResultSet rs)throws java.sql.SQLException{
         Date due=rs.getDate("due_date"),suggestion=rs.getDate("due_date_suggestion");
@@ -195,6 +195,6 @@ public class TodoRepository {
                 rs.getString("assignee_text"),cid,rs.getString("assignee_suggestion_text"),due==null?null:due.toLocalDate(),
                 suggestion==null?null:suggestion.toLocalDate(),rs.getString("confidence"),rs.getString("review_status"),
                 rs.getString("task_status"),rs.getString("assignment_status"),duplicateId,rs.getString("duplicate_reason"),
-                rs.getTimestamp("created_at").toLocalDateTime());
+                rs.getTimestamp("created_at").toLocalDateTime(),rs.getTimestamp("updated_at").toLocalDateTime());
     }
 }
