@@ -22,7 +22,7 @@ Server 저장소의 .ops-trigger/hub.txt 를 건드리는 push (또는 workflow_
        - docker compose up (hub-db + ai + backend + caddy, 호스트 9070 포트)
        - /actuator/health, / 확인될 때까지 대기
        - HUB_OUTER_CADDY_AUTO_CONFIGURE=true면 공유 MOVEAI Caddy에
-         hub.yellow.it.kr -> 이 포트 라우트를 자동 등록
+         yellow.it.kr -> 이 포트 라우트를 자동 등록
     -> 배포 결과 확인 (공개 URL + 정상 응답)
 ```
 
@@ -67,16 +67,24 @@ clone/fetch하기 때문에, Hub 저장소 자체는 어떤 배포 시크릿도 
 
 ## 5. 도메인과 HTTPS
 
-`yellow.it.kr` 자체(apex 도메인)는 이미 다른 서비스(Dahum/닿음)가 쓰고 있어서, Hub는 서브도메인
-**`hub.yellow.it.kr`**을 씁니다. 공유 중인 MOVEAI Caddy(호스트 80/443 소유)가 이 서브도메인
-요청을 받아 Hub 컨테이너로 넘겨주고 Let's Encrypt 인증서를 자동으로 받아옵니다.
+Hub는 **`yellow.it.kr`(apex 도메인)**을 그대로 씁니다. 이 도메인은 원래 다른 서비스(Dahum/닿음)가
+쓰고 있었지만, `Server` 저장소의 `deploy/runtime/hub.env.example`에 기록된 대로 Hub로 이관하기로
+결정되어 2026-09-16 첫 프로덕션 배포 때 `HUB_ALLOW_DOMAIN_TAKEOVER=true` 설정을 통해
+`ensure-public-route.ps1`이 공유 MOVEAI Caddy에서 Dahum의 라우트 블록을 제거하고 Hub의 블록으로
+교체했습니다. Dahum은 더 이상 이 도메인에서 서비스되지 않습니다. (`hub.yellow.it.kr` 서브도메인은
+검토만 됐을 뿐 DNS 등록이 된 적이 없고, 실제로는 쓰이지 않습니다.)
 
-이 서브도메인이 실제로 동작하려면:
-1. 가비아 DNS에 `hub.yellow.it.kr` A 레코드를 이 서버의 공인 IP로 등록 (아직 안 했다면 필요)
+공유 중인 MOVEAI Caddy(호스트 80/443 소유)가 `yellow.it.kr` 요청을 받아 Hub 컨테이너로 넘겨주고
+Let's Encrypt 인증서를 자동으로 받아옵니다.
+
+1. 가비아 DNS의 `yellow.it.kr` A 레코드는 이미 이 서버의 공인 IP를 가리키고 있음 (Dahum 때부터
+   등록되어 있던 레코드를 그대로 재사용)
 2. `D:\server-data\hub\runtime\.env`의 `HUB_OUTER_CADDY_AUTO_CONFIGURE=true`(기본값)면 배포할 때마다
-   자동으로 공유 Caddy에 라우트가 등록/갱신됨
+   자동으로 공유 Caddy에 라우트가 등록/갱신됨. `HUB_ALLOW_DOMAIN_TAKEOVER=true`는 이관 이후에도
+   그대로 둬도 무해합니다(도메인이 이미 Hub 소유이므로) - 만약 이후 다른 앱이 실수로 같은 도메인을
+   요청했을 때 자동으로 뺏기지 않고 배포가 실패하도록 막고 싶다면 `false`로 바꾸세요.
 3. 로그인 쿠키가 있으므로 `HUB_COOKIE_SECURE=true`, `HUB_ENFORCE_SECURE_CONFIG=true`로
-   바꾸는 것을 권장 - 단, `hub.yellow.it.kr`으로 실제 접속이 되는 것을 먼저 확인한 뒤에
+   바꾸는 것을 권장 - 단, `yellow.it.kr`으로 실제 접속이 되는 것을 먼저 확인한 뒤에
    바꾸세요 (그전에 켜면 평문 HTTP로만 접근 가능한 상태에서 쿠키가 거부되어 로그인이 막힙니다).
 
 ## 6. 최초 관리자 계정 만들기
