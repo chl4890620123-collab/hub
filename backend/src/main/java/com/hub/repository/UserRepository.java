@@ -153,17 +153,20 @@ public class UserRepository {
         return key.getKey().longValue();
     }
 
-    /** ADMIN accounts are self-created and are active immediately; company/team remain profile mapping fields. */
-    public long createAdmin(String loginId, String email, String passwordHash, String displayName,
-                                 String companyName, String departmentName, String teamName) {
+    /**
+     * Bootstrap-only: creates the one admin BootstrapService seeds when an install has zero admins yet
+     * (every other admin account is created through the normal signup/approve path). must_change_password
+     * is always TRUE since the operator-supplied password may have passed through a shell/CI log.
+     */
+    public long createBootstrapAdmin(String loginId, String email, String passwordHash, String displayName) {
         KeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO app_user(login_id,email,password_hash,display_name,company_name,department_name,team_name,
+                    INSERT INTO app_user(login_id,email,password_hash,display_name,
                                          global_role,requested_role,account_status,must_change_password,approval_status,approved_at,privacy_consent_at)
-                    VALUES(?,?,?,?,?,?,?,'ADMIN','ADMIN','ACTIVE',FALSE,'APPROVED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                    VALUES(?,?,?,?,'ADMIN','ADMIN','ACTIVE',TRUE,'APPROVED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
                     """, new String[]{"id"});
-            setCommonIdentity(ps, loginId, email, passwordHash, displayName, companyName, departmentName, teamName);
+            ps.setString(1, loginId); ps.setString(2, email); ps.setString(3, passwordHash); ps.setString(4, displayName);
             return ps;
         }, key);
         if (key.getKey() == null) throw new IllegalStateException("Admin id was not generated");

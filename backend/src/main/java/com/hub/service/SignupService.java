@@ -72,7 +72,8 @@ public class SignupService {
      * Admin signup never self-approves, even for the very first admin - it always lands PENDING, same
      * as a member signup, and must be approved by an existing admin (see approve(), which already has
      * dedicated handling for an ADMIN requestedRole). An install with zero admins yet is bootstrapped
-     * separately by a Flyway migration that seeds exactly one admin account (see V26__seed_bootstrap_admin.sql).
+     * separately, from an operator-supplied password rather than anything this codebase generates or
+     * stores (see BootstrapService).
      */
     @Transactional
     public RegisterResult registerAdmin(RegisterCommand command) {

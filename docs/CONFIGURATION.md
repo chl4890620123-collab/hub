@@ -31,7 +31,7 @@ GITHUB_TOKEN=
 
 OCR/STT provider 선택용 ENV는 제거했습니다. 실제 모드에서 OCR은 local PaddleOCR, STT는 Gemini로 고정되어 운영자가 provider 변수를 중복 관리하지 않습니다. mock 모드는 `HUB_AI_MODE=mock` 하나로 전환합니다.
 
-관리자 가입은 최초 계정을 포함해 항상 기존 관리자의 승인 대기 상태로 처리합니다(자가 승인 불가). 관리자가 0명인 첫 배포에서는 Flyway 마이그레이션(`V26__seed_bootstrap_admin.sql`)이 승인용 관리자 계정 하나를 자동 시드하며, 최초 로그인 시 비밀번호 변경이 강제됩니다.
+관리자 가입은 최초 계정을 포함해 항상 기존 관리자의 승인 대기 상태로 처리합니다(자가 승인 불가). 관리자가 0명인 첫 배포에서는 운영자가 `HUB_BOOTSTRAP_ADMIN_PASSWORD`를 서버의 `.env`에 직접 정해서 넣어야 `BootstrapService`가 그 값으로 관리자 계정 하나를 만듭니다(코드/마이그레이션에 비밀번호를 적어두지 않음). 최초 로그인 시 비밀번호 변경이 강제되며, 관리자가 이미 있으면 이 값은 무시됩니다.
 
 ## 3. DB
 

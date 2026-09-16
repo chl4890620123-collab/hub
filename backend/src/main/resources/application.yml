@@ -94,6 +94,12 @@ hub:
   # transcripts before they are stored or searched. Admin-set and secret: without it, a random
   # key is generated per run (redacted values then won't match across restarts).
   stt-pii-hash-key: ${HUB_STT_PII_HASH_KEY:}
+  # BootstrapService creates exactly one admin from these when the install has zero admins yet (admin
+  # signup never self-approves, so without this nobody could ever get in to approve anyone). Set only
+  # in this server's own untracked .env - never commit a value for HUB_BOOTSTRAP_ADMIN_PASSWORD. A blank
+  # password (the default) means bootstrap does nothing and logs a reminder to set it.
+  bootstrap-admin-login-id: ${HUB_BOOTSTRAP_ADMIN_LOGIN_ID:admin}
+  bootstrap-admin-password: ${HUB_BOOTSTRAP_ADMIN_PASSWORD:}
   jwt:
     secret: ${HUB_JWT_SECRET:hub-local-only-secret-ChangeMe-1234567890}
     issuer: ${HUB_JWT_ISSUER:hub}
