@@ -290,7 +290,8 @@ memberSignupFormEl.addEventListener("submit", async (event: SubmitEvent): Promis
 
 adminSignupFormEl.addEventListener("submit", async (event: SubmitEvent): Promise<void> => {
   event.preventDefault(); messageEl.hidden = true;
-  try { await submitSignup(adminSignupFormEl, "/api/auth/signup/admin"); }
+  const setupKey = (adminSignupFormEl.elements.namedItem("setupKey") as HTMLInputElement | null)?.value ?? "";
+  try { await submitSignup(adminSignupFormEl, "/api/auth/signup/admin", { setupKey }); }
   catch (error: unknown) { showMessage(error instanceof Error ? error.message : "관리자 가입 처리에 실패했습니다."); }
 });
 

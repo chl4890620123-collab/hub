@@ -6,11 +6,14 @@ import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -30,9 +33,11 @@ public class SignupService {
     private final ProjectAccessService projectAccess;
     private final HubProperties props;
     private final MembershipService memberships;
+    private final String adminSetupKey;
 
     public SignupService(UserRepository users, PasswordEncoder encoder, PasswordPolicy passwordPolicy, AuditRepository audit,
-                         ProjectRepository projects, ProjectAccessService projectAccess, HubProperties props, MembershipService memberships) {
+                         ProjectRepository projects, ProjectAccessService projectAccess, HubProperties props, MembershipService memberships,
+                         @Value("${hub.admin-setup-key:}") String adminSetupKey) {
         this.users = users;
         this.encoder = encoder;
         this.passwordPolicy = passwordPolicy;
@@ -41,6 +46,7 @@ public class SignupService {
         this.projectAccess = projectAccess;
         this.props = props;
         this.memberships = memberships;
+        this.adminSetupKey = adminSetupKey == null ? "" : adminSetupKey;
     }
 
     /**
@@ -51,7 +57,8 @@ public class SignupService {
      */
     public record RegisterCommand(String loginId, String email, String password, String displayName,
                                   String companyName, String departmentName, String teamName,
-                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {}
+                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent,
+                                  String setupKey) {}
     public record RegisterResult(long id, String status, String requestedRole, boolean reopened, boolean firstAdminCreated) {}
     public record LoginIdAvailability(String loginId, boolean available, String message) {}
 
@@ -73,22 +80,37 @@ public class SignupService {
         return registerPending(command, "MEMBER", true);
     }
 
+    /**
+     * Only the very first admin (bootstrapping an empty install) is ever auto-approved, and only when
+     * it also presents a matching HUB_ADMIN_SETUP_KEY if one is configured. Every admin signup after
+     * that goes through the same PENDING/approve() workflow as a member signup - see approve(), which
+     * already has dedicated handling for an ADMIN requestedRole.
+     */
     @Transactional
     public RegisterResult registerAdmin(RegisterCommand command) {
-        // Serialize the first-admin check so only that account receives demo bootstrap data.
+        // Serialize the first-admin check so only that account can win the bootstrap race.
         users.lockFirstAdminGuard();
         boolean firstAdmin = users.countApprovedAdmins() == 0;
+        if (!firstAdmin) return registerPending(command, "ADMIN", false);
+
+        if (!adminSetupKey.isBlank() && !constantTimeEquals(command.setupKey(), adminSetupKey))
+            throw new IllegalArgumentException("관리자 설정 키가 올바르지 않습니다.");
         Validated v = validate(command, false);
         ensureIdentityUnusedForFirstAdmin(v.loginId(), v.email());
         try {
             long id = users.createAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(),
                     v.company(), v.department(), v.team());
-            audit.add(id, null, firstAdmin ? "FIRST_ADMIN_SIGNUP" : "ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
-            if (firstAdmin && props.demoMode()) projects.create("Hub Demo Project", "Local validation project", id);
-            return new RegisterResult(id, "APPROVED", "ADMIN", false, firstAdmin);
+            audit.add(id, null, "FIRST_ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
+            if (props.demoMode()) projects.create("Hub Demo Project", "Local validation project", id);
+            return new RegisterResult(id, "APPROVED", "ADMIN", false, true);
         } catch (DataIntegrityViolationException conflict) {
             throw new StateConflictException("아이디 또는 이메일이 방금 다른 계정에 사용되었습니다. 다른 값을 입력해 주세요.");
         }
+    }
+
+    private static boolean constantTimeEquals(String provided, String expected) {
+        if (provided == null) return false;
+        return MessageDigest.isEqual(provided.getBytes(StandardCharsets.UTF_8), expected.getBytes(StandardCharsets.UTF_8));
     }
 
     private RegisterResult registerPending(RegisterCommand command, String requestedRole, boolean allowMemberExtras) {

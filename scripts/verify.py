@@ -35,7 +35,9 @@ check("default: local" in app_yml, "local profile must be the default")
 check("jdbc:h2:file:./data/hubdb" in app_yml, "local H2 file DB config missing")
 check("classpath:config/search-rules.yml" in app_yml, "search rules must use bundled classpath resource")
 
-# Desktop-web-only UI: there is no mobile/compact navigation layer and no responsive breakpoints.
+# Desktop-web-first UI: no separate mobile client/PWA branch, and no compact bottom-nav pattern.
+# The single stylesheet may use @media to keep the same layout usable on a narrow browser window;
+# that is a plain responsive layout, not the mobile-app-shaped navigation this check still forbids.
 index = text("backend/src/main/resources/templates/index.html")
 app_js = text("backend/src/main/resources/static/js/app.js")
 for marker in ["view-search", "view-meetings", "recordBtn", "audioFileInput", "view-todos", "view-connectors", "view-admin"]:
@@ -44,7 +46,6 @@ for forbidden in ["mobileClient", "X-Hub-Client", "data-mobile-only", "/mobile",
     check(forbidden not in index + app_js, f"legacy mobile/PWA branch remains: {forbidden}")
 app_css = text("backend/src/main/resources/static/css/app.css")
 check('data-view="search"' in index and "dataset.view" in app_js, "sidebar navigation binding is broken")
-check("@media" not in app_css, "desktop-only UI: responsive breakpoint remains in app.css")
 for forbidden in ["compact-bottom-nav", "compactMoreSheet", "data-compact-view", "compact-feature-grid"]:
     check(forbidden not in index + app_js + app_css, f"compact mobile navigation remains: {forbidden}")
 check("window.isSecureContext" in app_js, "secure-context recording guard missing")

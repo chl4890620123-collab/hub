@@ -103,6 +103,10 @@
         <label>비밀번호<div class="password-field"><input name="password" type="password" autocomplete="new-password" minlength="12" required><button type="button" class="password-toggle" aria-label="비밀번호 표시" aria-pressed="false"></button></div><small>12자 이상, 영문과 숫자를 포함해 주세요.</small></label>
         <label>비밀번호 확인<div class="password-field"><input name="passwordConfirm" type="password" autocomplete="new-password" required><button type="button" class="password-toggle" aria-label="비밀번호 표시" aria-pressed="false"></button></div><small class="password-match" aria-live="polite"></small></label>
       </div>
+      <label>관리자 설정 키 <span class="optional">최초 관리자 가입일 때만 필요</span>
+        <input name="setupKey" autocomplete="off">
+        <small>이미 관리자가 있는 경우 비워두면 가입 신청이 기존 관리자 승인 대기 상태로 접수됩니다.</small>
+      </label>
       <div class="consent-box">
         <label class="consent-row"><input type="checkbox" name="privacyConsent" required><span>[필수] 개인정보 수집·이용에 동의합니다.</span></label>
         <details class="consent-detail">

@@ -26,7 +26,7 @@ public class RegistrationController {
 
     public record AdminSignupRequest(
             @NotBlank String loginId, @NotBlank String email, @NotBlank String password,
-            @NotBlank String displayName, boolean privacyConsent
+            @NotBlank String displayName, boolean privacyConsent, String setupKey
     ) {}
 
     @GetMapping("/setup-status")
@@ -54,7 +54,7 @@ public class RegistrationController {
     public Map<String,Object> memberSignup(@Valid @RequestBody MemberSignupRequest request) {
         var result = signup.registerMember(new SignupService.RegisterCommand(
                 request.loginId(), request.email(), request.password(), request.displayName(), null,
-                null, null, request.jobTitle(), request.signupNote(), request.requestedProjectId(), request.privacyConsent()));
+                null, null, request.jobTitle(), request.signupNote(), request.requestedProjectId(), request.privacyConsent(), null));
         return Map.of("status", result.status(), "requestedRole", "MEMBER", "reopened", result.reopened(),
                 "message", "회원가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
     }
@@ -63,10 +63,10 @@ public class RegistrationController {
     public Map<String,Object> adminSignup(@Valid @RequestBody AdminSignupRequest request) {
         var result = signup.registerAdmin(new SignupService.RegisterCommand(
                 request.loginId(), request.email(), request.password(), request.displayName(), null,
-                null, null, null, null, null, request.privacyConsent()));
+                null, null, null, null, null, request.privacyConsent(), request.setupKey()));
         String message = result.firstAdminCreated()
                 ? "최초 관리자 계정이 생성되었습니다. 지금 로그인할 수 있습니다."
-                : "관리자 계정이 생성되었습니다. 지금 로그인할 수 있습니다.";
+                : "관리자 가입 신청이 접수되었습니다. 기존 관리자가 승인한 뒤 로그인할 수 있습니다.";
         return Map.of("status", result.status(), "requestedRole", "ADMIN", "reopened", result.reopened(),
                 "firstAdminCreated", result.firstAdminCreated(), "message", message);
     }
