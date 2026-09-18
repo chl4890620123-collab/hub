@@ -31,7 +31,7 @@ class SignupServiceAvailabilityTest {
     void setUp() {
         HubProperties props = new HubProperties(null, null, false, null, null,
                 0, 0, 0, 0, 0, null, null, null, null, null, null, null);
-        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, props, memberships);
+        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, props, memberships, "");
     }
 
     @Test
