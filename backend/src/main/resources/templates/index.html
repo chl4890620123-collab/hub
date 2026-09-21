@@ -76,6 +76,10 @@
           <h3>회의 메모 빠른 입력</h3>
           <input name="title" placeholder="예: 주간 개발회의" value="주간 개발회의" required>
           <textarea name="text" placeholder="예: 로그인 오류는 민규님이 금요일까지 수정해야 합니다. 웹 할 일 화면을 먼저 구현하기로 했습니다." required></textarea>
+          <div class="grid2">
+            <label>완료 기한 <span class="optional">선택 입력</span><input name="dueDate" type="date"></label>
+            <label>담당자 <span class="optional">선택 입력</span><select id="quickManualAssignee" name="assigneeId"><option value="">지정 안 함</option></select></label>
+          </div>
           <button>저장하고 할 일 정리</button>
           <div id="quickManualResult"></div>
         </form>
