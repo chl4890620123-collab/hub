@@ -76,10 +76,10 @@ function bindFilePickerLabel(input){
 }
 function canConfirmCurrentProject(){return currentUser?.globalRole==='ADMIN'||Boolean(projects.find(p=>Number(p.id)===Number(currentProject))?.canConfirm);}
 function viewAllowed(name){if(!document.getElementById(`view-${name}`))return false;if(name==='admin'&&currentUser?.globalRole!=='ADMIN')return false;if(name==='review'&&!canConfirmCurrentProject())return false;return true;}
-function preferredInitialView(){const saved=sessionStorage.getItem('hub.lastView');if(saved&&viewAllowed(saved))return saved;return 'search';}
+function preferredInitialView(){const saved=sessionStorage.getItem('hub.lastView');if(saved&&viewAllowed(saved))return saved;return 'dashboard';}
 function setProjectAvailability(available){const onboarding=document.getElementById('emptyProjectOnboarding');if(!onboarding)return;if(available){onboarding.hidden=true;document.querySelectorAll('.project-required').forEach(x=>x.removeAttribute('disabled'));return;}onboarding.hidden=false;const admin=currentUser?.globalRole==='ADMIN';document.getElementById('emptyProjectTitle').textContent=admin?'첫 프로젝트를 만들어 주세요':'프로젝트 배정을 기다리고 있습니다';document.getElementById('emptyProjectMessage').textContent=admin?'프로젝트를 만든 뒤 문서, 회의, 연결 서비스를 사용할 수 있습니다.':'관리자가 프로젝트를 만든 뒤 배정하면 문서, 회의, 검색 기능을 사용할 수 있습니다.';document.getElementById('emptyProjectCreate').hidden=!admin;document.querySelectorAll('.project-required').forEach(x=>x.setAttribute('disabled','disabled'));}
 function requireCurrentProject(){if(currentProject)return true;flash(currentUser?.globalRole==='ADMIN'?'먼저 프로젝트를 만들어 주세요.':'아직 배정된 프로젝트가 없습니다. 관리자에게 요청해 주세요.',false);return false;}
-function switchView(name){const target=viewAllowed(name)?name:'search';if(target==='connectors')setTimeout(()=>void refreshConnectorStates(),0);document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view===target));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${target}`));sessionStorage.setItem('hub.lastView',target);if(target==='admin')loadAdmin();}
+function switchView(name){const target=viewAllowed(name)?name:'dashboard';if(target==='connectors')setTimeout(()=>void refreshConnectorStates(),0);document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view===target));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${target}`));sessionStorage.setItem('hub.lastView',target);if(target==='admin')loadAdmin();}
 
 const CONNECTOR_LABELS={GOOGLE_DRIVE:'Google Drive',GITHUB:'GitHub',SLACK:'Slack',NOTION:'Notion',EXTERNAL:'연결 서비스'};
 /** Admin-off connector types stay hidden from the connectors screen entirely, not just blocked server-side. */
@@ -794,7 +794,7 @@ function renderSearchRuleTest(data){
 function renderSummary(){const root=document.getElementById('summaryCards');root.replaceChildren();const today=localDate(),cards=[['바로 실행',todos.filter(x=>todoReadiness(x).cls==='ready'&&x.taskStatus!=='DONE').length],['AI 검토 필요',todos.filter(x=>x.reviewStatus!=='CONFIRMED').length],['오늘 마감',todos.filter(x=>x.dueDate===today&&x.taskStatus!=='DONE').length],['막힘',todos.filter(x=>x.taskStatus==='BLOCKED').length]];cards.forEach(([k,v])=>{const c=el('div','card');c.append(el('span','muted',k),el('strong','',String(v)));root.appendChild(c);});}
 
 // Global Ctrl+K (Cmd+K on Mac) search overlay - reachable from any view, same /materials/search API
-// and result rendering as the #view-search screen (renderMaterialResults), so results behave identically.
+// and result rendering as the dashboard's own search box (renderMaterialResults), so results behave identically.
 let globalSearchDebounce=null;
 function openGlobalSearch(){
  const overlay=document.getElementById('globalSearchOverlay');if(!overlay)return;

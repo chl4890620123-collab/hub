@@ -35,8 +35,7 @@
     <button id="newProjectBtn" hidden>+ 프로젝트</button>
     <nav aria-label="주요 기능">
       <span class="nav-group-label">업무</span>
-      <button data-view="dashboard" class="nav"><svg class="ui-icon"><use href="#i-home"/></svg><span>오늘 할 일</span></button>
-      <button data-view="search" class="nav active"><svg class="ui-icon"><use href="#i-search"/></svg><span>자료 찾기</span></button>
+      <button data-view="dashboard" class="nav active"><svg class="ui-icon"><use href="#i-home"/></svg><span>오늘 할 일</span></button>
       <button data-view="ask" class="nav"><svg class="ui-icon"><use href="#i-spark"/></svg><span>AI에게 묻기</span></button>
       <button data-view="todos" class="nav"><svg class="ui-icon"><use href="#i-check"/></svg><span>할 일 · 일정</span></button>
       <button data-view="review" class="nav" hidden><svg class="ui-icon"><use href="#i-userplus"/></svg><span>담당자 배정</span></button>
@@ -57,7 +56,15 @@
       <p id="emptyProjectMessage" class="muted"></p><button id="emptyProjectCreate" type="button">첫 프로젝트 만들기</button>
     </section>
 
-    <section id="view-dashboard" class="view">
+    <section id="view-dashboard" class="view active">
+      <div class="hero">
+        <span class="eyebrow">통합 검색</span><h1>회사 자료 찾기</h1>
+        <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지? (파일명·업무 코드도 찾아요)"><button>자료 찾기</button></form><p class="search-ranking-hint">표현이 달라도 의미가 가까운 문서를 함께 찾아드립니다.</p><div id="recentViews" class="quick-searches" hidden></div>
+        <div id="connectorStatus" class="quick-searches"></div><div id="topSearches" class="quick-searches"></div>
+        <div id="searchResults" class="material-results"></div>
+      </div>
+      <div id="searchTodoOverview" class="task-overview-inline" aria-label="현재 할 일 요약"></div>
+
       <div class="row between"><div><span class="eyebrow">내 업무</span><h2>지금 확인할 할 일</h2></div><button class="ghost" type="button" data-open-view="todos">전체 할 일</button></div>
       <div id="dashboardTodos"></div>
       <div id="dashboardAdminOverview" class="admin-summary-grid" hidden aria-label="관리 현황">
@@ -87,17 +94,8 @@
       <div><h2>최근 업무 흐름</h2><div id="dashboardTimeline"></div></div>
     </section>
 
-    <section id="view-search" class="view active">
-      <h1>자료 검색</h1>
-      <form id="searchForm" class="row search-bar"><input id="searchQuery" placeholder="예: 지난번에 로그인 방식 바꾼 이유가 뭐였지? (파일명·업무 코드도 찾아요)"><button>자료 찾기</button></form><p class="search-ranking-hint">표현이 달라도 의미가 가까운 문서를 함께 찾아드립니다.</p><div id="recentViews" class="quick-searches" hidden></div>
-      <div id="connectorStatus" class="quick-searches"></div><div id="topSearches" class="quick-searches"></div>
-      <div id="searchTodoOverview" class="task-overview-inline" aria-label="현재 할 일 요약"></div>
-      
-      <div id="searchResults" class="material-results"></div>
-    </section>
-
     <section id="view-ask" class="view">
-      <div class="hero"><div><span class="eyebrow">AI에게 묻기</span><h1>등록된 자료를 근거로 답합니다</h1><p>자료 자체를 찾고 싶다면 <a class="inline-link" href="#" data-open-view="search">🔍 자료 찾기 →</a>를 이용하세요.</p></div></div>
+      <div class="hero"><div><span class="eyebrow">AI에게 묻기</span><h1>등록된 자료를 근거로 답합니다</h1><p>자료 자체를 찾고 싶다면 <a class="inline-link" href="#" data-open-view="dashboard">🔍 자료 찾기 →</a>를 이용하세요.</p></div></div>
       <div class="panel ask-panel"><div class="ask-heading"><div><span class="eyebrow">자료를 참고한 AI 답변</span><h3>자료에 질문</h3></div><span class="context-mode-badge">관련 자료를 먼저 확인</span></div><p class="muted">질문과 관련 있는 최신 자료를 먼저 찾고, 짧은 자료는 전체 내용을 확인합니다. 긴 자료는 관련 부분의 앞뒤 내용까지 함께 확인합니다. 확인할 원문이 없으면 임의로 답을 만들지 않습니다.</p><form id="askForm" class="row"><input id="askQuestion" placeholder="예: 출시 일정이 왜 바뀌었어?"><button>근거와 함께 답변</button></form><pre id="ragAnswer"></pre><div id="ragSources" class="material-results"></div></div>
     </section>
 
