@@ -124,30 +124,44 @@ public class NotionConnector implements ReadOnlyConnector {
     }
 
 
-    /** Pages this integration has been shared with. */
+    // 100/page - caps a runaway workspace at 1000 shared pages rather than looping forever.
+    private static final int MAX_TARGET_PAGES = 10;
+
+    /** Pages this integration has been shared with. Follows Notion's start_cursor pagination
+     * instead of stopping at the first page, or a workspace with >100 shared pages silently lost
+     * everything past it. */
     @Override
     public List<ConnectorTarget> targets(String token) {
         List<ConnectorTarget> out = new ArrayList<>();
-        JsonNode body;
-        try {
-            String response = client.post().uri("/search")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                    .header("Notion-Version", API_VERSION)
-                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                    .body("{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":100}")
-                    .retrieve().body(String.class);
-            body = ConnectorSupport.json(json, response, "Invalid Notion response");
-        } catch (RestClientException e) {
-            throw new IllegalStateException("Notion API request failed", e);
-        }
-        JsonNode results = body.path("results");
-        if (results.isArray()) {
-            for (JsonNode page : results) {
-                String id = page.path("id").asText("");
-                if (id.isBlank()) continue;
-                out.add(new ConnectorTarget(id, pageTitle(page), "Notion 페이지",
-                        page.path("url").asText("https://www.notion.so/" + id.replace("-", ""))));
+        String cursor = null;
+        for (int pageIndex = 0; pageIndex < MAX_TARGET_PAGES; pageIndex++) {
+            JsonNode body;
+            try {
+                String requestBody = cursor == null || cursor.isBlank()
+                        ? "{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":100}"
+                        : "{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":100,\"start_cursor\":\""
+                                + cursor.replace("\"", "\\\"") + "\"}";
+                String response = client.post().uri("/search")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .header("Notion-Version", API_VERSION)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve().body(String.class);
+                body = ConnectorSupport.json(json, response, "Invalid Notion response");
+            } catch (RestClientException e) {
+                throw new IllegalStateException("Notion API request failed", e);
             }
+            JsonNode results = body.path("results");
+            if (results.isArray()) {
+                for (JsonNode page : results) {
+                    String id = page.path("id").asText("");
+                    if (id.isBlank()) continue;
+                    out.add(new ConnectorTarget(id, pageTitle(page), "Notion 페이지",
+                            page.path("url").asText("https://www.notion.so/" + id.replace("-", ""))));
+                }
+            }
+            cursor = body.path("has_more").asBoolean(false) ? body.path("next_cursor").asText("") : "";
+            if (cursor.isBlank()) break;
         }
         return out;
     }

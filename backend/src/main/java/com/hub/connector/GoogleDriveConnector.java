@@ -26,6 +26,8 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
     private static final String GOOGLE_FOLDER = "application/vnd.google-apps.folder";
     private static final Pattern DRIVE_ID = Pattern.compile("[A-Za-z0-9_-]{5,200}");
     private static final int MAX_PAGES = 5;
+    // 100/page - caps a runaway account at 1000 folders rather than looping forever.
+    private static final int MAX_TARGET_PAGES = 10;
 
     private final RestClient client;
     private final ObjectMapper json;
@@ -232,20 +234,30 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
     private record FolderScope(String id, String name, String path, int depth) {}
     private record Downloaded(String filename, String contentType, String text, byte[] bytes) {}
 
-    /** Folders the connected Google account can read. */
+    /** Folders the connected Google account can read. Follows Drive's nextPageToken instead of
+     * stopping at the first page, or an account with >100 folders silently lost everything past it. */
     @Override
     public List<ConnectorTarget> targets(String token) {
         List<ConnectorTarget> out = new ArrayList<>();
-        // RestClient encodes the query itself; pre-encoding here would escape the percent signs again.
-        JsonNode body = getJson("/drive/v3/files?q=mimeType='application/vnd.google-apps.folder'"
-                + " and trashed=false&fields=files(id,name)&pageSize=100&orderBy=name", token);
-        JsonNode files = body.path("files");
-        if (files.isArray()) {
-            for (JsonNode folder : files) {
-                String id = folder.path("id").asText("");
-                if (id.isBlank()) continue;
-                out.add(new ConnectorTarget(id, folder.path("name").asText("이름 없음"), "Drive 폴더"));
+        String pageToken = null;
+        for (int page = 0; page < MAX_TARGET_PAGES; page++) {
+            UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/drive/v3/files")
+                    .queryParam("q", "mimeType='application/vnd.google-apps.folder' and trashed=false")
+                    .queryParam("fields", "nextPageToken,files(id,name)")
+                    .queryParam("pageSize", 100)
+                    .queryParam("orderBy", "name");
+            if (pageToken != null && !pageToken.isBlank()) builder.queryParam("pageToken", pageToken);
+            JsonNode body = getJson(builder.build().toUriString(), token);
+            JsonNode files = body.path("files");
+            if (files.isArray()) {
+                for (JsonNode folder : files) {
+                    String id = folder.path("id").asText("");
+                    if (id.isBlank()) continue;
+                    out.add(new ConnectorTarget(id, folder.path("name").asText("이름 없음"), "Drive 폴더"));
+                }
             }
+            pageToken = body.path("nextPageToken").asText("");
+            if (pageToken.isBlank()) break;
         }
         return out;
     }

@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
 public class SlackConnector implements ReadOnlyConnector {
     private static final Pattern CHANNEL_ID = Pattern.compile("[CDG][A-Z0-9]{8,}");
     private static final int MESSAGE_LIMIT = 50;
+    // 200/page - caps a runaway workspace at 2000 channels rather than looping forever.
+    private static final int MAX_TARGET_PAGES = 10;
 
     private final RestClient client;
     private final ObjectMapper json;
@@ -161,19 +163,27 @@ public class SlackConnector implements ReadOnlyConnector {
         return oneLine.length() <= max ? oneLine : oneLine.substring(0, max) + "…";
     }
 
-    /** Public channels this token can read. */
+    /** Public channels this token can read. Follows Slack's cursor pagination instead of stopping
+     * at the first page, or a workspace with >200 channels silently lost everything past it. */
     @Override
     public List<ConnectorTarget> targets(String token) {
         List<ConnectorTarget> out = new ArrayList<>();
-        JsonNode body = get("/conversations.list?types=public_channel&exclude_archived=true&limit=200", token);
-        JsonNode channels = body.path("channels");
-        if (channels.isArray()) {
-            for (JsonNode channel : channels) {
-                String id = channel.path("id").asText("");
-                String name = channel.path("name").asText("");
-                if (id.isBlank() || name.isBlank()) continue;
-                out.add(new ConnectorTarget(id, "#" + name, channel.path("purpose").path("value").asText("")));
+        String cursor = null;
+        for (int page = 0; page < MAX_TARGET_PAGES; page++) {
+            String uri = "/conversations.list?types=public_channel&exclude_archived=true&limit=200"
+                    + (cursor == null || cursor.isBlank() ? "" : "&cursor=" + encode(cursor));
+            JsonNode body = get(uri, token);
+            JsonNode channels = body.path("channels");
+            if (channels.isArray()) {
+                for (JsonNode channel : channels) {
+                    String id = channel.path("id").asText("");
+                    String name = channel.path("name").asText("");
+                    if (id.isBlank() || name.isBlank()) continue;
+                    out.add(new ConnectorTarget(id, "#" + name, channel.path("purpose").path("value").asText("")));
+                }
             }
+            cursor = body.path("response_metadata").path("next_cursor").asText("");
+            if (cursor.isBlank()) break;
         }
         return out;
     }
