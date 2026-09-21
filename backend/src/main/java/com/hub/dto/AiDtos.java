@@ -8,7 +8,12 @@ import java.util.List;
 public final class AiDtos {
     private AiDtos() {}
 
+    // id is Java-side only: the AI service response never carries one (Jackson just leaves it null),
+    // it is filled in after AnalysisService persists the grounded proposal as a real TodoItem, so the
+    // browser can act on that specific candidate (edit/assign/reject) right where it first sees it
+    // instead of having to look it up on a different screen.
     public record TodoProposal(
+            Long id,
             String title,
             String description,
             @JsonAlias("assignee_text") String assigneeText,

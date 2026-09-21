@@ -77,7 +77,6 @@ public class AnalysisService {
         List<SearchHit> chunks = documents.chunksForVersion(versionId);
         List<GroundedTodo> groundedTodos = groundDocumentTodos(raw, chunks);
         List<GroundedDecision> groundedDecisions = groundDocumentDecisions(raw, chunks);
-        AiDtos.AnalyzeResponse groundedResponse = response(raw, groundedTodos, groundedDecisions);
 
         AiDtos.AnalyzeResponse saved = transaction.execute(status -> {
             documents.lockVersion(versionId);
@@ -85,8 +84,10 @@ public class AnalysisService {
             if (existing.isPresent()) return decode(existing.get());
 
             documents.updateSummary(versionId, raw.summary());
-            persistDocumentTodos(projectId, versionId, groundedTodos);
+            List<AiDtos.TodoProposal> persistedTodos = persistDocumentTodos(projectId, versionId, groundedTodos);
             persistDocumentDecisions(projectId, versionId, groundedDecisions);
+            AiDtos.AnalyzeResponse groundedResponse = new AiDtos.AnalyzeResponse(
+                    raw.summary(), persistedTodos, groundedDecisions.stream().map(GroundedDecision::proposal).toList());
             aiRuns.saveDocument(projectId, versionId, DOCUMENT_ANALYSIS, encode(groundedResponse));
             return groundedResponse;
         });
@@ -104,19 +105,16 @@ public class AnalysisService {
         List<Map<String, Object>> segments = meetings.segments(meetingId);
         List<GroundedMeetingTodo> groundedTodos = groundMeetingTodos(raw, segments);
         List<GroundedMeetingDecision> groundedDecisions = groundMeetingDecisions(raw, segments);
-        AiDtos.AnalyzeResponse groundedResponse = new AiDtos.AnalyzeResponse(
-                raw.summary(),
-                groundedTodos.stream().map(GroundedMeetingTodo::proposal).toList(),
-                groundedDecisions.stream().map(GroundedMeetingDecision::proposal).toList()
-        );
 
         AiDtos.AnalyzeResponse saved = transaction.execute(status -> {
             meetings.lockMeeting(meetingId);
             var existing = aiRuns.successfulMeeting(meetingId, MEETING_ANALYSIS);
             if (existing.isPresent()) return decode(existing.get());
 
-            persistMeetingTodos(projectId, meetingId, groundedTodos);
+            List<AiDtos.TodoProposal> persistedTodos = persistMeetingTodos(projectId, meetingId, groundedTodos);
             persistMeetingDecisions(projectId, meetingId, groundedDecisions);
+            AiDtos.AnalyzeResponse groundedResponse = new AiDtos.AnalyzeResponse(
+                    raw.summary(), persistedTodos, groundedDecisions.stream().map(GroundedMeetingDecision::proposal).toList());
             aiRuns.saveMeeting(projectId, meetingId, MEETING_ANALYSIS, encode(groundedResponse));
             return groundedResponse;
         });
@@ -166,7 +164,8 @@ public class AnalysisService {
         return result;
     }
 
-    private void persistDocumentTodos(long projectId, long versionId, List<GroundedTodo> groundedTodos) {
+    private List<AiDtos.TodoProposal> persistDocumentTodos(long projectId, long versionId, List<GroundedTodo> groundedTodos) {
+        List<AiDtos.TodoProposal> result = new ArrayList<>();
         for (GroundedTodo grounded : groundedTodos) {
             AiDtos.TodoProposal proposal = grounded.proposal();
             String quote = proposal.evidenceQuote().trim();
@@ -186,7 +185,9 @@ public class AnalysisService {
                     projectId, "TODO_CREATED", proposal.title(), proposal.description(),
                     LocalDateTime.now(), "DOCUMENT_VERSION", versionId
             );
+            result.add(withId(proposal, todoId));
         }
+        return result;
     }
 
     private void persistDocumentDecisions(long projectId,
@@ -209,9 +210,10 @@ public class AnalysisService {
         }
     }
 
-    private void persistMeetingTodos(long projectId,
+    private List<AiDtos.TodoProposal> persistMeetingTodos(long projectId,
                                      long meetingId,
                                      List<GroundedMeetingTodo> groundedTodos) {
+        List<AiDtos.TodoProposal> result = new ArrayList<>();
         for (GroundedMeetingTodo grounded : groundedTodos) {
             AiDtos.TodoProposal proposal = grounded.proposal();
             String quote = proposal.evidenceQuote().trim();
@@ -231,7 +233,9 @@ public class AnalysisService {
                     projectId, "TODO_CREATED", proposal.title(), proposal.description(),
                     LocalDateTime.now(), "MEETING", meetingId
             );
+            result.add(withId(proposal, todoId));
         }
+        return result;
     }
 
     private void persistMeetingDecisions(long projectId,
@@ -254,14 +258,12 @@ public class AnalysisService {
         }
     }
 
-    private AiDtos.AnalyzeResponse response(AiDtos.AnalyzeResponse raw,
-                                            List<GroundedTodo> todos,
-                                            List<GroundedDecision> decisions) {
-        return new AiDtos.AnalyzeResponse(
-                raw.summary(),
-                todos.stream().map(GroundedTodo::proposal).toList(),
-                decisions.stream().map(GroundedDecision::proposal).toList()
-        );
+    /** Copies a proposal with its now-persisted todo id attached, so the browser can act on this
+     * exact candidate (edit/assign/reject) without a separate lookup. */
+    private static AiDtos.TodoProposal withId(AiDtos.TodoProposal proposal, long id) {
+        return new AiDtos.TodoProposal(id, proposal.title(), proposal.description(), proposal.assigneeText(),
+                proposal.assigneeSuggestionText(), proposal.dueDate(), proposal.dueDateSuggestion(),
+                proposal.confidence(), proposal.evidenceQuote());
     }
 
     private AiDtos.AnalyzeResponse requireAnalysis(AiDtos.AnalyzeResponse response) {

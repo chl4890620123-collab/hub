@@ -473,6 +473,59 @@ function renderDashboardTodos(){
  if(!rows.length){root.appendChild(el('div','dashboard-empty',isAdmin?'현재 확인하거나 배정할 할 일이 없습니다.':'현재 배정된 할 일이 없습니다.'));return;}
  rows.forEach(t=>{const item=el('div','item dashboard-todo'),main=el('div','todo-main'),side=el('div','dashboard-todo-side');main.append(el('div','todo-title',t.title),el('div','todo-sub',`담당 ${t.assigneeText||t.assigneeSuggestionText||'미정'} · ${t.dueDate||t.dueDateSuggestion||'기한 미정'}`));const mini=el('div','mini-progress'),fill=el('i','');fill.style.width=`${todoStagePercent(t)}%`;mini.appendChild(fill);main.appendChild(mini);const action=el('button','ghost',t.reviewStatus==='CONFIRMED'?'할 일 보기':'배정하기');action.type='button';action.onclick=()=>switchView(t.reviewStatus==='CONFIRMED'?'todos':'review');side.append(statusPill(t),action);item.append(main,side);root.appendChild(item);});
 }
+/**
+ * One todo candidate's edit/assign/reject controls - shared by the 담당자 배정 review list and the
+ * inline review that now appears right in the document/meeting analysis panel, so both places offer
+ * the exact same actions instead of the inline one being a stripped-down copy.
+ * opts.onChange runs after any action succeeds (default: refreshAll()); opts.onToggle, when given,
+ * adds a bulk-select checkbox (used by the review list's bulk-assign bar; the inline panel omits it).
+ */
+function buildTodoReviewItem(t,opts={}){
+ const change=opts.onChange||refreshAll;
+ const item=el('div','item review-item');
+ const top=el('div','row review-item-top');
+ if(opts.onToggle){
+  const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label','일괄 배정용 선택');
+  check.onchange=()=>opts.onToggle(t.id,check.checked);
+  top.appendChild(check);
+ }
+ top.appendChild(statusPill(t));item.appendChild(top);
+ const titleEl=el('strong','',t.title),descEl=el('p','',t.description||'');item.append(titleEl,descEl);
+ if(t.possibleDuplicateOfId){const warn=el('div','duplicate-warning',`기존 할 일 #${t.possibleDuplicateOfId}와 제목이 비슷한 후보입니다. 자동 삭제하지 않고 관리자가 확인합니다.`);item.appendChild(warn);}
+ item.appendChild(el('div','muted',`원문에 적힌 담당자: ${t.assigneeText||'없음'} · AI가 찾은 담당자 후보: ${t.assigneeSuggestionText||'없음'} · 예상 기한: ${t.dueDateSuggestion||'미정'} · AI가 찾은 내용의 확실함: ${confidenceLabel(t.confidence)}`));
+ const row=el('div','review-actions'),assignee=document.createElement('select'),none=document.createElement('option');none.value='';none.textContent='담당자 미정';assignee.appendChild(none);
+ projectMembers.forEach(m=>{const o=document.createElement('option'),id=value(m,'user_id');o.value=id;o.textContent=value(m,'display_name');if(Number(t.assigneeSuggestionId)===Number(id))o.selected=true;assignee.appendChild(o);});
+ const due=document.createElement('input');due.type='date';due.value=t.dueDateSuggestion||localDate();
+ const confirmBtn=el('button','', '이 사람에게 배정');confirmBtn.onclick=async()=>{if(!assignee.value){flash('업무 확정 전에 실제 팀원을 선택해 주세요.',false);return;}await api(`/api/todos/${t.id}/confirm`,{method:'POST',body:JSON.stringify({assigneeId:Number(assignee.value),dueDate:due.value||null})});flash('담당자와 기한을 정해 할 일을 배정했습니다.');await change();};
+ const editBtn=el('button','ghost compact-button','✏️ 수정');editBtn.type='button';editBtn.onclick=async()=>{
+  const result=await requestManualEdit(t.title,t.description||'');
+  if(!result)return;
+  try{await api(`/api/todos/${t.id}`,{method:'PATCH',body:JSON.stringify({title:result.title,description:result.text})});flash('할 일 후보 내용을 수정했습니다.');await change();}catch(err){flash(errorMessage(err),false);}
+ };
+ const reject=el('button','ghost','후보 제외');reject.onclick=async()=>{await api(`/api/todos/${t.id}/reject`,{method:'POST'});flash('할 일 후보를 제외했습니다.');await change();};
+ row.append(assignee,due,confirmBtn,editBtn);
+ if(t.possibleDuplicateOfId){const merge=el('button','ghost','기존 업무에 근거 합치기');merge.onclick=async()=>{await api(`/api/todos/${t.id}/merge-duplicate`,{method:'POST'});flash(`기존 할 일 #${t.possibleDuplicateOfId}에 근거를 합쳤습니다.`);await change();};row.appendChild(merge);}
+ row.append(reject,relatedMaterialButton(t.id,'관련 자료 확인'));item.appendChild(row);
+ return item;
+}
+/**
+ * Inline version of the review list, scoped to just the todoIds a single analysis just produced -
+ * lets someone extract, edit and assign a todo right where they uploaded the document/meeting
+ * instead of navigating to 담당자 배정 for it. Only fetches anything when the viewer actually has
+ * confirm permission (the same permission view-review itself requires); container just stays empty
+ * otherwise, and requireConfirmPermission still guards every action server-side regardless.
+ */
+async function renderInlineTodoReview(container,todoIds){
+ if(!todoIds?.length||!canConfirmCurrentProject()){container.replaceChildren();container.hidden=true;return;}
+ let pending;
+ try{pending=await api(`/api/projects/${currentProject}/review/todos`);}catch{container.hidden=true;return;}
+ const mine=pending.filter(t=>todoIds.includes(Number(t.id)));
+ container.replaceChildren();
+ if(!mine.length){container.hidden=true;return;}
+ container.hidden=false;
+ container.appendChild(el('strong','',`할 일 후보 ${mine.length}건 - 바로 수정하고 담당자를 정하세요`));
+ mine.forEach(t=>container.appendChild(buildTodoReviewItem(t,{onChange:async()=>{await refreshAll();await renderInlineTodoReview(container,todoIds);}})));
+}
 async function loadReview(){
  const root=document.getElementById('reviewList');root.replaceChildren();
  try{
@@ -501,28 +554,11 @@ async function loadReview(){
    root.appendChild(bulkBar);
   }
   todoData.forEach(t=>{
-   const item=el('div','item review-item');
-   const top=el('div','row review-item-top');
-   const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label','일괄 배정용 선택');
-   const bulkCountEl=root.querySelector('.review-bulk-bar .muted');
-   check.onchange=()=>{if(check.checked)selectedCandidates.add(t.id);else selectedCandidates.delete(t.id);if(bulkCountEl)bulkCountEl.textContent=`${selectedCandidates.size}건 선택됨`;};
-   top.append(check,statusPill(t));item.appendChild(top);
-   const titleEl=el('strong','',t.title),descEl=el('p','',t.description||'');item.append(titleEl,descEl);
-   if(t.possibleDuplicateOfId){const warn=el('div','duplicate-warning',`기존 할 일 #${t.possibleDuplicateOfId}와 제목이 비슷한 후보입니다. 자동 삭제하지 않고 관리자가 확인합니다.`);item.appendChild(warn);}
-   item.appendChild(el('div','muted',`원문에 적힌 담당자: ${t.assigneeText||'없음'} · AI가 찾은 담당자 후보: ${t.assigneeSuggestionText||'없음'} · 예상 기한: ${t.dueDateSuggestion||'미정'} · AI가 찾은 내용의 확실함: ${confidenceLabel(t.confidence)}`));
-   const row=el('div','review-actions'),assignee=document.createElement('select'),none=document.createElement('option');none.value='';none.textContent='담당자 미정';assignee.appendChild(none);
-   projectMembers.forEach(m=>{const o=document.createElement('option'),id=value(m,'user_id');o.value=id;o.textContent=value(m,'display_name');if(Number(t.assigneeSuggestionId)===Number(id))o.selected=true;assignee.appendChild(o);});
-   const due=document.createElement('input');due.type='date';due.value=t.dueDateSuggestion||localDate();
-   const confirmBtn=el('button','', '이 사람에게 배정');confirmBtn.onclick=async()=>{if(!assignee.value){flash('업무 확정 전에 실제 팀원을 선택해 주세요.',false);return;}await api(`/api/todos/${t.id}/confirm`,{method:'POST',body:JSON.stringify({assigneeId:Number(assignee.value),dueDate:due.value||null})});flash('담당자와 기한을 정해 할 일을 배정했습니다.');await refreshAll();};
-   const editBtn=el('button','ghost compact-button','✏️ 수정');editBtn.type='button';editBtn.onclick=async()=>{
-    const result=await requestManualEdit(t.title,t.description||'');
-    if(!result)return;
-    try{await api(`/api/todos/${t.id}`,{method:'PATCH',body:JSON.stringify({title:result.title,description:result.text})});flash('할 일 후보 내용을 수정했습니다.');await refreshAll();}catch(err){flash(errorMessage(err),false);}
-   };
-   const reject=el('button','ghost','후보 제외');reject.onclick=async()=>{await api(`/api/todos/${t.id}/reject`,{method:'POST'});flash('할 일 후보를 제외했습니다.');await refreshAll();};
-   row.append(assignee,due,confirmBtn,editBtn);
-   if(t.possibleDuplicateOfId){const merge=el('button','ghost','기존 업무에 근거 합치기');merge.onclick=async()=>{await api(`/api/todos/${t.id}/merge-duplicate`,{method:'POST'});flash(`기존 할 일 #${t.possibleDuplicateOfId}에 근거를 합쳤습니다.`);await refreshAll();};row.appendChild(merge);}
-   row.append(reject,relatedMaterialButton(t.id,'관련 자료 확인'));item.appendChild(row);root.appendChild(item);
+   const item=buildTodoReviewItem(t,{onToggle:(id,checked)=>{
+    if(checked)selectedCandidates.add(id);else selectedCandidates.delete(id);
+    const bulkCountEl=root.querySelector('.review-bulk-bar .muted');if(bulkCountEl)bulkCountEl.textContent=`${selectedCandidates.size}건 선택됨`;
+   }});
+   root.appendChild(item);
   });
   root.appendChild(el('h2','',`결정 후보 ${decisionData.length}건`));decisionData.forEach(d=>{const item=el('div','item review-item'),id=value(d,'id');item.appendChild(el('strong','',value(d,'statement')));item.appendChild(el('div','muted',`AI 판단 신뢰도 ${confidenceLabel(value(d,'confidence'))}`));const b=el('button','', '결정 확정');b.onclick=async()=>{await api(`/api/decisions/${id}/confirm`,{method:'POST'});flash('결정을 확정했습니다.');await refreshAll();};const r=el('button','ghost','후보 제외');r.onclick=async()=>{await api(`/api/decisions/${id}/reject`,{method:'POST'});flash('결정 후보를 제외했습니다.');await refreshAll();};item.append(b,r,evidenceButton(`/api/decisions/${id}/evidence`));root.appendChild(item);});
   root.appendChild(el('h2','',`변경 후보 ${changeData.length}건`));changeData.forEach(c=>{const item=el('div','item review-item'),id=value(c,'id');item.appendChild(el('strong','',value(c,'category')||'CONTENT'));item.appendChild(el('p','',`${value(c,'before_text')||''} → ${value(c,'after_text')||''}`));const b=el('button','', '변경 확정');b.onclick=async()=>{await api(`/api/projects/${currentProject}/changes/items/${id}/confirm`,{method:'POST'});flash('변경 사항을 확정했습니다.');await refreshAll();};const r=el('button','ghost','후보 제외');r.onclick=async()=>{await api(`/api/projects/${currentProject}/changes/items/${id}/reject`,{method:'POST'});flash('변경 후보를 제외했습니다.');await refreshAll();};item.append(b,r,evidenceButton(`/api/projects/${currentProject}/changes/items/${id}/evidence`));root.appendChild(item);});
@@ -883,9 +919,18 @@ function renderAnalysisResult(root,data,title,editCtx){
  };heading.appendChild(edit);}
  box.appendChild(heading);
  box.appendChild(el('p','',normalized.summary||'정리할 내용이 없습니다.'));
- const tasks=normalized.todos;if(tasks.length){box.appendChild(el('strong','',`확인할 할 일 ${tasks.length}건`));tasks.forEach(t=>box.appendChild(el('div','item compact',`${t.title}${(t.dueDate||t.dueDateSuggestion)?` · ${t.dueDate||t.dueDateSuggestion}`:''}`)));}else box.appendChild(el('div','muted','새로 정리된 할 일은 없습니다.'));
+ const tasks=normalized.todos,todoIds=tasks.map(t=>t.id).filter(id=>id!=null),canReviewHere=todoIds.length>0&&canConfirmCurrentProject();
+ if(tasks.length){
+  box.appendChild(el('strong','',`확인할 할 일 ${tasks.length}건`));
+  if(canReviewHere){
+   const inline=el('div','inline-todo-review');box.appendChild(inline);
+   renderInlineTodoReview(inline,todoIds);
+  }else{
+   tasks.forEach(t=>box.appendChild(el('div','item compact',`${t.title}${(t.dueDate||t.dueDateSuggestion)?` · ${t.dueDate||t.dueDateSuggestion}`:''}`)));
+  }
+ }else box.appendChild(el('div','muted','새로 정리된 할 일은 없습니다.'));
  const decisions=normalized.decisions;if(decisions.length){box.appendChild(el('strong','',`확인할 결정 ${decisions.length}건`));decisions.forEach(d=>box.appendChild(el('div','item compact',d.statement||'')));}
- const next=el('div','analysis-next','AI가 정리한 내용은 바로 업무로 확정되지 않습니다. 관리자가 원문을 확인한 뒤 담당자와 기한을 정합니다.');box.appendChild(next);root.appendChild(box);
+ const next=el('div','analysis-next',canReviewHere?'할 일 후보를 위에서 바로 수정하고 담당자를 정할 수 있습니다.':'AI가 정리한 내용은 바로 업무로 확정되지 않습니다. 관리자가 원문을 확인한 뒤 담당자와 기한을 정합니다.');box.appendChild(next);root.appendChild(box);
 }
 const MAX_DIRECT_RECORDING_SECONDS=25*60;
 function chooseMime(){const types=['audio/webm;codecs=opus','audio/webm','audio/mp4'];return types.find(t=>window.MediaRecorder?.isTypeSupported?.(t))||'';}
