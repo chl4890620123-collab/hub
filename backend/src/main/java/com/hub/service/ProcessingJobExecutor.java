@@ -2,21 +2,29 @@
 package com.hub.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hub.model.User;
+import com.hub.repository.AuditRepository;
 import com.hub.repository.ProcessingJobRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class ProcessingJobExecutor {
     private final ProcessingJobRepository jobs;
     private final AnalysisService analysis;
     private final MeetingService meetings;
+    private final ConnectorService connectors;
+    private final AuditRepository audit;
     private final ObjectMapper json;
 
-    public ProcessingJobExecutor(ProcessingJobRepository jobs, AnalysisService analysis, MeetingService meetings, ObjectMapper json) {
-        this.jobs = jobs; this.analysis = analysis; this.meetings = meetings; this.json = json;
+    public ProcessingJobExecutor(ProcessingJobRepository jobs, AnalysisService analysis, MeetingService meetings,
+                                 ConnectorService connectors, AuditRepository audit, ObjectMapper json) {
+        this.jobs = jobs; this.analysis = analysis; this.meetings = meetings; this.connectors = connectors;
+        this.audit = audit; this.json = json;
     }
 
     @Async("hubTaskExecutor")
@@ -41,6 +49,20 @@ public class ProcessingJobExecutor {
         } catch (Exception error) {
             meetings.markFailed(meetingId);
             jobs.fail(jobId, "MEETING_PROCESSING_FAILED", rootMessage(error));
+        }
+    }
+
+    @Async("hubTaskExecutor")
+    public void connectorImport(long jobId, long projectId, String type, String scope, User user) {
+        try {
+            jobs.start(jobId); jobs.progress(jobId, 20);
+            int imported = connectors.importItems(projectId, type, scope, user);
+            jobs.progress(jobId, 90);
+            jobs.success(jobId, json.writeValueAsString(Map.of("imported", imported)));
+            audit.add(user.id(), projectId, "CONNECTOR_IMPORT", type == null ? null : type.trim().toUpperCase(Locale.ROOT),
+                    null, "{\"imported\":" + imported + "}");
+        } catch (Exception error) {
+            jobs.fail(jobId, "CONNECTOR_IMPORT_FAILED", rootMessage(error));
         }
     }
 

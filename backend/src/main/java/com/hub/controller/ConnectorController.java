@@ -6,7 +6,9 @@ import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.service.ConnectorService;
 import com.hub.service.CurrentUserService;
+import com.hub.service.ProcessingJobService;
 import com.hub.service.ProjectAccessService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,11 +20,13 @@ public class ConnectorController {
     private final CurrentUserService currentUser;
     private final ProjectAccessService projectAccess;
     private final ConnectorService connectorService;
+    private final ProcessingJobService jobs;
     private final AuditRepository audit;
 
     public ConnectorController(CurrentUserService currentUser, ProjectAccessService projectAccess,
-                               ConnectorService connectorService, AuditRepository audit) {
-        this.currentUser = currentUser; this.projectAccess = projectAccess; this.connectorService = connectorService; this.audit = audit;
+                               ConnectorService connectorService, ProcessingJobService jobs, AuditRepository audit) {
+        this.currentUser = currentUser; this.projectAccess = projectAccess; this.connectorService = connectorService;
+        this.jobs = jobs; this.audit = audit;
     }
 
     public record ImportRequest(String scope) {}
@@ -51,12 +55,17 @@ public class ConnectorController {
         return Map.of("status", "UNLINKED");
     }
 
+    /**
+     * Runs in the background (ProcessingJobExecutor.connectorImport) instead of blocking this
+     * request - a folder/repo/channel with a lot of content could otherwise tie up the request
+     * thread and time out the browser long before the import itself finished. Audit logging moves
+     * with it, into the executor, since the imported count isn't known until the job completes.
+     */
     @PostMapping("/{type}/import")
-    public Map<String,Object> importItems(@PathVariable long projectId, @PathVariable String type,
+    public ResponseEntity<Map<String,Object>> importItems(@PathVariable long projectId, @PathVariable String type,
                                           @RequestBody ImportRequest request, Authentication authentication) {
         User user = currentUser.requireOperational(authentication); projectAccess.requireAccess(projectId, user);
-        int count = connectorService.importItems(projectId, type, request.scope(), user);
-        audit.add(user.id(), projectId, "CONNECTOR_IMPORT", type.toUpperCase(), null, "{\"count\":" + count + "}");
-        return Map.of("imported", count);
+        long jobId = jobs.queueConnectorImport(projectId, type, request.scope(), user);
+        return ResponseEntity.accepted().body(Map.of("jobId", jobId, "status", "PENDING"));
     }
 }

@@ -23,7 +23,9 @@ async function api(url,opts={}){const retry=Boolean(opts._retried),request={...o
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function renderJobStatus(job,label){const root=document.getElementById('jobStatusPanel');if(!root)return;root.hidden=false;root.replaceChildren(el('strong','',label||'AI가 자료를 확인하고 있습니다'),el('span','muted',` ${jobStatusLabel(job.status)} · ${job.progress||0}%`));if(job.errorMessage)root.appendChild(el('div','notice',`처리 중 문제가 생겼습니다. ${job.errorMessage}`));}
-async function waitForJob(jobId,label){const started=Date.now();while(Date.now()-started<10*60*1000){const job=await api(`/api/jobs/${jobId}`);renderJobStatus(job,label);if(job.status==='SUCCESS'){const root=document.getElementById('jobStatusPanel');if(root)setTimeout(()=>root.hidden=true,1200);if(!job.resultJson)return null;try{return normalizeAnalysis(JSON.parse(job.resultJson));}catch{return null;}}if(job.status==='FAILED')throw new Error(job.errorMessage||'AI 처리에 실패했습니다.');await delay(900);}throw new Error('AI 처리 시간이 너무 길어졌습니다. 작업 목록에서 상태를 다시 확인해 주세요.');}
+async function pollJob(jobId,label){const started=Date.now();while(Date.now()-started<10*60*1000){const job=await api(`/api/jobs/${jobId}`);renderJobStatus(job,label);if(job.status==='SUCCESS'){const root=document.getElementById('jobStatusPanel');if(root)setTimeout(()=>root.hidden=true,1200);return job;}if(job.status==='FAILED')throw new Error(job.errorMessage||'처리에 실패했습니다.');await delay(900);}throw new Error('처리 시간이 너무 길어졌습니다. 작업 목록에서 상태를 다시 확인해 주세요.');}
+async function waitForJob(jobId,label){const job=await pollJob(jobId,label);if(!job.resultJson)return null;try{return normalizeAnalysis(JSON.parse(job.resultJson));}catch{return null;}}
+async function waitForRawJob(jobId,label){const job=await pollJob(jobId,label);if(!job.resultJson)return null;try{return JSON.parse(job.resultJson);}catch{return null;}}
 function flash(msg,ok=true){const x=document.getElementById('flash');x.hidden=false;x.textContent=msg;x.style.background=ok?'#eaf7ed':'#fdecec';x.style.color=ok?'#176a2f':'#9a1f1f';setTimeout(()=>x.hidden=true,4500);}
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function value(row,key){if(row==null)return null;return row[key]??row[key.toUpperCase()]??row[key.toLowerCase()];}
@@ -268,7 +270,13 @@ function bindForms(){
  document.querySelectorAll('.connectorForm').forEach(form=>form.onsubmit=async e=>{
   e.preventDefault();const f=new FormData(form),scope=f.get('scope');
   if(!scope){flash(`먼저 "찾아보기"로 ${form.dataset.noun||'항목'}을(를) 선택해 주세요.`,false);return;}
-  try{const d=await api(`/api/projects/${currentProject}/connectors/${form.dataset.type}/import`,{method:'POST',body:JSON.stringify({scope})});flash(`${connectorName(form.dataset.type)} 자료 ${d.imported}건을 가져왔습니다.`);await refreshAll();}catch(err){flash(err.message,false);}
+  const name=connectorName(form.dataset.type);
+  try{
+   const d=await api(`/api/projects/${currentProject}/connectors/${form.dataset.type}/import`,{method:'POST',body:JSON.stringify({scope})});
+   const result=await waitForRawJob(d.jobId,`${name} 자료를 가져오는 중입니다`);
+   flash(`${name} 자료 ${result?.imported??0}건을 가져왔습니다.`);
+   await refreshAll();
+  }catch(err){flash(err.message,false);}
  });
  const googleConnectBtn=document.getElementById('googleConnectBtn');if(googleConnectBtn)googleConnectBtn.onclick=e=>{e.preventDefault();if(!requireCurrentProject())return;location.href=`/api/projects/${currentProject}/connectors/google/authorize`;};
  // Google has its own dedicated button (googleConnectBtn, wired above) because its authorize route
