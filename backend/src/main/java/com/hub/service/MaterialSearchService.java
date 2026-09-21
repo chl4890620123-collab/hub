@@ -72,10 +72,19 @@ public class MaterialSearchService {
      * keyword retrieval. Historical versions remain auditable but are excluded from default search.
      */
     public List<MaterialHit> search(long projectId, String query) {
+        return search(projectId, query, 0);
+    }
+
+    /**
+     * offset pages through the same fully-ranked candidate list rankCandidates already builds
+     * (bounded by the per-engine candidate caps above, not by MAX_RESULTS) - "load more" is a
+     * second slice of that list, not a second query with a bigger limit.
+     */
+    public List<MaterialHit> search(long projectId, String query, int offset) {
         String normalized = requiredQuery(query);
         SearchQueryPlan plan = queryRouter.route(normalized);
         SearchRuleService.RuleMatch rule = searchRules.match(projectId, normalized).orElse(null);
-        return recommendDocuments(rankCandidates(projectId, plan, rule), plan);
+        return recommendDocuments(rankCandidates(projectId, plan, rule), plan, Math.max(0, offset));
     }
 
     /**
@@ -376,15 +385,17 @@ public class MaterialSearchService {
         current.exactBonus = Math.max(current.exactBonus, exactBonus(hit, query, terms));
     }
 
-    private List<MaterialHit> recommendDocuments(List<Candidate> ranked, SearchQueryPlan plan) {
+    private List<MaterialHit> recommendDocuments(List<Candidate> ranked, SearchQueryPlan plan, int offset) {
         Map<String, Integer> relatedCounts = new HashMap<>();
         for (Candidate candidate : ranked) relatedCounts.merge(candidate.sourceKey, 1, Integer::sum);
         LinkedHashMap<String, Candidate> bestBySource = new LinkedHashMap<>();
         for (Candidate candidate : ranked) bestBySource.putIfAbsent(candidate.sourceKey, candidate);
 
         List<MaterialHit> result = new ArrayList<>();
+        int skipped = 0;
         for (Candidate candidate : bestBySource.values()) {
-            MaterialHit hit = withRecommendation(candidate, result.size() + 1, plan);
+            if (skipped < offset) { skipped++; continue; }
+            MaterialHit hit = withRecommendation(candidate, offset + result.size() + 1, plan);
             int count = relatedCounts.getOrDefault(candidate.sourceKey, 1);
             if (count > 1) {
                 hit = recommend(hit, hit.recommendationRank(), hit.matchType(),

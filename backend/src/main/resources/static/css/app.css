@@ -202,6 +202,8 @@ details.panel>div,details.panel>*:not(summary){padding:0 var(--sp-4) var(--sp-4)
 .search-chip:hover{background:var(--slate-200)}
 .search-recommendation-note{border:1px solid var(--accent-100);background:var(--accent-50);border-radius:var(--r-md);padding:var(--sp-3);color:var(--ink-700);font-size:.88rem;line-height:1.5}
 .material-results{display:grid;gap:11px;margin:14px 0}
+.search-load-more{display:block;margin:0 auto;min-width:140px}
+.search-load-more[hidden]{display:none}
 .material-top{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .source-badge{display:inline-flex;align-items:center;border-radius:var(--r-pill);padding:3px 9px;font-size:.75rem;font-weight:700;background:var(--slate-100);color:var(--ink-700)}
 .source-github{background:var(--slate-100);color:var(--ink-800)}

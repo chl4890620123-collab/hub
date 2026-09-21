@@ -258,7 +258,9 @@ function bindForms(){
  };
  const quickManualForm=document.getElementById('quickManualForm');if(quickManualForm)quickManualForm.onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const dueDate=f.get('dueDate')||null,assigneeId=f.get('assigneeId')?Number(f.get('assigneeId')):null;try{flash('회의 메모를 저장하고 할 일을 정리하는 중입니다.');const d=await api(`/api/projects/${currentProject}/documents/manual`,{method:'POST',body:JSON.stringify({title:f.get('title'),text:f.get('text'),sourceDate:localDate(),dueDate,assigneeId})});const analysis=await waitForJob(d.jobId,'회의 메모 정리');renderAnalysisResult(document.getElementById('quickManualResult'),analysis,'회의 메모 요약');e.target.reset();flash(d.todoId?'회의 메모를 정리하고 할 일을 등록했습니다.':'회의 메모를 정리했습니다. 확인할 할 일 후보가 있으면 아래에 표시됩니다.');await refreshAll();}catch(err){flash(errorMessage(err),false);}};
  const assigneeFilter=document.getElementById('todoAssigneeFilter'),statusFilter=document.getElementById('todoStatusFilter');if(assigneeFilter)assigneeFilter.onchange=renderTodoViews;if(statusFilter)statusFilter.onchange=renderTodoViews;
- document.getElementById('searchForm').onsubmit=async e=>{e.preventDefault();if(!requireCurrentProject())return;const q=document.getElementById('searchQuery').value.trim();if(!q)return;try{const data=await api(`/api/projects/${currentProject}/materials/search?q=${encodeURIComponent(q)}`);renderMaterialResults(document.getElementById('searchResults'),data,q);await loadTopSearches();}catch(err){flash(err.message,false);}};
+ document.getElementById('searchForm').onsubmit=async e=>{e.preventDefault();if(!requireCurrentProject())return;const q=document.getElementById('searchQuery').value.trim();if(!q)return;lastSearchQuery=q;try{await runSearchPage(q,0);await loadTopSearches();}catch(err){flash(err.message,false);}};
+ const searchLoadMoreBtn=document.getElementById('searchLoadMore');
+ if(searchLoadMoreBtn)searchLoadMoreBtn.onclick=async()=>{if(!lastSearchQuery)return;try{await runSearchPage(lastSearchQuery,searchLoadedCount);}catch(err){flash(err.message,false);}};
  document.getElementById('askForm').onsubmit=async e=>{e.preventDefault();if(!requireCurrentProject())return;const q=document.getElementById('askQuestion').value.trim();if(!q)return;try{const d=await api(`/api/projects/${currentProject}/materials/ask`,{method:'POST',body:JSON.stringify({question:q})});document.getElementById('ragAnswer').textContent=d.answer||'';renderMaterialResults(document.getElementById('ragSources'),d.sources||[],q);await loadTopSearches();}catch(err){flash(err.message,false);}};
  document.getElementById('contextForm').onsubmit=async e=>{e.preventDefault();await loadContext(document.getElementById('contextQuery').value.trim());};
  document.getElementById('compareForm').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);try{const d=await api(`/api/projects/${currentProject}/changes`,{method:'POST',body:JSON.stringify({beforeVersionId:Number(f.get('beforeVersionId')),afterVersionId:Number(f.get('afterVersionId'))})});renderChanges(d.changes||[]);flash('업무 의미 변경 비교 완료');await loadReview();await loadTimeline();}catch(err){flash(err.message,false);}};
@@ -599,11 +601,20 @@ function loadRecentViews(){try{return JSON.parse(localStorage.getItem(recentView
 function recordRecentView({type,id,title,meta}){if(!title)return;try{let rows=loadRecentViews().filter(r=>!(r.type===type&&String(r.id)===String(id)));rows.unshift({type,id,title,meta,viewedAt:Date.now()});localStorage.setItem(recentViewsKey(),JSON.stringify(rows.slice(0,8)));}catch{}renderRecentViews();}
 function renderRecentViews(){const root=document.getElementById('recentViews');if(!root)return;const rows=loadRecentViews();root.replaceChildren();if(!rows.length){root.hidden=true;return;}root.hidden=false;root.appendChild(el('span','muted','최근에 열어본 자료'));rows.forEach(r=>{const b=el('button','search-chip',r.title);b.type='button';b.title=r.meta||'';b.onclick=()=>{if(r.type==='version')openVersion(r.id);else openChunk(r.id);};root.appendChild(b);});}
 async function openChunk(chunkId){try{const d=await api(`/api/chunks/${chunkId}`);const title=value(d,'original_name'),meta=`${value(d,'paragraph_ref')||'원문 근거'}`;openViewer({title,meta,evidence:value(d,'content'),summary:value(d,'summary')||'요약 없음',text:value(d,'full_text')||'',quote:value(d,'content')});recordRecentView({type:'chunk',id:chunkId,title,meta:'최근 검색에서 확인'});}catch(err){flash(errorMessage(err),false);}}
-function renderMaterialResults(root,data,query=''){
- root.replaceChildren();
- if(!data?.length){root.appendChild(el('div','panel muted','관련 자료를 찾지 못했습니다. 외부 자료가 연결돼 있다면 연동 상태도 확인해 주세요.'));return;}
+const SEARCH_PAGE_SIZE=30; // must match MaterialSearchService.MAX_RESULTS
+let lastSearchQuery='',searchLoadedCount=0;
+async function runSearchPage(q,offset){
+ const data=await api(`/api/projects/${currentProject}/materials/search?q=${encodeURIComponent(q)}&offset=${offset}`);
+ renderMaterialResults(document.getElementById('searchResults'),data,q,offset>0);
+ searchLoadedCount=offset+data.length;
+ const loadMoreBtn=document.getElementById('searchLoadMore');
+ if(loadMoreBtn)loadMoreBtn.hidden=data.length<SEARCH_PAGE_SIZE;
+}
+function renderMaterialResults(root,data,query='',append=false){
+ if(!append)root.replaceChildren();
+ if(!data?.length){if(!append)root.appendChild(el('div','panel muted','관련 자료를 찾지 못했습니다. 외부 자료가 연결돼 있다면 연동 상태도 확인해 주세요.'));return;}
  const isRag=root.id==='ragSources';
- root.appendChild(el('div','search-recommendation-note',isRag?'AI가 먼저 관련 있는 최신 자료를 찾고, 답변에 실제로 사용한 원문입니다.':'파일명, 검색어, 질문과 비슷한 내용을 함께 확인해 가장 관련 있는 최신 자료부터 보여줍니다.'));
+ if(!append)root.appendChild(el('div','search-recommendation-note',isRag?'AI가 먼저 관련 있는 최신 자료를 찾고, 답변에 실제로 사용한 원문입니다.':'파일명, 검색어, 질문과 비슷한 내용을 함께 확인해 가장 관련 있는 최신 자료부터 보여줍니다.'));
  data.forEach((x,index)=>{
    const card=el('article','material-card recommended-material'),top=el('div','material-top');
    const rank=Number(x.recommendationRank||index+1);

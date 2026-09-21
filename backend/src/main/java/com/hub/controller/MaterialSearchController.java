@@ -39,11 +39,13 @@ public class MaterialSearchController {
     @GetMapping("/search")
     public List<MaterialHit> search(@PathVariable long projectId,
                                     @RequestParam String q,
+                                    @RequestParam(defaultValue = "0") int offset,
                                     Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
-        searchLogs.log(projectId, user.id(), q == null ? "" : q.trim());
-        return materials.search(projectId, q);
+        // Only log the query once per search, not on every "더보기" page.
+        if (offset <= 0) searchLogs.log(projectId, user.id(), q == null ? "" : q.trim());
+        return materials.search(projectId, q, offset);
     }
 
     public record AskRequest(String question) {}
