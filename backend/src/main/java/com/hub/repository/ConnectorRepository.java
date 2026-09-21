@@ -246,6 +246,14 @@ public class ConnectorRepository {
         }
     }
 
+    public record SyncScope(long projectId, String connectorType, String externalScope) {}
+
+    /** Every (project, connector, scope) combination ever imported, across all projects - the auto-sync job's worklist. */
+    public List<SyncScope> allKnownScopes() {
+        return jdbc.query("SELECT DISTINCT project_id,connector_type,external_scope FROM connector_sync_state",
+                (rs, n) -> new SyncScope(rs.getLong("project_id"), rs.getString("connector_type"), rs.getString("external_scope")));
+    }
+
     public List<SyncState> listSyncStates(long projectId) {
         return jdbc.query("SELECT connector_type,external_scope,last_synced_at,last_status,last_error,last_imported_count FROM connector_sync_state WHERE project_id=? ORDER BY last_synced_at DESC",
                 (rs,n) -> {

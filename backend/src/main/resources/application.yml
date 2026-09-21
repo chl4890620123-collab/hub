@@ -58,6 +58,11 @@ hub:
   embedding-retry-enabled: ${HUB_EMBED_RETRY_ENABLED:true}
   embedding-retry-interval-ms: ${HUB_EMBED_RETRY_INTERVAL_MS:600000}
   embedding-retry-initial-delay-ms: ${HUB_EMBED_RETRY_INITIAL_DELAY_MS:60000}
+  # Replays every connector scope that has succeeded at least once, using the same personal credential
+  # that authorized it, so a project's search corpus does not go stale between manual "가져오기" clicks.
+  connector-auto-sync-enabled: ${HUB_CONNECTOR_AUTO_SYNC_ENABLED:true}
+  connector-auto-sync-interval-ms: ${HUB_CONNECTOR_AUTO_SYNC_INTERVAL_MS:1800000}
+  connector-auto-sync-initial-delay-ms: ${HUB_CONNECTOR_AUTO_SYNC_INITIAL_DELAY_MS:120000}
   # Only DONE todos past their due date are ever removed; documents/meetings/evidence are never touched.
   todo-retention-enabled: ${HUB_TODO_RETENTION_ENABLED:true}
   todo-retention-months: ${HUB_TODO_RETENTION_MONTHS:12}
