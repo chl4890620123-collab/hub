@@ -38,8 +38,12 @@ public class ProjectRepository {
             return jdbc.query("SELECT p.id,p.name,p.description,p.created_by FROM project p ORDER BY p.id",
                     (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),rs.getLong("created_by"),"ADMIN",true));
         }
+        // A lone member has no one else to grant them confirm permission, so being the only person on
+        // the project grants it implicitly - otherwise a solo project is a dead end where AI proposals
+        // pile up and nobody, including the one person there, can act on them.
         return jdbc.query("""
-                SELECT p.id,p.name,p.description,p.created_by,pm.can_confirm_todos
+                SELECT p.id,p.name,p.description,p.created_by,
+                       (pm.can_confirm_todos OR (SELECT COUNT(*) FROM project_member pm2 WHERE pm2.project_id=p.id)=1) can_confirm_todos
                 FROM project p JOIN project_member pm ON pm.project_id=p.id WHERE pm.user_id=? ORDER BY p.id
                 """,
                 (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),rs.getLong("created_by"),
@@ -85,11 +89,19 @@ public class ProjectRepository {
                 """, projectId);
     }
 
-    /** Global ADMIN always passes independently of this - see ProjectAccessService.requireConfirmPermission. */
+    /**
+     * Global ADMIN always passes independently of this - see ProjectAccessService.requireConfirmPermission.
+     * A project with exactly one member grants that member confirm permission implicitly, for the same
+     * reason listForUser does: nobody else exists to grant it to them.
+     */
     public boolean canConfirm(long projectId, long userId) {
         Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM project_member WHERE project_id=? AND user_id=? AND can_confirm_todos=TRUE",
-                Integer.class, projectId, userId);
+                """
+                SELECT COUNT(*) FROM project_member
+                WHERE project_id=? AND user_id=?
+                  AND (can_confirm_todos=TRUE OR (SELECT COUNT(*) FROM project_member WHERE project_id=?)=1)
+                """,
+                Integer.class, projectId, userId, projectId);
         return count != null && count > 0;
     }
 

@@ -4,7 +4,8 @@ import { Mic, Square, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
 import { Input, Label, Textarea } from '@/components/ui/input';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
@@ -98,14 +99,20 @@ function AudioUploadPanel({ projectId, onJobStarted }: { projectId: number; onJo
           <Input id="meeting-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-56" />
         </div>
         <div>
-          <Label htmlFor="meeting-file">오디오 파일 (선택하면 바로 업로드됩니다)</Label>
+          <Label htmlFor="meeting-file">오디오 파일</Label>
+          <label
+            htmlFor="meeting-file"
+            className={cn(buttonVariants({ variant: 'outline', size: 'md' }), upload.isPending && 'pointer-events-none opacity-50')}
+          >
+            <Upload size={14} /> 선택하면 바로 업로드
+          </label>
           <input
             id="meeting-file"
             ref={fileRef}
             type="file"
             accept="audio/*"
             disabled={upload.isPending}
-            className="text-sm"
+            className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) upload.mutate(file);
