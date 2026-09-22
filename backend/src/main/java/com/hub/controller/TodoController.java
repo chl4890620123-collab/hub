@@ -24,7 +24,9 @@ import java.util.Map;
 
 @RestController
 public class TodoController {
-    private static final List<String> TASK_STATUSES = List.of("TODO", "IN_PROGRESS", "DONE", "BLOCKED");
+    // DONE and BLOCKED are reachable only through the dedicated completion/help endpoints below, which
+    // capture the approval and the help-request note that a bare status PATCH can't carry.
+    private static final List<String> TASK_STATUSES = List.of("TODO", "IN_PROGRESS");
 
     private final CurrentUserService currentUser;
     private final ProjectAccessService projectAccess;
@@ -143,17 +145,7 @@ public class TodoController {
                                       Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        long projectId = todo.projectId();
-        projectAccess.requireAccess(projectId, user);
-
-        if (!projectAccess.isAdmin(projectId, user)) {
-            if (!"CONFIRMED".equals(todo.reviewStatus())) {
-                throw new AccessDeniedException("Only confirmed TODOs can be updated by assignees");
-            }
-            if (todo.assigneeId() == null || todo.assigneeId() != user.id()) {
-                throw new AccessDeniedException("Only the assignee or ADMIN can update this TODO");
-            }
-        }
+        requireAssigneeOrAdmin(todo, user);
 
         String status = request.status() == null ? "" : request.status().trim().toUpperCase(Locale.ROOT);
         if (!TASK_STATUSES.contains(status)) {
@@ -161,5 +153,65 @@ public class TodoController {
         }
         todoService.updateStatus(todo, status, user);
         return Map.of("status", status);
+    }
+
+    /** The assignee, or an ADMIN acting on their behalf - same rule the generic status PATCH already used. */
+    private void requireAssigneeOrAdmin(TodoItem todo, User user) {
+        projectAccess.requireAccess(todo.projectId(), user);
+        if (projectAccess.isAdmin(todo.projectId(), user)) return;
+        if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
+            throw new AccessDeniedException("Only the assignee or ADMIN can update this TODO");
+        }
+    }
+
+    @PostMapping("/api/todos/{todoId}/request-completion")
+    public Map<String, Object> requestCompletion(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        requireAssigneeOrAdmin(todo, user);
+        todoService.requestCompletion(todo, user);
+        return Map.of("status", "PENDING_APPROVAL");
+    }
+
+    @PostMapping("/api/todos/{todoId}/approve-completion")
+    public Map<String, Object> approveCompletion(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        todoService.approveCompletion(todo, user);
+        return Map.of("status", "DONE");
+    }
+
+    public record RejectCompletion(String reason) {}
+
+    @PostMapping("/api/todos/{todoId}/reject-completion")
+    public Map<String, Object> rejectCompletion(@PathVariable long todoId, @RequestBody(required = false) RejectCompletion request,
+                                                Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        todoService.rejectCompletion(todo, request == null ? null : request.reason(), user);
+        return Map.of("status", "IN_PROGRESS");
+    }
+
+    public record HelpRequest(String note) {}
+
+    @PostMapping("/api/todos/{todoId}/request-help")
+    public Map<String, Object> requestHelp(@PathVariable long todoId, @RequestBody HelpRequest request,
+                                           Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        requireAssigneeOrAdmin(todo, user);
+        todoService.requestHelp(todo, request.note(), user);
+        return Map.of("status", "BLOCKED");
+    }
+
+    @PostMapping("/api/todos/{todoId}/resolve-help")
+    public Map<String, Object> resolveHelp(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        requireAssigneeOrAdmin(todo, user);
+        todoService.resolveHelp(todo, user);
+        return Map.of("status", "IN_PROGRESS");
     }
 }

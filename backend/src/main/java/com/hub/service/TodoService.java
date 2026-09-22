@@ -120,9 +120,56 @@ public class TodoService {
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"STATUS_CHANGE",json.writeValueAsString(before),"{\"taskStatus\":\""+status+"\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),status,LocalDateTime.now(),"TODO",before.id());
-        if("DONE".equals(status)&&before.googleCalendarEventId()!=null&&before.assigneeId()!=null){
+    }
+
+    /** The assignee asks a decision-maker to review the work - task_status is left as-is until approved. */
+    @Transactional
+    public void requestCompletion(TodoItem before,User actor){
+        if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
+            throw new StateConflictException("담당자 재배정이 필요한 TODO입니다. ADMIN이 먼저 새 담당자를 지정해 주세요.");
+        if(!todos.requestCompletion(before.id()))
+            throw new StateConflictException("완료 요청할 수 없는 상태입니다.");
+        timeline.append(before.projectId(),"TODO_COMPLETION_REQUESTED",before.title(),null,LocalDateTime.now(),"TODO",before.id());
+    }
+
+    /** Approving is what actually finishes the todo - deletes the calendar hold the same way a direct DONE used to. */
+    @Transactional
+    public void approveCompletion(TodoItem before,User actor){
+        if(!todos.approveCompletion(before.id()))
+            throw new StateConflictException("승인 대기 중인 TODO가 아닙니다.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"COMPLETION_APPROVED",json.writeValueAsString(before),"{\"taskStatus\":\"DONE\"}");}
+        catch(Exception e){throw new IllegalStateException(e);}
+        timeline.append(before.projectId(),"TODO_STATUS",before.title(),"DONE",LocalDateTime.now(),"TODO",before.id());
+        if(before.googleCalendarEventId()!=null&&before.assigneeId()!=null){
             calendar.deleteEvent(before.assigneeId(),before.googleCalendarEventId());
             todos.setCalendarEventId(before.id(),null);
         }
+    }
+
+    @Transactional
+    public void rejectCompletion(TodoItem before,String reason,User actor){
+        if(!todos.rejectCompletion(before.id(),reason))
+            throw new StateConflictException("승인 대기 중인 TODO가 아닙니다.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"COMPLETION_REJECTED",json.writeValueAsString(before),
+                json.writeValueAsString(java.util.Map.of("reason",reason==null?"":reason)));}
+        catch(Exception e){throw new IllegalStateException(e);}
+        timeline.append(before.projectId(),"TODO_COMPLETION_REJECTED",before.title(),reason,LocalDateTime.now(),"TODO",before.id());
+    }
+
+    @Transactional
+    public void requestHelp(TodoItem before,String note,User actor){
+        if(note==null||note.isBlank())throw new IllegalArgumentException("어떤 도움이 필요한지 적어 주세요.");
+        if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
+            throw new StateConflictException("담당자 재배정이 필요한 TODO입니다. ADMIN이 먼저 새 담당자를 지정해 주세요.");
+        if(!todos.requestHelp(before.id(),note.trim()))
+            throw new StateConflictException("도움을 요청할 수 없는 상태입니다.");
+        timeline.append(before.projectId(),"TODO_HELP_REQUESTED",before.title(),note.trim(),LocalDateTime.now(),"TODO",before.id());
+    }
+
+    @Transactional
+    public void resolveHelp(TodoItem before,User actor){
+        if(!todos.resolveHelp(before.id()))
+            throw new StateConflictException("도움 요청 중인 TODO가 아닙니다.");
+        timeline.append(before.projectId(),"TODO_STATUS",before.title(),"IN_PROGRESS",LocalDateTime.now(),"TODO",before.id());
     }
 }

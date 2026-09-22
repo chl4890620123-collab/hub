@@ -185,10 +185,49 @@ public class TodoRepository {
         return title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]","").trim();
     }
 
+    /** Assignee asks a decision-maker to review the work; task_status is untouched (stays IN_PROGRESS/TODO). */
+    public boolean requestCompletion(long todoId){
+        return jdbc.update("""
+                UPDATE todo SET pending_approval=TRUE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
+                  AND pending_approval=FALSE AND task_status<>'DONE'
+                """,todoId)==1;
+    }
+
+    public boolean approveCompletion(long todoId){
+        return jdbc.update("""
+                UPDATE todo SET task_status='DONE',pending_approval=FALSE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND pending_approval=TRUE
+                """,todoId)==1;
+    }
+
+    public boolean rejectCompletion(long todoId,String reason){
+        return jdbc.update("""
+                UPDATE todo SET pending_approval=FALSE,status_note=?,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND pending_approval=TRUE
+                """,reason,todoId)==1;
+    }
+
+    /** Only from an active, non-DONE task - a BLOCKED todo already carries a help note. */
+    public boolean requestHelp(long todoId,String note){
+        return jdbc.update("""
+                UPDATE todo SET task_status='BLOCKED',status_note=?,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND task_status<>'DONE'
+                """,note,todoId)==1;
+    }
+
+    public boolean resolveHelp(long todoId){
+        return jdbc.update("""
+                UPDATE todo SET task_status='IN_PROGRESS',status_note=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND task_status='BLOCKED'
+                """,todoId)==1;
+    }
+
     private static String selectColumns(){return """
         SELECT id,project_id,title,description,assignee_id,assignee_text,assignee_suggestion_id,
                assignee_suggestion_text,due_date,due_date_suggestion,confidence,review_status,task_status,
-               assignment_status,possible_duplicate_of_id,duplicate_reason,created_at,updated_at,google_calendar_event_id
+               assignment_status,possible_duplicate_of_id,duplicate_reason,created_at,updated_at,google_calendar_event_id,
+               pending_approval,status_note
         """;}
     private TodoItem map(java.sql.ResultSet rs)throws java.sql.SQLException{
         Date due=rs.getDate("due_date"),suggestion=rs.getDate("due_date_suggestion");
@@ -200,6 +239,6 @@ public class TodoRepository {
                 suggestion==null?null:suggestion.toLocalDate(),rs.getString("confidence"),rs.getString("review_status"),
                 rs.getString("task_status"),rs.getString("assignment_status"),duplicateId,rs.getString("duplicate_reason"),
                 rs.getTimestamp("created_at").toLocalDateTime(),rs.getTimestamp("updated_at").toLocalDateTime(),
-                rs.getString("google_calendar_event_id"));
+                rs.getString("google_calendar_event_id"),rs.getBoolean("pending_approval"),rs.getString("status_note"));
     }
 }

@@ -40,7 +40,9 @@ function accountStatusLabel(status){return {ACTIVE:'사용 중',SUSPENDED:'사�
 function confidenceLabel(value){const v=String(value||'').toUpperCase();return {HIGH:'높음',MEDIUM:'보통',LOW:'낮음'}[v]||value||'확인 필요';}
 function sourceTypeLabel(type){return {HUB:'직접 등록한 자료',FILE:'업로드 파일',MANUAL_TEXT:'직접 입력',LOCAL_PC:'내 PC 파일',MEETING:'회의 녹음',MEETING_TRANSCRIPT:'회의 녹음 기록',GOOGLE_DRIVE:'Google Drive',DRIVE_FILE:'Google Drive',SLACK:'Slack',SLACK_MESSAGE:'Slack 메시지',GITHUB:'GitHub',GIT_ISSUE:'GitHub 작업 항목',GIT_PR:'GitHub 변경 요청',GIT_COMMIT:'GitHub 변경 기록',NOTION:'Notion',NOTION_PAGE:'Notion 페이지'}[type]||'자료';}
 function reviewStatusLabel(status){return {CONFIRMED:'확정됨',PENDING:'확인 전',REJECTED:'제외됨'}[status]||'확인 필요';}
-function eventTypeLabel(type){return {DOCUMENT_IMPORTED:'자료 가져옴',DOCUMENT_UPDATED:'자료 새 내용 등록',DOCUMENT_ARCHIVE:'자료 보관',DOCUMENT_CHANGED:'자료 변경 확인',MEETING_UPLOADED:'회의 녹음 등록',MEETING_TRANSCRIBED:'회의 음성을 글로 변환',TODO_CREATED:'할 일 후보 생성',TODO_CONFIRMED:'할 일 확정',TODO_STATUS:'할 일 상태 변경',TODO_DUPLICATE_MERGED:'비슷한 할 일 내용 합침',DECISION_CANDIDATE:'결정 후보 생성',DECISION_CONFIRMED:'결정 확정',CONNECTOR_IMPORT:'연결 서비스 자료 가져옴',LOCAL_PC_IMPORT:'PC 자료 가져옴',PROJECT_MEMBER_JOIN:'프로젝트에 사람 추가',PROJECT_MEMBER_LEAVE:'프로젝트에서 사람 제외',PROJECT_MOVE:'프로젝트 이동',SEARCH_RULE_CREATE:'기준 자료 추가',SEARCH_RULE_UPDATE:'기준 자료 수정',SEARCH_RULE_DELETE:'기준 자료 삭제',USER_PROFILE_UPDATE:'프로필 수정',USER_ACCOUNT_STATUS:'사용 상태 변경',USER_ROLE_CHANGE:'관리자 여부 변경'}[type]||String(type||'기록').replaceAll('_',' ').toLowerCase();}
+function eventTypeLabel(type){return {DOCUMENT_IMPORTED:'자료 가져옴',DOCUMENT_UPDATED:'자료 새 내용 등록',DOCUMENT_ARCHIVE:'자료 보관',DOCUMENT_CHANGED:'자료 변경 확인',MEETING_UPLOADED:'회의 녹음 등록',MEETING_TRANSCRIBED:'회의 음성을 글로 변환',TODO_CREATED:'할 일 후보 생성',TODO_CONFIRMED:'할 일 확정',TODO_STATUS:'할 일 상태 변경',TODO_DUPLICATE_MERGED:'비슷한 할 일 내용 합침',DECISION_CANDIDATE:'결정 후보 생성',DECISION_CONFIRMED:'결정 확정',CONNECTOR_IMPORT:'연결 서비스 자료 가져옴',LOCAL_PC_IMPORT:'PC 자료 가져옴',PROJECT_MEMBER_JOIN:'프로젝트에 사람 추가',PROJECT_MEMBER_LEAVE:'프로젝트에서 사람 제외',PROJECT_MOVE:'프로젝트 이동',SEARCH_RULE_CREATE:'기준 자료 추가',SEARCH_RULE_UPDATE:'기준 자료 수정',SEARCH_RULE_DELETE:'기준 자료 삭제',USER_PROFILE_UPDATE:'프로필 수정',USER_ACCOUNT_STATUS:'사용 상태 변경',USER_ROLE_CHANGE:'관리자 여부 변경',
+TODO_COMPLETION_REQUESTED:'할 일 완료 요청',TODO_COMPLETION_REJECTED:'할 일 완료 반려',TODO_HELP_REQUESTED:'할 일 도움 요청',
+COMPLETION_APPROVED:'완료 승인',COMPLETION_REJECTED:'완료 반려'}[type]||String(type||'기록').replaceAll('_',' ').toLowerCase();}
 function entityTypeLabel(type){return {TODO:'할 일',DECISION:'결정',CHANGE_ITEM:'변경 내용',DOCUMENT:'자료',DOCUMENT_VERSION:'자료 버전',USER:'사용자',PROJECT:'프로젝트',SEARCH_RULE:'기준 자료 설정',MEETING:'회의'}[type]||'기록';}
 function changeCategoryLabel(category){return {CONTENT:'내용 변경',SCHEDULE:'일정 변경',BUDGET:'예산 변경',SCOPE:'범위 변경',ASSIGNEE:'담당자 변경'}[String(category||'').toUpperCase()]||'내용 변경';}
 function reassignmentReasonLabel(reason){return {ACCOUNT_WITHDRAWN:'담당자가 탈퇴함',ACCOUNT_SUSPENDED:'담당자 사용이 멈춤',PROJECT_MOVE:'담당자가 다른 프로젝트로 이동함',ADMIN_REMOVE:'담당자가 프로젝트에서 빠짐'}[reason]||'담당자 변경 필요';}
@@ -393,7 +395,8 @@ function visibleTodos(){
 }
 function todoReadiness(t){
  if(t.taskStatus==='DONE')return {label:'완료',cls:'done'};
- if(t.taskStatus==='BLOCKED')return {label:'막힘',cls:'blocked'};
+ if(t.pendingApproval)return {label:'승인 대기 중',cls:'review'};
+ if(t.taskStatus==='BLOCKED')return {label:'도움 필요',cls:'blocked'};
  if(t.assignmentStatus==='REASSIGNMENT_REQUIRED')return {label:'새 담당자 필요',cls:'review'};
  if(t.reviewStatus!=='CONFIRMED')return {label:'검토 필요',cls:'review'};
  if(t.assigneeId&&t.dueDate)return {label:'바로 실행',cls:'ready'};
@@ -406,8 +409,10 @@ const CALENDAR_CHIP_LIMIT=3;
 function renderCalendar(y,m){const cal=document.getElementById('todoCalendar'),undatedRoot=document.getElementById('todoUndated'),rows=visibleTodos();cal.className='calendar';cal.replaceChildren();undatedRoot.replaceChildren();const first=new Date(y,m-1,1),days=new Date(y,m,0).getDate();for(let i=0;i<first.getDay();i++)cal.appendChild(el('div','day'));for(let d=1;d<=days;d++){const day=el('div','day');day.appendChild(el('div','date',String(d)));const date=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const dayTodos=rows.filter(t=>t.dueDate===date);dayTodos.forEach((t,idx)=>{const chip=el('span','todo-chip',`${t.title} · ${taskStatusLabel(t.taskStatus)}`);chip.title=todoReadiness(t).label;if(idx>=CALENDAR_CHIP_LIMIT)chip.classList.add('day-chip-extra');day.appendChild(chip);});if(dayTodos.length>CALENDAR_CHIP_LIMIT){const extra=dayTodos.length-CALENDAR_CHIP_LIMIT,more=el('button','day-more',`+${extra}개 더보기`);more.type='button';more.onclick=()=>{const expanded=day.classList.toggle('day-expanded');more.textContent=expanded?'접기':`+${extra}개 더보기`;};day.appendChild(more);}cal.appendChild(day);}const undated=rows.filter(t=>!t.dueDate);if(undated.length){const box=el('div','panel');box.appendChild(el('h3','',`기한 미정 ${undated.length}건`));undated.forEach(t=>{const line=el('div','item');line.append(statusPill(t),el('span','',t.title));box.appendChild(line);});undatedRoot.appendChild(box);}}
 function todoStagePercent(t){return t.taskStatus==='DONE'?100:t.taskStatus==='IN_PROGRESS'?55:t.taskStatus==='BLOCKED'?25:8;}
 function relatedMaterialButton(todoId,label='관련 자료 보기'){const b=evidenceButton(`/api/todos/${todoId}/evidence`,label);b.classList.add('related-material-btn');return b;}
-/** Not a menu: one click on the status badge moves forward. BLOCKED is a status you can filter/see (kept for future use) but isn't part of this quick cycle - a click from BLOCKED just re-enters it at TODO instead of dead-ending. */
-const TASK_STATUS_CYCLE=['TODO','IN_PROGRESS','DONE'];
+/** Not a menu: one click on the status badge moves forward. DONE only happens through a decision-maker's
+ * approval and BLOCKED only through a help request with a note - both carry information a bare cycle
+ * can't, so this quick click only ever toggles between the two "just working on it" states. */
+const TASK_STATUS_CYCLE=['TODO','IN_PROGRESS'];
 function nextTaskStatus(status){const idx=TASK_STATUS_CYCLE.indexOf(status);return idx===-1?TASK_STATUS_CYCLE[0]:TASK_STATUS_CYCLE[(idx+1)%TASK_STATUS_CYCLE.length];}
 function buildTodoCard(t,isAdmin,muted){
  const item=el('article',`item todo-card${muted?' todo-card-muted':''}`);
@@ -419,17 +424,43 @@ function buildTodoCard(t,isAdmin,muted){
  facts.append(assignee,due);item.appendChild(facts);
  const progress=el('div','todo-stage'),stageHead=el('div','todo-stage-head');stageHead.append(el('span','','진행 상태'));const track=el('div','todo-stage-track'),fill=el('i','');fill.style.width=`${todoStagePercent(t)}%`;track.appendChild(fill);progress.append(stageHead,track);item.appendChild(progress);
  const actions=el('div','todo-card-actions');
- const statusBtn=el('button',`status-cycle-btn status-${(t.taskStatus||'TODO').toLowerCase()}`,taskStatusLabel(t.taskStatus));
- statusBtn.type='button';statusBtn.title='클릭하면 다음 상태로 바뀝니다 (메뉴 없이 계속 눌러 되돌릴 수 있어요)';
- statusBtn.disabled=t.assignmentStatus==='REASSIGNMENT_REQUIRED'||!(isAdmin||(t.reviewStatus==='CONFIRMED'&&Number(t.assigneeId)===Number(currentUser?.id)));
- statusBtn.onclick=async()=>{const next=nextTaskStatus(t.taskStatus);try{await api(`/api/todos/${t.id}/status`,{method:'PATCH',body:JSON.stringify({status:next})});await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+ const isAssignee=isAdmin||(t.reviewStatus==='CONFIRMED'&&Number(t.assigneeId)===Number(currentUser?.id));
+ const canAct=isAssignee&&t.assignmentStatus!=='REASSIGNMENT_REQUIRED';
+ if(t.taskStatus!=='DONE'&&t.taskStatus!=='BLOCKED'&&!t.pendingApproval){
+  const statusBtn=el('button',`status-cycle-btn status-${(t.taskStatus||'TODO').toLowerCase()}`,taskStatusLabel(t.taskStatus));
+  statusBtn.type='button';statusBtn.title='클릭하면 다음 상태로 바뀝니다';
+  statusBtn.disabled=!canAct;
+  statusBtn.onclick=async()=>{const next=nextTaskStatus(t.taskStatus);try{await api(`/api/todos/${t.id}/status`,{method:'PATCH',body:JSON.stringify({status:next})});await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+  actions.appendChild(statusBtn);
+ }
+ if(canAct&&!t.pendingApproval){
+  if(t.taskStatus==='BLOCKED'){
+   const resumeBtn=el('button','ghost compact-button','도움 받음 · 재개');resumeBtn.type='button';
+   resumeBtn.onclick=async()=>{try{await api(`/api/todos/${t.id}/resolve-help`,{method:'POST'});await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+   actions.appendChild(resumeBtn);
+  }else{
+   const completeBtn=el('button','compact-button','완료 요청');completeBtn.type='button';
+   completeBtn.onclick=async()=>{try{await api(`/api/todos/${t.id}/request-completion`,{method:'POST'});flash('완료 승인을 요청했습니다.');await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+   const helpBtn=el('button','ghost compact-button','도움 요청');helpBtn.type='button';
+   helpBtn.onclick=async()=>{const note=await requestText('어떤 도움이 필요한가요?','예: OO 시스템 접근 권한이 필요합니다.');if(!note)return;try{await api(`/api/todos/${t.id}/request-help`,{method:'POST',body:JSON.stringify({note})});flash('도움을 요청했습니다.');await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+   actions.append(completeBtn,helpBtn);
+  }
+ }
+ if(t.pendingApproval&&canConfirmCurrentProject()){
+  const approveBtn=el('button','compact-button','승인');approveBtn.type='button';
+  approveBtn.onclick=async()=>{try{await api(`/api/todos/${t.id}/approve-completion`,{method:'POST'});flash('완료를 승인했습니다.');await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+  const rejectBtn=el('button','ghost compact-button','반려');rejectBtn.type='button';
+  rejectBtn.onclick=async()=>{const reason=await requestText('반려 사유 (선택)','예: 검수 항목 하나가 누락되었습니다.');try{await api(`/api/todos/${t.id}/reject-completion`,{method:'POST',body:JSON.stringify({reason})});flash('완료를 반려했습니다.');await loadTodos();}catch(err){flash(errorMessage(err),false);}};
+  actions.append(approveBtn,rejectBtn);
+ }
+ if(t.statusNote){const noteBox=el('div',t.taskStatus==='BLOCKED'?'notice':'muted',t.taskStatus==='BLOCKED'?`도움 요청: ${t.statusNote}`:`반려 사유: ${t.statusNote}`);item.appendChild(noteBox);}
  const attachBtn=iconText('i-upload','첨부파일','button','ghost compact-button');attachBtn.type='button';
  const attachBox=el('div','todo-attachments');attachBox.hidden=true;
  attachBtn.onclick=async()=>{
   attachBox.hidden=!attachBox.hidden;
   if(!attachBox.hidden)await renderTodoAttachments(attachBox,t.id);
  };
- actions.append(statusBtn,relatedMaterialButton(t.id),attachBtn);item.append(actions,attachBox);
+ actions.append(relatedMaterialButton(t.id),attachBtn);item.append(actions,attachBox);
  return item;
 }
 function renderTodoList(){

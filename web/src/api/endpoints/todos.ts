@@ -22,4 +22,11 @@ export const todosApi = {
     apiPatch<{ status: string }>(`/api/todos/${todoId}`, { title, description }),
   updateStatus: (todoId: number, status: TaskStatus) =>
     apiPatch<{ status: TaskStatus }>(`/api/todos/${todoId}/status`, { status }),
+
+  requestCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/request-completion`),
+  approveCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/approve-completion`),
+  rejectCompletion: (todoId: number, reason?: string) =>
+    apiPost<{ status: string }>(`/api/todos/${todoId}/reject-completion`, { reason }),
+  requestHelp: (todoId: number, note: string) => apiPost<{ status: string }>(`/api/todos/${todoId}/request-help`, { note }),
+  resolveHelp: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/resolve-help`),
 };

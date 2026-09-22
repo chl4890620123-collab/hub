@@ -28,5 +28,7 @@ public record TodoItem(
         String duplicateReason,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String googleCalendarEventId
+        String googleCalendarEventId,
+        boolean pendingApproval,
+        String statusNote
 ) {}

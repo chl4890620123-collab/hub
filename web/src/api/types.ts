@@ -72,6 +72,12 @@ export interface TodoItem {
   /** Set once confirming this todo (with a due date) created a matching event on the assignee's own
    * Google Calendar - null if never synced (no due date, assignee hasn't linked Google, or scope). */
   googleCalendarEventId: string | null;
+  /** True once the assignee has asked a decision-maker to review the work - taskStatus is untouched
+   * until approved (becomes DONE) or rejected (stays as-is, statusNote carries the reason). */
+  pendingApproval: boolean;
+  /** Context for the todo's current non-normal state: the assignee's help-request note while
+   * taskStatus is BLOCKED, or the decision-maker's reason after the last completion rejection. */
+  statusNote: string | null;
 }
 
 /** decision_candidate row - GET pending/review endpoints. snake_case DB projection. */

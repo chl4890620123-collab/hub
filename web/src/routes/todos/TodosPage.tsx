@@ -9,7 +9,7 @@ import { CalendarGrid } from '@/components/layout/CalendarGrid';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
-import { useCurrentProject } from '@/hooks/useProjects';
+import { useCanConfirm, useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
 import { projectsApi } from '@/api/endpoints/projects';
@@ -57,6 +57,7 @@ export function TodosPage() {
   const { currentProject } = useCurrentProject();
   const { data: user } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  const canConfirm = useCanConfirm();
   const queryClient = useQueryClient();
   const openEvidence = useEvidenceStore((s) => s.open);
   const [searchParams] = useSearchParams();
@@ -86,12 +87,51 @@ export function TodosPage() {
     enabled: !!currentProject,
   });
 
+  const invalidateTodos = () => {
+    queryClient.invalidateQueries({ queryKey: ['todos-month', currentProject?.id] });
+    queryClient.invalidateQueries({ queryKey: ['todos-undated', currentProject?.id] });
+  };
+
   const statusMutation = useMutation({
     mutationFn: ({ todoId, status }: { todoId: number; status: TaskStatus }) => todosApi.updateStatus(todoId, status),
+    onSuccess: invalidateTodos,
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const requestCompletionMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.requestCompletion(todoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['todos-month', currentProject?.id] });
-      queryClient.invalidateQueries({ queryKey: ['todos-undated', currentProject?.id] });
+      toast.success('완료 승인을 요청했습니다.');
+      invalidateTodos();
     },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const approveCompletionMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.approveCompletion(todoId),
+    onSuccess: () => {
+      toast.success('완료를 승인했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const rejectCompletionMutation = useMutation({
+    mutationFn: ({ todoId, reason }: { todoId: number; reason: string }) => todosApi.rejectCompletion(todoId, reason || undefined),
+    onSuccess: () => {
+      toast.success('완료를 반려했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const requestHelpMutation = useMutation({
+    mutationFn: ({ todoId, note }: { todoId: number; note: string }) => todosApi.requestHelp(todoId, note),
+    onSuccess: () => {
+      toast.success('도움을 요청했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const resolveHelpMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.resolveHelp(todoId),
+    onSuccess: invalidateTodos,
     onError: (error) => toast.error(errorMessage(error)),
   });
 
@@ -111,13 +151,19 @@ export function TodosPage() {
 
   if (!currentProject || !user) return <NoProjectState />;
 
-  const canEdit = (todo: TodoItem) => isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id);
+  const isAssignee = (todo: TodoItem) => isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id);
 
   const cardFor = (todo: TodoItem, compact?: boolean) => (
     <TodoCard
       todo={todo}
-      canEdit={canEdit(todo)}
+      isAssignee={isAssignee(todo)}
+      canConfirm={canConfirm}
       onStatusChange={(status) => statusMutation.mutate({ todoId: todo.id, status })}
+      onRequestCompletion={() => requestCompletionMutation.mutate(todo.id)}
+      onApproveCompletion={() => approveCompletionMutation.mutate(todo.id)}
+      onRejectCompletion={(reason) => rejectCompletionMutation.mutate({ todoId: todo.id, reason })}
+      onRequestHelp={(note) => requestHelpMutation.mutate({ todoId: todo.id, note })}
+      onResolveHelp={() => resolveHelpMutation.mutate(todo.id)}
       onShowEvidence={() => evidenceMutation.mutate(todo)}
       compact={compact}
     />

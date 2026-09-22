@@ -32,6 +32,11 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   USER_PROFILE_UPDATE: '프로필 수정',
   USER_ACCOUNT_STATUS: '사용 상태 변경',
   USER_ROLE_CHANGE: '관리자 여부 변경',
+  TODO_COMPLETION_REQUESTED: '할 일 완료 요청',
+  TODO_COMPLETION_REJECTED: '할 일 완료 반려',
+  TODO_HELP_REQUESTED: '할 일 도움 요청',
+  COMPLETION_APPROVED: '완료 승인',
+  COMPLETION_REJECTED: '완료 반려',
 };
 
 const ENTITY_TYPE_LABELS: Record<string, string> = {

@@ -1,13 +1,16 @@
 import type { TaskStatus } from '@/api/types';
 import { cn } from '@/lib/cn';
 
-const CYCLE: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+// DONE is reached only through completion approval, and BLOCKED only through a help request (both
+// carry information a bare cycle can't - who approved, or what help is needed) - so the free click
+// cycle only ever toggles between the two "just working on it" states.
+const CYCLE: TaskStatus[] = ['TODO', 'IN_PROGRESS'];
 
-const LABELS: Record<TaskStatus, string> = {
+export const LABELS: Record<TaskStatus, string> = {
   TODO: '시작 전',
   IN_PROGRESS: '진행 중',
   DONE: '완료',
-  BLOCKED: '보류',
+  BLOCKED: '도움 필요',
 };
 
 const STYLES: Record<TaskStatus, string> = {
