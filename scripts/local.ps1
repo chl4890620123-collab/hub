@@ -16,6 +16,7 @@ $EnvFile = Join-Path $Root ".env"
 $AiDir = Join-Path $Root "ai-service"
 $BackendDir = Join-Path $Root "backend"
 $FrontendDir = Join-Path $Root "frontend"
+$WebDir = Join-Path $Root "web"
 $VenvPython = Join-Path $AiDir ".venv\Scripts\python.exe"
 New-Item -ItemType Directory -Force -Path $Runtime | Out-Null
 
@@ -127,6 +128,20 @@ function Ensure-FrontendRuntime {
     }
 }
 
+function Ensure-WebRuntime {
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if (-not $npm) { throw "React 앱 빌드에는 Node.js 22+ 와 npm이 필요합니다." }
+    $vite = Join-Path $WebDir "node_modules\.bin\vite.cmd"
+    if (-not (Test-Path $vite)) {
+        Write-Host "[SETUP] web/ 의존성 설치 (최초 1회)"
+        Push-Location $WebDir
+        try {
+            & $npm.Source ci --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { throw "web/ npm ci 실패" }
+        } finally { Pop-Location }
+    }
+}
+
 function Invoke-Gradle([string[]]$GradleArgs) {
     $gradle = Get-GradleCommand
     Push-Location $BackendDir
@@ -218,6 +233,17 @@ function Run-Build {
     Copy-Item (Join-Path $FrontendDir "dist\hub-runtime.js") (Join-Path $staticJs "hub-runtime.js") -Force
     Copy-Item (Join-Path $FrontendDir "dist\login.js") (Join-Path $staticJs "login.js") -Force
 
+    Ensure-WebRuntime
+    Push-Location $WebDir
+    try {
+        Write-Host "[BUILD] React 앱 (web/)"
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw "web/ build 실패" }
+    } finally { Pop-Location }
+    $staticRoot = Join-Path $BackendDir "src\main\resources\static"
+    Copy-Item (Join-Path $WebDir "dist\index.html") (Join-Path $staticRoot "index.html") -Force
+    Copy-Item (Join-Path $WebDir "dist\assets") (Join-Path $staticRoot "assets") -Recurse -Force
+
     Write-Host "[BUILD] Spring Boot JAR"
     Invoke-Gradle @("clean", "test", "bootJar")
     Write-Host "[PASS] backend\build\libs\hub-backend.jar 생성 완료"
@@ -274,6 +300,20 @@ if (-not (Test-Url "http://localhost:8000/health")) {
 try { Wait-Url "http://localhost:8000/health" 90 "AI service" } catch {
     Get-Content (Join-Path $Runtime "ai.err.log") -Tail 100 -ErrorAction SilentlyContinue
     throw
+}
+
+$staticIndex = Join-Path $BackendDir "src\main\resources\static\index.html"
+if (-not (Test-Path $staticIndex)) {
+    Write-Host "[SETUP] React 앱(web/) static/index.html이 없어 최초 1회 빌드합니다 (이후 재시작은 건너뜁니다 - 코드를 바꿨다면 scripts/local.ps1 -Action build 로 다시 빌드하세요)"
+    Ensure-WebRuntime
+    Push-Location $WebDir
+    try {
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw "web/ build 실패" }
+    } finally { Pop-Location }
+    $staticRoot = Join-Path $BackendDir "src\main\resources\static"
+    Copy-Item (Join-Path $WebDir "dist\index.html") $staticIndex -Force
+    Copy-Item (Join-Path $WebDir "dist\assets") (Join-Path $staticRoot "assets") -Recurse -Force
 }
 
 $gradleCmd = Get-GradleCommand

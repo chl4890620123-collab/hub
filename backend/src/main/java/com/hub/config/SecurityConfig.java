@@ -38,6 +38,18 @@ import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+    // The React SPA shell (see PageController) is public at every one of these paths - auth is
+    // enforced only at the /api/** layer, exactly like "/" and "/login" already were before the SPA
+    // existed. Kept as one list so the authorizeHttpRequests permitAll and the bearerTokenResolver
+    // exemption below can't drift apart.
+    private static final String[] SPA_PAGE_PATHS = {
+            "/login", "/signup", "/signup/member", "/signup/admin",
+            "/search", "/ask", "/context", "/todos", "/review",
+            "/documents", "/meetings", "/sheets", "/connectors", "/account",
+            "/admin", "/admin/members", "/admin/reassign", "/admin/users",
+            "/admin/search", "/admin/security", "/admin/history",
+    };
+
     @Bean
     PasswordEncoder passwordEncoder() {
         // Cost 12 is a reasonable local/server default while remaining usable on modest hardware.
@@ -88,14 +100,16 @@ public class SecurityConfig {
             if (headerToken != null) return headerToken;
             String path = request.getRequestURI();
             // Public pages and refresh/logout must still work when the access JWT is expired.
-            if ("/".equals(path) || "/api/auth/login".equals(path)
+            if ("/".equals(path) || java.util.Arrays.asList(SPA_PAGE_PATHS).contains(path)
+                    || "/api/auth/login".equals(path)
                     || "/api/auth/signup/member".equals(path) || "/api/auth/signup/admin".equals(path)
                     || "/api/auth/signup/projects".equals(path)
                     || "/api/auth/setup-status".equals(path) || "/api/auth/check-login-id".equals(path)
                     || "/api/auth/refresh".equals(path) || "/api/auth/logout".equals(path)
                     || "/api/connectors/google/callback".equals(path)
                     || "/api/connectors/oauth/callback".equals(path)
-                    || path.startsWith("/css/") || path.startsWith("/js/") || "/actuator/health".equals(path)) {
+                    || path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/assets/")
+                    || "/actuator/health".equals(path)) {
                 return null;
             }
             Cookie[] cookies = request.getCookies();
@@ -123,7 +137,8 @@ public class SecurityConfig {
                 // (logout, most visibly) fails CSRF and — being anonymous — comes back 401 with no body.
                 .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/css/**", "/js/**", "/favicon.ico", "/actuator/health").permitAll()
+                        .requestMatchers("/", "/css/**", "/js/**", "/assets/**", "/favicon.ico", "/actuator/health").permitAll()
+                        .requestMatchers(SPA_PAGE_PATHS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/setup-status", "/api/auth/check-login-id", "/api/auth/signup/projects").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup/member", "/api/auth/signup/admin", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/connectors/google/callback").permitAll()

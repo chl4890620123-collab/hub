@@ -9,6 +9,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Table,
   User as UserIcon,
 } from 'lucide-react';
 
@@ -30,6 +31,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { to: '/review', label: '담당자 배정', icon: ListChecks, requiresConfirm: true },
   { to: '/documents', label: '문서 요약', icon: FileText },
   { to: '/meetings', label: '회의 녹음', icon: Mic },
+  { to: '/sheets', label: '자료표', icon: Table },
   { to: '/connectors', label: '연결 서비스', icon: Link2 },
 ];
 

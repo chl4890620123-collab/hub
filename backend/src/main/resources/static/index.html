@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hub</title>
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem('hub.theme') || 'system';
+          var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (!isDark) return;
+          var root = document.documentElement;
+          root.setAttribute('data-theme', 'dark');
+          var overrides = {
+            '--color-ink-50': '#010102', '--color-ink-100': '#0f1011', '--color-ink-200': '#1c1d1f',
+            '--color-ink-300': '#2a2b2e', '--color-ink-400': '#55585f', '--color-ink-500': '#797d85',
+            '--color-ink-600': '#9a9ea6', '--color-ink-700': '#bcbfc5', '--color-ink-800': '#dcdee1',
+            '--color-ink-900': '#f7f8f8', '--color-accent-50': '#1b1e35', '--color-accent-600': '#828fff',
+            '--color-accent-700': '#a6b0e8', '--color-danger-500': '#f87171', '--color-warning-500': '#fbbf24',
+            '--color-red-50': '#2a1215', '--color-red-100': '#3f1a1e', '--color-red-200': '#7f1d1d',
+            '--color-red-500': '#f87171', '--color-red-600': '#f87171', '--color-red-700': '#fca5a5',
+            '--color-amber-50': '#2a1f0a', '--color-amber-100': '#3f2e10', '--color-amber-700': '#fbbf24'
+          };
+          for (var key in overrides) root.style.setProperty(key, overrides[key]);
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DXQsBA7X.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DhfokqA5.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

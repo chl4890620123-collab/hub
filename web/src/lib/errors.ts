@@ -1,18 +1,21 @@
 export class ApiError extends Error {
   status: number;
   code: string;
+  /** Only set by the 자료표 lock endpoints (423 SHEET_LOCKED) - the password hint, shown as-is. */
+  hint?: string;
 
-  constructor(message: string, status: number, code: string) {
+  constructor(message: string, status: number, code: string, hint?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.hint = hint;
   }
 
   static async fromResponse(res: Response): Promise<ApiError> {
     try {
-      const body = (await res.clone().json()) as { error?: string; message?: string };
-      return new ApiError(body.message ?? res.statusText, res.status, body.error ?? 'UNKNOWN');
+      const body = (await res.clone().json()) as { error?: string; message?: string; hint?: string };
+      return new ApiError(body.message ?? res.statusText, res.status, body.error ?? 'UNKNOWN', body.hint);
     } catch {
       return new ApiError(res.statusText || '요청을 처리하지 못했습니다.', res.status, 'UNKNOWN');
     }

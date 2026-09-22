@@ -321,3 +321,35 @@ export interface RevisionRow {
   created_at?: string;
   [key: string]: unknown;
 }
+
+// 자료표 (Spreadsheet*.java records, so camelCase like the rest of this section's record-backed types).
+export interface SpreadsheetColumn {
+  key: string;
+  label: string;
+}
+
+export interface SpreadsheetFileRow {
+  id: number;
+  projectId: number;
+  name: string;
+  ownerId: number;
+  columns: SpreadsheetColumn[];
+  passwordProtected: boolean;
+  passwordHint: string | null;
+  rowCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpreadsheetDataRow {
+  id: number;
+  fileId: number;
+  position: number;
+  cells: Record<string, string>;
+  updatedAt: string;
+}
+
+export interface SpreadsheetUnlocked {
+  file: SpreadsheetFileRow;
+  rows: SpreadsheetDataRow[];
+}

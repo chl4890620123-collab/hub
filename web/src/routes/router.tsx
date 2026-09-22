@@ -18,6 +18,7 @@ const TodosPage = lazy(() => import('@/routes/todos/TodosPage').then((m) => ({ d
 const ReviewPage = lazy(() => import('@/routes/review/ReviewPage').then((m) => ({ default: m.ReviewPage })));
 const DocumentsPage = lazy(() => import('@/routes/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })));
 const MeetingsPage = lazy(() => import('@/routes/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })));
+const SheetsPage = lazy(() => import('@/routes/sheets/SheetsPage').then((m) => ({ default: m.SheetsPage })));
 const ConnectorsPage = lazy(() => import('@/routes/connectors/ConnectorsPage').then((m) => ({ default: m.ConnectorsPage })));
 const AccountPage = lazy(() => import('@/routes/account/AccountPage').then((m) => ({ default: m.AccountPage })));
 const AdminLayout = lazy(() => import('@/routes/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           { path: '/review', element: <ReviewPage /> },
           { path: '/documents', element: <DocumentsPage /> },
           { path: '/meetings', element: <MeetingsPage /> },
+          { path: '/sheets', element: <SheetsPage /> },
           { path: '/connectors', element: <ConnectorsPage /> },
           { path: '/account', element: <AccountPage /> },
           {

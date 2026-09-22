@@ -99,8 +99,11 @@ export function apiUpload<T>(path: string, formData: FormData, method: 'POST' | 
 }
 
 /** Downloads a binary response and returns it as a Blob with its filename (from Content-Disposition). */
-export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string | null }> {
-  const res = await fetch(`${API_BASE}${path}`, { credentials: 'include' });
+export async function apiDownload(
+  path: string,
+  headers?: Record<string, string>,
+): Promise<{ blob: Blob; filename: string | null }> {
+  const res = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers });
   if (!res.ok) throw await ApiError.fromResponse(res);
   const disposition = res.headers.get('content-disposition') ?? '';
   const match = /filename\*=UTF-8''([^;]+)/.exec(disposition) ?? /filename="?([^";]+)"?/.exec(disposition);
