@@ -14,6 +14,8 @@ import { todosApi } from '@/api/endpoints/todos';
 import { materialsApi } from '@/api/endpoints/materials';
 import { documentsApi } from '@/api/endpoints/documents';
 import { adminSignupApi, adminReassignmentApi, adminUsersApi } from '@/api/endpoints/admin';
+import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
+import { AssigneeField } from '@/components/form/AssigneeField';
 import { formatDate, formatDateTime, localMonth } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
@@ -101,14 +103,27 @@ function DashboardTodos({ projectId, userId }: { projectId: number; userId: numb
 function QuickManualNoteForm({ projectId }: { projectId: number }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const submit = useMutation({
-    mutationFn: () => documentsApi.manual(projectId, { title, text, sourceDate: localMonth() + '-01' }),
-    onSuccess: () => {
-      toast.success('회의 노트가 저장되었습니다. AI 분석이 백그라운드에서 진행됩니다.');
+    mutationFn: () =>
+      documentsApi.manual(projectId, {
+        title,
+        text,
+        sourceDate: localMonth() + '-01',
+        dueDate: dueDate || undefined,
+        assigneeId: assigneeId ? Number(assigneeId) : undefined,
+      }),
+    onSuccess: (result) => {
+      toast.success('회의 노트가 저장되었습니다. AI 분석이 진행됩니다.');
+      setActiveJobId(result.jobId);
       setTitle('');
       setText('');
+      setDueDate('');
+      setAssigneeId('');
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -142,10 +157,18 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
               placeholder="회의 내용을 붙여넣으면 AI가 할 일/결정 사항을 자동으로 추출합니다."
             />
           </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label htmlFor="quick-due-date">완료 기한 (선택)</Label>
+              <Input id="quick-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+            </div>
+            <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
+          </div>
           <Button type="submit" disabled={submit.isPending} className="self-start">
             {submit.isPending ? '저장 중...' : '저장 및 분석 요청'}
           </Button>
         </form>
+        {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={projectId} />}
       </CardContent>
     </Card>
   );

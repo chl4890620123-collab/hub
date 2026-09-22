@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Github, HardDrive, MessageSquare, NotebookText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -29,10 +29,40 @@ const PROVIDERS: { type: ConnectorType; label: string; icon: typeof Github; note
   { type: 'NOTION', label: 'Notion', icon: NotebookText },
 ];
 
+/** The OAuth callback lands back here with its outcome in the query string; without this the
+ * operator is dropped on a silent page and can't tell whether the connection actually worked. */
+function useConnectorCallbackToast() {
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const type = params.get('connector');
+    if (!status || !type) return;
+    const label = PROVIDERS.find((p) => p.type === type)?.label ?? type;
+    const reason = params.get('reason');
+    if (status === 'connected') toast.success(`${label} 연결이 완료되었습니다.`);
+    else if (reason === 'access_denied') toast.error(`${label} 연결을 취소했습니다.`);
+    else if (reason === 'not_configured') toast.error(`${label} 개인 연결은 아직 설정되지 않았습니다. 관리자가 앱 정보를 등록해야 합니다.`);
+    else toast.error(`${label} 연결에 실패했습니다${reason ? ` (${reason})` : ''}. 관리자 설정을 확인한 뒤 다시 시도해 주세요.`);
+    window.history.replaceState(null, '', location.pathname);
+  }, []);
+}
+
+function LinkedAccountBadge({ projectId, type }: { projectId: number; type: ConnectorType }) {
+  const { data } = useQuery({
+    queryKey: ['connector-targets', projectId, type],
+    queryFn: () => connectorsApi.targets(projectId, type),
+  });
+  if (!data) return <Badge variant="neutral">상태 확인 중</Badge>;
+  if (data.linkedByUser) return <Badge variant="accent">연동됨 · {data.account || '내 계정'}</Badge>;
+  if (data.connected) return <Badge variant="accent">서버 계정 사용 중</Badge>;
+  return <Badge variant="neutral">연동 안 됨</Badge>;
+}
+
 export function ConnectorsPage() {
   const { currentProject } = useCurrentProject();
   const queryClient = useQueryClient();
   const [browsing, setBrowsing] = useState<ConnectorType | null>(null);
+  useConnectorCallbackToast();
 
   const { data: policy } = useQuery({ queryKey: ['connector-policy'], queryFn: connectorsApi.policy });
   const { data: statuses, isLoading } = useQuery({
@@ -74,7 +104,12 @@ export function ConnectorsPage() {
                 <CardTitle className="flex items-center gap-2">
                   <provider.icon size={18} /> {provider.label}
                 </CardTitle>
-                {state?.lastStatus && <Badge variant={state.lastStatus === 'SUCCESS' ? 'accent' : 'danger'}>{state.lastStatus}</Badge>}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <LinkedAccountBadge projectId={currentProject.id} type={provider.type} />
+                  {state?.lastStatus && (
+                    <Badge variant={state.lastStatus === 'SUCCESS' ? 'accent' : 'danger'}>{state.lastStatus}</Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 <p className="text-xs text-ink-400">

@@ -1,6 +1,8 @@
-import { CalendarCheck, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarCheck, FileText, Paperclip } from 'lucide-react';
 import type { TodoItem } from '@/api/types';
 import { StatusCycleButton } from '@/features/todos/StatusCycleButton';
+import { TodoAttachmentsPanel } from '@/features/todos/TodoAttachmentsPanel';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
@@ -17,6 +19,7 @@ export function TodoCard({
   onShowEvidence: () => void;
   compact?: boolean;
 }) {
+  const [showAttachments, setShowAttachments] = useState(false);
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
       <div className="mb-1.5 flex items-start justify-between gap-2">
@@ -32,10 +35,16 @@ export function TodoCard({
             <CalendarCheck size={12} /> 캘린더
           </span>
         )}
-        <button onClick={onShowEvidence} className="ml-auto flex items-center gap-1 text-accent-600 hover:underline">
-          <FileText size={12} /> 근거
-        </button>
+        <span className="ml-auto flex items-center gap-3">
+          <button onClick={() => setShowAttachments((v) => !v)} className="flex items-center gap-1 text-accent-600 hover:underline">
+            <Paperclip size={12} /> 첨부파일
+          </button>
+          <button onClick={onShowEvidence} className="flex items-center gap-1 text-accent-600 hover:underline">
+            <FileText size={12} /> 근거
+          </button>
+        </span>
       </div>
+      {showAttachments && <TodoAttachmentsPanel todoId={todo.id} />}
     </div>
   );
 }

@@ -19,8 +19,10 @@ export function TodoCandidateCard({
 }: {
   todo: TodoItem;
   members: ProjectMember[];
-  selected: boolean;
-  onToggleSelect: () => void;
+  /** Omit both when this card isn't part of a bulk-select list (e.g. shown right after an AI
+   * analysis finishes) - the checkbox itself is hidden rather than left non-functional. */
+  selected?: boolean;
+  onToggleSelect?: () => void;
   onConfirm: (assigneeId: number, dueDate: string | null) => void;
   onReject: () => void;
   onMergeDuplicate: () => void;
@@ -33,7 +35,7 @@ export function TodoCandidateCard({
   return (
     <div className="rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
       <div className="mb-2 flex items-start gap-2">
-        <input type="checkbox" checked={selected} onChange={onToggleSelect} className="mt-1" />
+        {onToggleSelect && <input type="checkbox" checked={selected ?? false} onChange={onToggleSelect} className="mt-1" />}
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium text-ink-900">{todo.title}</p>

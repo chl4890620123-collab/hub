@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
-import { JobStatusPanel } from '@/components/feedback/JobStatusPanel';
+import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
+import { AssigneeField } from '@/components/form/AssigneeField';
 import { VersionCompareDialog } from '@/features/documents/VersionCompareDialog';
 import { ReviseFromMeetingDialog } from '@/features/documents/ReviseFromMeetingDialog';
 import type { DocumentRow } from '@/api/types';
@@ -22,10 +23,15 @@ import { errorMessage } from '@/lib/errors';
 function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const queryClient = useQueryClient();
 
   const upload = useMutation({
-    mutationFn: (file: File) => documentsApi.upload(projectId, file, { dueDate: dueDate || undefined }),
+    mutationFn: (file: File) =>
+      documentsApi.upload(projectId, file, {
+        dueDate: dueDate || undefined,
+        assigneeId: assigneeId ? Number(assigneeId) : undefined,
+      }),
     onSuccess: (result) => {
       toast.success('업로드했습니다. AI 분석이 진행됩니다.');
       onJobStarted(result.jobId);
@@ -46,6 +52,7 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
           <Label htmlFor="doc-due-date">후속 할 일 기한 (선택)</Label>
           <Input id="doc-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
         </div>
+        <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
         <Button
           disabled={upload.isPending}
           onClick={() => {
@@ -63,15 +70,25 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
 function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const queryClient = useQueryClient();
 
   const submit = useMutation({
-    mutationFn: () => documentsApi.manual(projectId, { title, text }),
+    mutationFn: () =>
+      documentsApi.manual(projectId, {
+        title,
+        text,
+        dueDate: dueDate || undefined,
+        assigneeId: assigneeId ? Number(assigneeId) : undefined,
+      }),
     onSuccess: (result) => {
       toast.success('저장했습니다. AI 분석이 진행됩니다.');
       onJobStarted(result.jobId);
       setTitle('');
       setText('');
+      setDueDate('');
+      setAssigneeId('');
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -85,6 +102,13 @@ function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJo
       <CardContent className="flex flex-col gap-3">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="문서 제목" />
         <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="내용을 입력하세요" />
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="manual-due-date">후속 할 일 기한 (선택)</Label>
+            <Input id="manual-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+          </div>
+          <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
+        </div>
         <Button disabled={!title.trim() || !text.trim() || submit.isPending} onClick={() => submit.mutate()} className="self-start">
           저장 및 분석 요청
         </Button>
@@ -129,7 +153,7 @@ export function DocumentsPage() {
 
       {activeJobId && (
         <div className="mb-5">
-          <JobStatusPanel jobId={activeJobId} />
+          <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} />
         </div>
       )}
 

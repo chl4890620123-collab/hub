@@ -270,6 +270,10 @@ export interface SearchRule {
   aliases: string[];
   patterns: string[];
   targetFile?: string | null;
+  mode: 'SMART' | 'FULL';
+  priority: number;
+  active: boolean;
+  managed: boolean;
 }
 
 export interface RuleInput {
@@ -277,6 +281,9 @@ export interface RuleInput {
   aliases: string[];
   patterns: string[];
   targetFile?: string | null;
+  mode: 'SMART' | 'FULL';
+  priority: number;
+  active: boolean;
 }
 
 export type ConnectorType = 'GITHUB' | 'GOOGLE_DRIVE' | 'SLACK' | 'NOTION';

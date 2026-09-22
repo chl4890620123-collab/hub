@@ -16,14 +16,18 @@ export function AdminUsersPage() {
   const { data: users, isLoading } = useQuery({ queryKey: ['admin-users'], queryFn: adminUsersApi.list });
   const [resetTarget, setResetTarget] = useState<User | null>(null);
   const [tempPassword, setTempPassword] = useState('');
+  const [suspendTarget, setSuspendTarget] = useState<User | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] });
 
   const setStatus = useMutation({
-    mutationFn: ({ userId, status }: { userId: number; status: 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN' }) =>
-      adminUsersApi.setStatus(userId, status),
+    mutationFn: ({ userId, status, reason }: { userId: number; status: 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN'; reason?: string }) =>
+      adminUsersApi.setStatus(userId, status, reason),
     onSuccess: (result) => {
       toast.success(`상태를 변경했습니다. (재배정 필요 ${result.reassignmentCount}건)`);
+      setSuspendTarget(null);
+      setSuspendReason('');
       invalidate();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -66,6 +70,7 @@ export function AdminUsersPage() {
                   <th className="py-2 pr-3">ID</th>
                   <th className="py-2 pr-3">이름</th>
                   <th className="py-2 pr-3">아이디</th>
+                  <th className="py-2 pr-3">소속</th>
                   <th className="py-2 pr-3">권한</th>
                   <th className="py-2 pr-3">상태</th>
                   <th className="py-2 pr-3">작업</th>
@@ -77,6 +82,11 @@ export function AdminUsersPage() {
                     <td className="py-2 pr-3 text-ink-400">{u.id}</td>
                     <td className="py-2 pr-3 font-medium text-ink-800">{u.displayName}</td>
                     <td className="py-2 pr-3 text-ink-500">{u.loginId}</td>
+                    <td className="py-2 pr-3 text-xs text-ink-500">
+                      {[u.companyName || '회사 미입력', u.departmentName, u.teamName].filter(Boolean).join(' · ')}
+                      <br />
+                      {u.email} · {u.jobTitle || '직급 미입력'}
+                    </td>
                     <td className="py-2 pr-3">
                       <Badge variant={u.globalRole === 'ADMIN' ? 'accent' : 'neutral'}>{u.globalRole}</Badge>
                     </td>
@@ -87,9 +97,10 @@ export function AdminUsersPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          setStatus.mutate({ userId: u.id, status: u.accountStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' })
-                        }
+                        onClick={() => {
+                          if (u.accountStatus === 'ACTIVE') setSuspendTarget(u);
+                          else setStatus.mutate({ userId: u.id, status: 'ACTIVE' });
+                        }}
                       >
                         {u.accountStatus === 'ACTIVE' ? '정지' : '활성화'}
                       </Button>
@@ -111,6 +122,49 @@ export function AdminUsersPage() {
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={!!suspendTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSuspendTarget(null);
+            setSuspendReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>{suspendTarget?.displayName}님의 사용을 잠시 멈출까요?</DialogTitle>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-ink-400">
+              이 사용자는 바로 로그인할 수 없게 되고, 프로젝트 배정이 해제되어 미완료 업무는 담당자를 다시 정해야 할 수 있습니다.
+            </p>
+            <Input
+              type="text"
+              placeholder="이유 (선택)"
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSuspendTarget(null);
+                  setSuspendReason('');
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                variant="danger"
+                disabled={setStatus.isPending}
+                onClick={() => setStatus.mutate({ userId: suspendTarget!.id, status: 'SUSPENDED', reason: suspendReason || undefined })}
+              >
+                정지
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!resetTarget} onOpenChange={(open) => !open && setResetTarget(null)}>
         <DialogContent>

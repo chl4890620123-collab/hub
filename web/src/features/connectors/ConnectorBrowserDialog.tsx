@@ -73,22 +73,34 @@ export function ConnectorBrowserDialog({
                   <p className="truncate text-sm font-medium text-ink-800">{target.name}</p>
                   {target.description && <p className="truncate text-xs text-ink-400">{target.description}</p>}
                 </div>
-                <Button
-                  size="sm"
-                  disabled={importing}
-                  onClick={() => {
-                    setImportingTargetId(target.id);
-                    importMutation.mutate(target.id);
-                  }}
-                >
-                  {importingTargetId === target.id && importing ? (
-                    <>
-                      <Spinner className="h-3.5 w-3.5" /> 가져오는 중
-                    </>
-                  ) : (
-                    '가져오기'
+                <div className="flex shrink-0 items-center gap-2">
+                  {target.url && (
+                    <a
+                      href={target.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-accent-600 underline-offset-2 hover:underline"
+                    >
+                      열기
+                    </a>
                   )}
-                </Button>
+                  <Button
+                    size="sm"
+                    disabled={importing}
+                    onClick={() => {
+                      setImportingTargetId(target.id);
+                      importMutation.mutate(target.id);
+                    }}
+                  >
+                    {importingTargetId === target.id && importing ? (
+                      <>
+                        <Spinner className="h-3.5 w-3.5" /> 가져오는 중
+                      </>
+                    ) : (
+                      '가져오기'
+                    )}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

@@ -6,7 +6,8 @@ import { NoProjectState } from '@/components/layout/NoProjectState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/input';
-import { JobStatusPanel } from '@/components/feedback/JobStatusPanel';
+import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
+import { AssigneeField } from '@/components/form/AssigneeField';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useMediaRecorder } from '@/features/meetings/useMediaRecorder';
 import { meetingsApi } from '@/api/endpoints/meetings';
@@ -42,7 +43,15 @@ function RecordingPanel({ projectId, onJobStarted }: { projectId: number; onJobS
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="회의 제목" disabled={isRecording} />
         <div className="flex items-center gap-3">
           {!isRecording ? (
-            <Button onClick={start}>
+            <Button
+              onClick={async () => {
+                try {
+                  await start();
+                } catch (error) {
+                  toast.error(errorMessage(error));
+                }
+              }}
+            >
               <Mic size={14} /> 녹음 시작
             </Button>
           ) : (
@@ -106,14 +115,24 @@ function AudioUploadPanel({ projectId, onJobStarted }: { projectId: number; onJo
 function ManualMeetingNoteForm({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
 
   const submit = useMutation({
-    mutationFn: () => documentsApi.manual(projectId, { title, text }),
+    mutationFn: () =>
+      documentsApi.manual(projectId, {
+        title,
+        text,
+        dueDate: dueDate || undefined,
+        assigneeId: assigneeId ? Number(assigneeId) : undefined,
+      }),
     onSuccess: (result) => {
       toast.success('회의 노트를 저장했습니다.');
       onJobStarted(result.jobId);
       setTitle('');
       setText('');
+      setDueDate('');
+      setAssigneeId('');
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -126,6 +145,13 @@ function ManualMeetingNoteForm({ projectId, onJobStarted }: { projectId: number;
       <CardContent className="flex flex-col gap-3">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="회의 제목" />
         <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="회의 내용을 입력하세요" />
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="meeting-due-date">완료 기한 (선택)</Label>
+            <Input id="meeting-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+          </div>
+          <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
+        </div>
         <Button disabled={!title.trim() || !text.trim() || submit.isPending} onClick={() => submit.mutate()} className="self-start">
           저장 및 분석 요청
         </Button>
@@ -152,7 +178,7 @@ export function MeetingsPage() {
         </div>
       </div>
 
-      {activeJobId && <JobStatusPanel jobId={activeJobId} />}
+      {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} />}
     </div>
   );
 }

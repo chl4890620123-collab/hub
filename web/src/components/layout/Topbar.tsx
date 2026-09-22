@@ -1,10 +1,12 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, LogOut, Menu, Monitor, Moon, Search, Sun, User as UserIcon } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, LogOut, Menu, Monitor, Moon, Plus, Search, Sun, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrentUser, useLogout } from '@/hooks/useAuth';
+import { useCurrentUser, useIsAdmin, useLogout } from '@/hooks/useAuth';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useGlobalSearchStore } from '@/stores/globalSearchStore';
 import { useAppStore, type ThemeMode } from '@/stores/appStore';
+import { CreateProjectDialog } from '@/features/projects/CreateProjectDialog';
 import { cn } from '@/lib/cn';
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -16,11 +18,13 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
 export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const { data: user } = useCurrentUser();
   const { currentProject, projects, setCurrentProjectId } = useCurrentProject();
+  const isAdmin = useIsAdmin();
   const logout = useLogout();
   const navigate = useNavigate();
   const openGlobalSearch = useGlobalSearchStore((s) => s.open);
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-ink-200 bg-white px-3 sm:px-5 dark:bg-ink-100">
@@ -61,7 +65,19 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         )}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setCreateProjectOpen(true)}
+            aria-label="새 프로젝트 만들기"
+            title="새 프로젝트 만들기"
+            className="shrink-0 rounded-md p-1.5 text-ink-500 hover:bg-ink-100"
+          >
+            <Plus size={16} />
+          </button>
+        )}
       </div>
+      <CreateProjectDialog open={createProjectOpen} onOpenChange={setCreateProjectOpen} />
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button
