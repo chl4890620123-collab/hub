@@ -97,16 +97,26 @@ function AudioUploadPanel({ projectId, onJobStarted }: { projectId: number; onJo
           <Label htmlFor="meeting-title">회의 제목</Label>
           <Input id="meeting-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-56" />
         </div>
-        <input ref={fileRef} type="file" accept="audio/*" className="text-sm" />
-        <Button
-          disabled={upload.isPending}
-          onClick={() => {
-            const file = fileRef.current?.files?.[0];
-            if (file) upload.mutate(file);
-          }}
-        >
-          <Upload size={14} /> 업로드
-        </Button>
+        <div>
+          <Label htmlFor="meeting-file">오디오 파일 (선택하면 바로 업로드됩니다)</Label>
+          <input
+            id="meeting-file"
+            ref={fileRef}
+            type="file"
+            accept="audio/*"
+            disabled={upload.isPending}
+            className="text-sm"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) upload.mutate(file);
+            }}
+          />
+        </div>
+        {upload.isPending && (
+          <span className="flex items-center gap-1 text-sm text-ink-400">
+            <Upload size={13} className="animate-pulse" /> 업로드 중...
+          </span>
+        )}
       </CardContent>
     </Card>
   );

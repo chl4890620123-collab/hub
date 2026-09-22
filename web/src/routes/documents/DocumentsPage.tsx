@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Download, GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
@@ -15,6 +15,7 @@ import { AssigneeField } from '@/components/form/AssigneeField';
 import { VersionCompareDialog } from '@/features/documents/VersionCompareDialog';
 import { ReviseFromMeetingDialog } from '@/features/documents/ReviseFromMeetingDialog';
 import { JobHistoryPanel } from '@/features/documents/JobHistoryPanel';
+import { usePagination, PaginationControls } from '@/components/layout/Pagination';
 import type { DocumentRow } from '@/api/types';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useIsAdmin } from '@/hooks/useAuth';
@@ -146,10 +147,24 @@ export function DocumentsPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const download = useMutation({
+    mutationFn: async (doc: DocumentRow) => {
+      const { blob, filename } = await documentsApi.download(doc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename ?? doc.original_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const filtered = useMemo(
     () => (documents ?? []).filter((doc) => doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())),
     [documents, nameFilter],
   );
+  const pages = usePagination(filtered);
 
   if (!currentProject) return <NoProjectState />;
 
@@ -176,6 +191,11 @@ export function DocumentsPage() {
       {!compact && (
         <div className="flex shrink-0 items-center gap-2">
           {doc.archived && <Badge variant="outline">보관됨</Badge>}
+          {doc.has_original && (
+            <Button variant="ghost" size="sm" disabled={download.isPending} onClick={() => download.mutate(doc)}>
+              <Download size={13} /> 원본 보기
+            </Button>
+          )}
           {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
             <Button variant="ghost" size="sm" onClick={() => setRevising(doc)}>
               <Sparkles size={13} /> 회의 내용으로 수정
@@ -251,11 +271,21 @@ export function DocumentsPage() {
               />
             </div>
           ) : (
-            <ul className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'flex flex-col gap-2'}>
-              {filtered.map((doc) => (
-                <li key={doc.id}>{documentItem(doc)}</li>
-              ))}
-            </ul>
+            <>
+              <ul className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'flex flex-col gap-2'}>
+                {pages.pageItems.map((doc) => (
+                  <li key={doc.id}>{documentItem(doc)}</li>
+                ))}
+              </ul>
+              <PaginationControls
+                page={pages.page}
+                totalPages={pages.totalPages}
+                pageSize={pages.pageSize}
+                onPageChange={pages.setPage}
+                onPageSizeChange={pages.setPageSize}
+                totalCount={filtered.length}
+              />
+            </>
           )}
         </CardContent>
       </Card>

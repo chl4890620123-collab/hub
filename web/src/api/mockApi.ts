@@ -64,11 +64,11 @@ const todos: TodoItem[] = [
 ];
 
 const documents: DocumentRow[] = [
-  { id: 301, original_name: '주간 제품 회의록 - 09월 2주차.md', source_type: 'MANUAL', source_identifier: null, archived: false, source_deleted: false, created_at: iso(1), latest_version: 2 },
-  { id: 302, original_name: 'Atlas 사용자 인터뷰 요약.pdf', source_type: 'GOOGLE_DRIVE', source_identifier: 'drive://atlas/interviews', archived: false, source_deleted: false, created_at: iso(4), latest_version: 1 },
-  { id: 303, original_name: 'Northstar 베타 런칭 플랜.docx', source_type: 'MANUAL', source_identifier: null, archived: false, source_deleted: false, created_at: iso(2), latest_version: 1 },
-  { id: 304, original_name: '온보딩 가이드 초안', source_type: 'MANUAL_TEXT', source_identifier: null, archived: false, source_deleted: false, created_at: iso(3), latest_version: 1 },
-  { id: 305, original_name: '09월 3주차 스프린트 회의', source_type: 'MEETING_TRANSCRIPT', source_identifier: null, archived: false, source_deleted: false, created_at: iso(1), latest_version: 1 },
+  { id: 301, original_name: '주간 제품 회의록 - 09월 2주차.md', source_type: 'MANUAL', source_identifier: null, archived: false, source_deleted: false, created_at: iso(1), latest_version: 2, has_original: true },
+  { id: 302, original_name: 'Atlas 사용자 인터뷰 요약.pdf', source_type: 'GOOGLE_DRIVE', source_identifier: 'drive://atlas/interviews', archived: false, source_deleted: false, created_at: iso(4), latest_version: 1, has_original: true },
+  { id: 303, original_name: 'Northstar 베타 런칭 플랜.docx', source_type: 'MANUAL', source_identifier: null, archived: false, source_deleted: false, created_at: iso(2), latest_version: 1, has_original: true },
+  { id: 304, original_name: '온보딩 가이드 초안', source_type: 'MANUAL_TEXT', source_identifier: null, archived: false, source_deleted: false, created_at: iso(3), latest_version: 1, has_original: false },
+  { id: 305, original_name: '09월 3주차 스프린트 회의', source_type: 'MEETING_TRANSCRIPT', source_identifier: null, archived: false, source_deleted: false, created_at: iso(1), latest_version: 1, has_original: false },
 ];
 
 const hits: MaterialHit[] = [

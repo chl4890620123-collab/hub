@@ -6,6 +6,7 @@ import { useCurrentProject } from '@/hooks/useProjects';
 import { adminHistoryApi } from '@/api/endpoints/admin';
 import type { AuditLogRow, RevisionRow } from '@/api/types';
 import { formatDateTime } from '@/lib/format';
+import { usePagination, PaginationControls } from '@/components/layout/Pagination';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   DOCUMENT_IMPORTED: '자료 가져옴',
@@ -103,6 +104,9 @@ export function AdminHistoryPage() {
   });
   const { data: auditLog, isLoading: loadingAudit } = useQuery({ queryKey: ['audit-log'], queryFn: adminHistoryApi.audit });
 
+  const revisionPages = usePagination(revisions ?? []);
+  const auditPages = usePagination(auditLog ?? []);
+
   if (!currentProject) return <NoProjectState />;
 
   return (
@@ -117,11 +121,21 @@ export function AdminHistoryPage() {
           ) : !revisions || revisions.length === 0 ? (
             <EmptyState title="아직 수정 이력이 없습니다." />
           ) : (
-            <ul className="flex flex-col gap-2">
-              {revisions.map((row) => (
-                <RevisionItem key={row.id} row={row} />
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-2">
+                {revisionPages.pageItems.map((row) => (
+                  <RevisionItem key={row.id} row={row} />
+                ))}
+              </ul>
+              <PaginationControls
+                page={revisionPages.page}
+                totalPages={revisionPages.totalPages}
+                pageSize={revisionPages.pageSize}
+                onPageChange={revisionPages.setPage}
+                onPageSizeChange={revisionPages.setPageSize}
+                totalCount={revisions.length}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -136,11 +150,21 @@ export function AdminHistoryPage() {
           ) : !auditLog || auditLog.length === 0 ? (
             <EmptyState title="아직 바뀐 내용 기록이 없습니다." />
           ) : (
-            <ul className="flex flex-col gap-2">
-              {auditLog.map((row) => (
-                <AuditItem key={row.id} row={row} />
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-2">
+                {auditPages.pageItems.map((row) => (
+                  <AuditItem key={row.id} row={row} />
+                ))}
+              </ul>
+              <PaginationControls
+                page={auditPages.page}
+                totalPages={auditPages.totalPages}
+                pageSize={auditPages.pageSize}
+                onPageChange={auditPages.setPage}
+                onPageSizeChange={auditPages.setPageSize}
+                totalCount={auditLog.length}
+              />
+            </>
           )}
         </CardContent>
       </Card>

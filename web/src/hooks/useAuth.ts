@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/endpoints/auth';
 import { useCurrentUser } from '@/providers/AuthProvider';
+import { useAppStore } from '@/stores/appStore';
 
 export { useCurrentUser };
 
@@ -27,6 +28,9 @@ export function useLogout() {
     mutationFn: authApi.logout,
     onSuccess: () => {
       if (mockMode()) localStorage.setItem('hub.mock.logged-out', 'true');
+      // currentProjectId is persisted to localStorage; without clearing it here, the next person to
+      // log in on this browser lands on whatever project the PREVIOUS user last had selected.
+      useAppStore.getState().setCurrentProjectId(null);
       queryClient.clear();
       window.location.replace('/login');
     },

@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut, apiUpload } from '@/api/client';
+import { apiDelete, apiDownload, apiGet, apiPost, apiPut, apiUpload } from '@/api/client';
 import type { DocumentRow, DocumentVersionRow } from '@/api/types';
 
 export interface UploadResult {
@@ -15,6 +15,7 @@ export const documentsApi = {
   version: (versionId: number) => apiGet<Record<string, unknown>>(`/api/versions/${versionId}`),
   chunk: (chunkId: number) => apiGet<Record<string, unknown>>(`/api/chunks/${chunkId}`),
   archive: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}`),
+  download: (documentId: number) => apiDownload(`/api/documents/${documentId}/download`),
 
   upload: (
     projectId: number,

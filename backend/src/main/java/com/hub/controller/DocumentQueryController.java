@@ -4,13 +4,20 @@ import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.DocumentRepository;
 import com.hub.service.CurrentUserService;
+import com.hub.service.FileStorageService;
 import com.hub.service.ProjectAccessService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -20,15 +27,18 @@ public class DocumentQueryController {
     private final ProjectAccessService projectAccess;
     private final DocumentRepository documents;
     private final AuditRepository audit;
+    private final FileStorageService storage;
 
     public DocumentQueryController(CurrentUserService currentUser,
                                    ProjectAccessService projectAccess,
                                    DocumentRepository documents,
-                                   AuditRepository audit) {
+                                   AuditRepository audit,
+                                   FileStorageService storage) {
         this.currentUser = currentUser;
         this.projectAccess = projectAccess;
         this.documents = documents;
         this.audit = audit;
+        this.storage = storage;
     }
 
     @GetMapping("/api/projects/{projectId}/documents")
@@ -63,6 +73,23 @@ public class DocumentQueryController {
         long projectId = documents.projectIdForDocument(documentId);
         projectAccess.requireAccess(projectId, user);
         return documents.listVersions(documentId);
+    }
+
+    @GetMapping("/api/documents/{documentId}/download")
+    public ResponseEntity<byte[]> download(@PathVariable long documentId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        long projectId = documents.projectIdForDocument(documentId);
+        projectAccess.requireAccess(projectId, user);
+        var file = documents.findFile(documentId).orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        if (file.storagePath() == null) throw new IllegalArgumentException("원본 파일이 없는 자료입니다.");
+        byte[] data = storage.readTrusted(file.storagePath());
+        String fileName = file.originalName() == null ? "download" : file.originalName();
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        MediaType mediaType = MediaTypeFactory.getMediaType(fileName).orElse(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .body(data);
     }
 
     @DeleteMapping("/api/documents/{documentId}")

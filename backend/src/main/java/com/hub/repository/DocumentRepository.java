@@ -243,11 +243,12 @@ public class DocumentRepository {
     public List<Map<String, Object>> listDocuments(long projectId) {
         return jdbc.queryForList(
                 """
-                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,MAX(v.version_no) latest_version
+                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,
+                       MAX(v.version_no) latest_version,(d.storage_path IS NOT NULL) has_original
                 FROM document d
                 LEFT JOIN document_version v ON v.document_id=d.id
                 WHERE d.project_id=?
-                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at
+                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.storage_path
                 ORDER BY d.id DESC
                 LIMIT 500
                 """,
@@ -278,6 +279,17 @@ public class DocumentRepository {
                 "SELECT id,project_id,source_type,original_name,archived FROM document WHERE id=?",
                 (rs, n) -> new DocumentMeta(rs.getLong("id"), rs.getLong("project_id"), rs.getString("source_type"),
                         rs.getString("original_name"), rs.getBoolean("archived")),
+                documentId);
+        return rows.stream().findFirst();
+    }
+
+    /** storagePath is null for MANUAL_TEXT/MEETING_TRANSCRIPT sources - there is no original file to serve. */
+    public record DocumentFile(String originalName, String storagePath) {}
+
+    public Optional<DocumentFile> findFile(long documentId) {
+        List<DocumentFile> rows = jdbc.query(
+                "SELECT original_name, storage_path FROM document WHERE id=?",
+                (rs, n) -> new DocumentFile(rs.getString("original_name"), rs.getString("storage_path")),
                 documentId);
         return rows.stream().findFirst();
     }

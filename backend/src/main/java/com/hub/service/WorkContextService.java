@@ -59,7 +59,7 @@ public class WorkContextService {
                 .limit(12).toList();
         List<Map<String, Object>> relatedDecisions = decisions.listConfirmed(projectId, 100).stream()
                 .filter(row -> containsAny(text(row, "statement"), terms)).limit(12).toList();
-        List<Map<String, Object>> relatedChanges = changes.listConfirmed(projectId).stream()
+        List<Map<String, Object>> relatedChanges = changes.listConfirmed(projectId, 100).stream()
                 .filter(row -> containsAny(text(row, "category") + " " + text(row, "before_text") + " " + text(row, "after_text") + " " + text(row, "reason"), terms))
                 .limit(12).toList();
         List<TimelineEvent> relatedTimeline = timeline.list(projectId, 100).stream()

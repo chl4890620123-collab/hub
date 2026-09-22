@@ -34,7 +34,12 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation "org.apache.tika:tika-core:${tikaVersion}"
     implementation "org.apache.tika:tika-parsers-standard-package:${tikaVersion}"
-    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+    // Must match the POI version tika-parent:${tikaVersion} declares (see its <poi.version>), or this
+    // pin wins over Tika's own transitive poi-ooxml/poi-ooxml-lite request while poi/poi-scratchpad
+    // still resolve to Tika's newer version - a split classpath that throws NoSuchMethodError the
+    // moment Tika's microsoft-module parses a real .docx/.xlsx (SpreadsheetService's own direct POI
+    // usage never crosses that boundary, so it kept working while general document upload didn't).
+    implementation 'org.apache.poi:poi-ooxml:5.4.1'
 
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'

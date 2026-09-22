@@ -7,6 +7,7 @@ import { Input, Label, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authApi } from '@/api/endpoints/auth';
 import { errorMessage } from '@/lib/errors';
+import { LoginIdField, LOGIN_ID_PATTERN } from '@/features/login/LoginIdField';
 
 interface FormValues {
   loginId: string;
@@ -77,10 +78,10 @@ export function MemberSignupPage() {
       <p className="mb-6 text-sm text-ink-500">관리자 승인 후 로그인할 수 있습니다.</p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div>
-          <Label htmlFor="loginId">아이디</Label>
-          <Input id="loginId" {...register('loginId', { required: true })} />
-        </div>
+        <LoginIdField
+          value={watch('loginId') ?? ''}
+          registerProps={register('loginId', { required: true, pattern: LOGIN_ID_PATTERN })}
+        />
         <div>
           <Label htmlFor="displayName">이름</Label>
           <Input id="displayName" {...register('displayName', { required: true })} />
@@ -92,7 +93,8 @@ export function MemberSignupPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="password">비밀번호</Label>
-            <Input id="password" type="password" {...register('password', { required: true })} />
+            <Input id="password" type="password" minLength={12} {...register('password', { required: true, minLength: 12 })} />
+            <p className="mt-1 text-xs text-ink-400">12자 이상, 영문과 숫자를 포함해 주세요.</p>
           </div>
           <div>
             <Label htmlFor="passwordConfirm">비밀번호 확인</Label>

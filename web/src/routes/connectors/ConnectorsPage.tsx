@@ -30,8 +30,11 @@ const PROVIDERS: { type: ConnectorType; label: string; icon: typeof Github; note
 ];
 
 /** The OAuth callback lands back here with its outcome in the query string; without this the
- * operator is dropped on a silent page and can't tell whether the connection actually worked. */
-function useConnectorCallbackToast() {
+ * operator is dropped on a silent page and can't tell whether the connection actually worked -
+ * and the status/linked-account badges kept showing the pre-connect state until a manual refresh,
+ * since nothing invalidated those queries after a successful connect. */
+function useConnectorCallbackToast(projectId: number | undefined) {
+  const queryClient = useQueryClient();
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get('status');
@@ -39,12 +42,17 @@ function useConnectorCallbackToast() {
     if (!status || !type) return;
     const label = PROVIDERS.find((p) => p.type === type)?.label ?? type;
     const reason = params.get('reason');
-    if (status === 'connected') toast.success(`${label} 연결이 완료되었습니다.`);
-    else if (reason === 'access_denied') toast.error(`${label} 연결을 취소했습니다.`);
+    if (status === 'connected') {
+      toast.success(`${label} 연결이 완료되었습니다.`);
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['connector-status', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['connector-targets', projectId] });
+      }
+    } else if (reason === 'access_denied') toast.error(`${label} 연결을 취소했습니다.`);
     else if (reason === 'not_configured') toast.error(`${label} 개인 연결은 아직 설정되지 않았습니다. 관리자가 앱 정보를 등록해야 합니다.`);
     else toast.error(`${label} 연결에 실패했습니다${reason ? ` (${reason})` : ''}. 관리자 설정을 확인한 뒤 다시 시도해 주세요.`);
     window.history.replaceState(null, '', location.pathname);
-  }, []);
+  }, [projectId, queryClient]);
 }
 
 function LinkedAccountBadge({ projectId, type }: { projectId: number; type: ConnectorType }) {
@@ -62,7 +70,7 @@ export function ConnectorsPage() {
   const { currentProject } = useCurrentProject();
   const queryClient = useQueryClient();
   const [browsing, setBrowsing] = useState<ConnectorType | null>(null);
-  useConnectorCallbackToast();
+  useConnectorCallbackToast(currentProject?.id);
 
   const { data: policy } = useQuery({ queryKey: ['connector-policy'], queryFn: connectorsApi.policy });
   const { data: statuses, isLoading } = useQuery({

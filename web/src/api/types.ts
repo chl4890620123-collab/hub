@@ -175,6 +175,7 @@ export interface DocumentRow {
   source_deleted: boolean;
   created_at: string;
   latest_version: number;
+  has_original: boolean;
   [key: string]: unknown;
 }
 

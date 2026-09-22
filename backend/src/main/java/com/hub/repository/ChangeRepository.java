@@ -89,15 +89,15 @@ public class ChangeRepository {
     }
 
     /** Work Context consumes confirmed changes only; AI-generated change candidates stay review-only. */
-    public List<Map<String, Object>> listConfirmed(long projectId) {
+    public List<Map<String, Object>> listConfirmed(long projectId, int limit) {
         return jdbc.queryForList(
                 """
                 SELECT ci.id,ci.category,ci.before_text,ci.after_text,ci.reason,ci.review_status,ca.created_at
                 FROM change_item ci JOIN change_analysis ca ON ca.id=ci.analysis_id
                 WHERE ca.project_id=? AND ci.review_status='CONFIRMED'
-                ORDER BY ci.id DESC
+                ORDER BY ci.id DESC LIMIT ?
                 """,
-                projectId
+                projectId, Math.max(1, Math.min(limit, 500))
         );
     }
 
