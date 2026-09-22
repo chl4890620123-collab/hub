@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, LogOut, Monitor, Moon, Search, Sun, User as UserIcon } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Monitor, Moon, Search, Sun, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { useCurrentProject } from '@/hooks/useProjects';
@@ -13,7 +13,7 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
   { mode: 'system', label: '시스템', icon: Monitor },
 ];
 
-export function Topbar() {
+export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const { data: user } = useCurrentUser();
   const { currentProject, projects, setCurrentProjectId } = useCurrentProject();
   const logout = useLogout();
@@ -23,8 +23,16 @@ export function Topbar() {
   const setThemeMode = useAppStore((s) => s.setThemeMode);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-ink-200 bg-white px-5 dark:bg-ink-100">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-ink-200 bg-white px-3 sm:px-5 dark:bg-ink-100">
+      <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+        <button
+          type="button"
+          onClick={onOpenMobileNav}
+          aria-label="메뉴 열기"
+          className="shrink-0 rounded-md p-1.5 text-ink-600 hover:bg-ink-100 md:hidden"
+        >
+          <Menu size={19} />
+        </button>
         {projects.length > 0 && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100">
@@ -55,22 +63,23 @@ export function Topbar() {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button
           onClick={openGlobalSearch}
-          className="flex items-center gap-2 rounded-md border border-ink-200 px-3 py-1.5 text-sm text-ink-500 hover:bg-ink-50"
+          aria-label="통합 검색"
+          className="flex items-center gap-2 rounded-md border border-ink-200 px-2 py-1.5 text-sm text-ink-500 hover:bg-ink-50 sm:px-3"
         >
           <Search size={14} />
-          통합 검색
-          <kbd className="rounded border border-ink-200 bg-ink-50 px-1 text-[10px]">⌘K</kbd>
+          <span className="hidden sm:inline">통합 검색</span>
+          <kbd className="hidden rounded border border-ink-200 bg-ink-50 px-1 text-[10px] sm:inline">⌘K</kbd>
         </button>
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-700 hover:bg-ink-100">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-100 text-accent-700">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-100 text-accent-700">
               <UserIcon size={14} />
             </span>
-            {user?.displayName}
+            <span className="hidden max-w-[8rem] truncate sm:inline">{user?.displayName}</span>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" className="z-50 min-w-[160px] rounded-md border border-ink-200 bg-white p-1 shadow-lg dark:bg-ink-100">

@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -12,6 +12,7 @@ import { LoadingBlock } from '@/components/ui/spinner';
 export function AppLayout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     function onAuthExpired() {
@@ -24,10 +25,10 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar />
+      <Sidebar mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto bg-ink-50 p-6">
+        <Topbar onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <main className="flex-1 overflow-y-auto bg-ink-50 p-4 sm:p-6">
           <Suspense fallback={<LoadingBlock />}>
             <Outlet />
           </Suspense>

@@ -89,7 +89,7 @@ export function MemberSignupPage() {
           <Label htmlFor="email">이메일</Label>
           <Input id="email" type="email" {...register('email', { required: true })} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="password">비밀번호</Label>
             <Input id="password" type="password" {...register('password', { required: true })} />

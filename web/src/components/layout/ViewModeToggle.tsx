@@ -18,6 +18,9 @@ export function ViewModeToggle({ value, onChange }: { value: ViewMode; onChange:
           onClick={() => onChange(opt.mode)}
           className={cn(
             'flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors',
+            // A 7-column calendar has no room on a phone - keep it a desktop-only view, list/card
+            // stay simple and legible at any width.
+            opt.mode === 'calendar' && 'hidden sm:flex',
             value === opt.mode ? 'bg-white text-ink-900 shadow-sm dark:bg-ink-200' : 'text-ink-500 hover:text-ink-700',
           )}
         >

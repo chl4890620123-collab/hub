@@ -40,7 +40,7 @@ function ProfilePanel() {
         <CardTitle>내 정보</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label>이름</Label>
             <Input value={user.displayName} disabled />
@@ -50,7 +50,7 @@ function ProfilePanel() {
             <Input value={user.companyName ?? '-'} disabled />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="department">부서</Label>
             <Input id="department" value={departmentName ?? ''} onChange={(e) => setDepartmentName(e.target.value)} />
@@ -97,7 +97,7 @@ function PasswordPanel({ forceChange }: { forceChange: boolean }) {
             관리자가 임시 비밀번호를 발급했습니다. 계속하려면 비밀번호를 변경해 주세요.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="current-password">현재 비밀번호</Label>
             <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />

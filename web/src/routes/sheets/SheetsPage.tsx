@@ -97,7 +97,7 @@ function CreateSheetCard({ projects, defaultProjectId, onCreated }: {
           <Lock size={12} className="mr-1 inline" /> 비밀번호로 잠그기 (선택)
         </button>
         {showSecurity && (
-          <div className="grid grid-cols-2 gap-3 rounded-md bg-ink-50 p-3">
+          <div className="grid grid-cols-1 gap-3 rounded-md bg-ink-50 p-3 sm:grid-cols-2">
             <div>
               <Label>비밀번호</Label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="4자 이상" autoComplete="new-password" />
@@ -165,7 +165,7 @@ function ImportSheetCard({ projects, defaultProjectId, onCreated }: {
           <Label>표 이름 (선택, 비우면 파일 이름 사용)</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label>비밀번호 (선택)</Label>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="4자 이상" autoComplete="new-password" />
