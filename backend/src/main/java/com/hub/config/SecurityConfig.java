@@ -32,6 +32,7 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenResolv
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -131,7 +132,15 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // Logout is exempt: signing out must never fail because the CSRF cookie went missing,
                 // and the worst a forged logout can do is end a session the user can restart.
-                .csrf(config -> config.csrfTokenRepository(csrf).ignoringRequestMatchers("/api/auth/logout"))
+                // The plain (non-XOR) request handler is required for a JS client: the default
+                // XorCsrfTokenRequestAttributeHandler masks the value it hands to server-rendered forms
+                // (Thymeleaf's th:action reads it through the same handler, so it always got the right
+                // value) but a SPA reads the XSRF-TOKEN cookie directly and echoes that raw value back as
+                // a header - against the XOR handler that raw value fails to "un-mask" into anything
+                // valid, so every POST from the React app 401s here before it ever reaches a controller.
+                .csrf(config -> config.csrfTokenRepository(csrf)
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .ignoringRequestMatchers("/api/auth/logout"))
                 // The token is only written to the cookie when something reads it during the request. Without
                 // this the cookie can be missing on a page the browser served from cache, and the next POST
                 // (logout, most visibly) fails CSRF and — being anonymous — comes back 401 with no body.
