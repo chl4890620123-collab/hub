@@ -313,23 +313,27 @@ export interface ConnectorTargetsResponse {
 }
 
 export interface AuditLogRow {
-  id?: number;
-  actor_id?: number;
-  action?: string;
-  entity_type?: string;
-  entity_id?: number;
-  created_at?: string;
-  [key: string]: unknown;
+  id: number;
+  user_id: number | null;
+  display_name: string | null;
+  project_id: number | null;
+  project_name: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: number | null;
+  detail_json: string | null;
+  created_at: string;
 }
 
 export interface RevisionRow {
-  id?: number;
-  entity_type?: string;
-  entity_id?: number;
-  actor_id?: number;
-  action?: string;
-  created_at?: string;
-  [key: string]: unknown;
+  id: number;
+  entity_type: string;
+  entity_id: number;
+  action: string;
+  before_json: string | null;
+  after_json: string | null;
+  created_at: string;
+  actor_name: string;
 }
 
 // 자료표 (Spreadsheet*.java records, so camelCase like the rest of this section's record-backed types).

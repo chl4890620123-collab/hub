@@ -7,8 +7,39 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { authApi, meApi } from '@/api/endpoints/auth';
+import type { AccountStatus } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
+
+const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = { ACTIVE: '사용 중', SUSPENDED: '사용 정지', WITHDRAWN: '탈퇴' };
+
+function IdentitySummary() {
+  const { data: user } = useCurrentUser();
+  if (!user) return null;
+
+  return (
+    <Card>
+      <CardContent className="grid grid-cols-2 gap-3 py-4 sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-ink-400">아이디</p>
+          <p className="text-sm font-medium text-ink-800">{user.loginId}</p>
+        </div>
+        <div>
+          <p className="text-xs text-ink-400">이메일</p>
+          <p className="text-sm font-medium text-ink-800">{user.email}</p>
+        </div>
+        <div>
+          <p className="text-xs text-ink-400">권한</p>
+          <p className="text-sm font-medium text-ink-800">{user.globalRole === 'ADMIN' ? '관리자' : '팀원'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-ink-400">계정 상태</p>
+          <p className="text-sm font-medium text-ink-800">{ACCOUNT_STATUS_LABELS[user.accountStatus] ?? user.accountStatus}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function ProfilePanel() {
   const { data: user } = useCurrentUser();
@@ -75,7 +106,10 @@ function ProfilePanel() {
 function PasswordPanel({ forceChange }: { forceChange: boolean }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const navigate = useNavigate();
+
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
   const change = useMutation({
     mutationFn: () => authApi.changePassword(currentPassword, newPassword),
@@ -97,7 +131,7 @@ function PasswordPanel({ forceChange }: { forceChange: boolean }) {
             관리자가 임시 비밀번호를 발급했습니다. 계속하려면 비밀번호를 변경해 주세요.
           </p>
         )}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <Label htmlFor="current-password">현재 비밀번호</Label>
             <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
@@ -106,10 +140,20 @@ function PasswordPanel({ forceChange }: { forceChange: boolean }) {
             <Label htmlFor="new-password">새 비밀번호</Label>
             <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           </div>
+          <div>
+            <Label htmlFor="confirm-password">새 비밀번호 확인</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
         </div>
+        {mismatch && <p className="text-xs text-red-600">새 비밀번호가 일치하지 않습니다.</p>}
         <Button
           onClick={() => change.mutate()}
-          disabled={!currentPassword || !newPassword || change.isPending}
+          disabled={!currentPassword || !newPassword || mismatch || confirmPassword !== newPassword || change.isPending}
           className="self-start"
         >
           변경 (재로그인 필요)
@@ -172,6 +216,7 @@ export function AccountPage() {
     <div>
       <PageHeader title="내 정보" description="프로필과 계정 정보를 관리합니다." />
       <div className="flex max-w-2xl flex-col gap-4">
+        <IdentitySummary />
         <ProfilePanel />
         <PasswordPanel forceChange={forceChange} />
         <WithdrawPanel />

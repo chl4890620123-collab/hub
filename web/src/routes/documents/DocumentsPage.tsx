@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
+import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
+import { CalendarGrid } from '@/components/layout/CalendarGrid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/input';
@@ -12,6 +14,7 @@ import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
 import { VersionCompareDialog } from '@/features/documents/VersionCompareDialog';
 import { ReviseFromMeetingDialog } from '@/features/documents/ReviseFromMeetingDialog';
+import { JobHistoryPanel } from '@/features/documents/JobHistoryPanel';
 import type { DocumentRow } from '@/api/types';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useIsAdmin } from '@/hooks/useAuth';
@@ -124,6 +127,9 @@ export function DocumentsPage() {
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [compareDocId, setCompareDocId] = useState<number | null>(null);
   const [revising, setRevising] = useState<DocumentRow | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [nameFilter, setNameFilter] = useState('');
+  const [cursor, setCursor] = useState(() => new Date());
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents', currentProject?.id],
@@ -140,7 +146,53 @@ export function DocumentsPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const filtered = useMemo(
+    () => (documents ?? []).filter((doc) => doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())),
+    [documents, nameFilter],
+  );
+
   if (!currentProject) return <NoProjectState />;
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth() + 1;
+
+  const documentItem = (doc: DocumentRow, compact?: boolean) => (
+    <div
+      className={
+        compact
+          ? 'truncate rounded border border-ink-100 bg-white px-1.5 py-1 text-[11px] text-ink-700 dark:bg-ink-100'
+          : 'flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2'
+      }
+      title={compact ? doc.original_name : undefined}
+    >
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-ink-800">{doc.original_name}</p>
+        {!compact && (
+          <p className="text-xs text-ink-400">
+            {doc.source_type} · v{doc.latest_version} · {formatDateTime(doc.created_at)}
+          </p>
+        )}
+      </div>
+      {!compact && (
+        <div className="flex shrink-0 items-center gap-2">
+          {doc.archived && <Badge variant="outline">보관됨</Badge>}
+          {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
+            <Button variant="ghost" size="sm" onClick={() => setRevising(doc)}>
+              <Sparkles size={13} /> 회의 내용으로 수정
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setCompareDocId(doc.id)}>
+            <GitCompare size={13} /> 버전 비교
+          </Button>
+          {isAdmin && !doc.archived && (
+            <Button variant="ghost" size="sm" onClick={() => archive.mutate(doc.id)}>
+              <Trash2 size={13} className="text-red-500" />
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div>
@@ -159,45 +211,58 @@ export function DocumentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>문서 목록</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>문서 목록</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                placeholder="이름으로 찾기"
+                className="w-40"
+              />
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <LoadingBlock />
-          ) : !documents || documents.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState title="등록된 문서가 없습니다." />
+          ) : viewMode === 'calendar' ? (
+            <div>
+              <div className="mb-3 flex items-center justify-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCursor(new Date(year, month - 2, 1))}>
+                  이전 달
+                </Button>
+                <span className="text-sm font-medium text-ink-700">
+                  {year}년 {month}월
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setCursor(new Date(year, month, 1))}>
+                  다음 달
+                </Button>
+              </div>
+              <CalendarGrid
+                items={filtered}
+                getDate={(doc) => doc.created_at.slice(0, 10)}
+                renderItem={(doc) => documentItem(doc, true)}
+                year={year}
+                month={month}
+              />
+            </div>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {documents.map((doc) => (
-                <li key={doc.id} className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-ink-800">{doc.original_name}</p>
-                    <p className="text-xs text-ink-400">
-                      {doc.source_type} · v{doc.latest_version} · {formatDateTime(doc.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {doc.archived && <Badge variant="outline">보관됨</Badge>}
-                    {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
-                      <Button variant="ghost" size="sm" onClick={() => setRevising(doc)}>
-                        <Sparkles size={13} /> 회의 내용으로 수정
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => setCompareDocId(doc.id)}>
-                      <GitCompare size={13} /> 버전 비교
-                    </Button>
-                    {isAdmin && !doc.archived && (
-                      <Button variant="ghost" size="sm" onClick={() => archive.mutate(doc.id)}>
-                        <Trash2 size={13} className="text-red-500" />
-                      </Button>
-                    )}
-                  </div>
-                </li>
+            <ul className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'flex flex-col gap-2'}>
+              {filtered.map((doc) => (
+                <li key={doc.id}>{documentItem(doc)}</li>
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-4">
+        <JobHistoryPanel projectId={currentProject.id} />
+      </div>
 
       <VersionCompareDialog
         documentId={compareDocId}

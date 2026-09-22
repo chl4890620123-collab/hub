@@ -149,8 +149,14 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname.endsWith('/sensitive-terms')) return result(terms as T);
   if (pathname.endsWith('/search/rules')) return result(rules.filter((rule) => rule.projectId === projectId) as T);
   if (pathname.endsWith('/embedding-status')) return result({ status: 'READY', indexed: projectTodos(projectId).length + documents.length, pending: 0, lastIndexedAt: iso(1) } as T);
-  if (pathname.endsWith('/admin/audit')) return result([{ id: 1201, actor_id: 1, action: 'TODO_CONFIRMED', entity_type: 'TODO', entity_id: 1001, created_at: iso(1) }] as AuditLogRow[] as T);
-  if (pathname.endsWith('/revisions')) return result([{ id: 1301, entity_type: 'DOCUMENT', entity_id: 301, actor_id: 1, action: 'VERSION_CREATED', created_at: iso(1) }] as RevisionRow[] as T);
+  if (pathname.endsWith('/admin/audit'))
+    return result([
+      { id: 1201, user_id: 1, display_name: mockUser.displayName, project_id: projectId, project_name: '데모 프로젝트', action: 'TODO_CONFIRMED', target_type: 'TODO', target_id: 1001, detail_json: null, created_at: iso(1) },
+    ] as AuditLogRow[] as T);
+  if (pathname.endsWith('/revisions'))
+    return result([
+      { id: 1301, entity_type: 'DOCUMENT', entity_id: 301, action: 'DOCUMENT_UPDATED', before_json: null, after_json: null, actor_name: mockUser.displayName, created_at: iso(1) },
+    ] as RevisionRow[] as T);
   if (pathname.endsWith('/jobs')) return result([{ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) }] as ProcessingJob[] as T);
   if (pathname.match(/\/jobs\/\d+$/)) return result({ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) } as ProcessingJob as T);
   if (pathname.endsWith('/file-transfers')) return result([] as T);

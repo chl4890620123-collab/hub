@@ -7,16 +7,51 @@ import { NoProjectState } from '@/components/layout/NoProjectState';
 import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
 import { CalendarGrid } from '@/components/layout/CalendarGrid';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
+import { projectsApi } from '@/api/endpoints/projects';
 import { TodoCard } from '@/features/todos/TodoCard';
 import { FileTransferPanel } from '@/features/todos/FileTransferPanel';
 import { useEvidenceStore } from '@/stores/evidenceStore';
 import type { TaskStatus, TodoItem } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
+
+function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string }) {
+  const rows = todos.filter((t) => t.reviewStatus === 'CONFIRMED' && (!t.dueDate || t.dueDate.startsWith(month)));
+  const total = rows.length;
+  const done = rows.filter((t) => t.taskStatus === 'DONE').length;
+  const doing = rows.filter((t) => t.taskStatus === 'IN_PROGRESS').length;
+  const waiting = rows.filter((t) => t.taskStatus === 'TODO').length;
+  const blocked = rows.filter((t) => t.taskStatus === 'BLOCKED').length;
+  const pct = total ? Math.round((done * 100) / total) : 0;
+
+  return (
+    <div className="mb-4 rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
+      <div className="mb-2 flex items-center justify-between text-sm">
+        <span className="text-ink-500">이번 달 진행 {pct}%</span>
+        <strong className="text-ink-800">{done}/{total || 0} 완료</strong>
+      </div>
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
+        <div className="h-full rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex gap-4 text-xs">
+        <span>
+          <strong className="text-ink-800">{doing}</strong> <span className="text-ink-400">진행 중</span>
+        </span>
+        <span>
+          <strong className="text-ink-800">{waiting}</strong> <span className="text-ink-400">시작 전</span>
+        </span>
+        <span>
+          <strong className="text-ink-800">{blocked}</strong> <span className="text-ink-400">도움 필요</span>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export function TodosPage() {
   const { currentProject } = useCurrentProject();
@@ -29,9 +64,11 @@ export function TodosPage() {
   const [cursor, setCursor] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<ViewMode>(() => (searchParams.get('view') === 'calendar' ? 'calendar' : 'list'));
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
+  const [assigneeFilter, setAssigneeFilter] = useState('ALL');
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth() + 1;
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
   const { data: monthTodos, isLoading: loadingMonth } = useQuery({
     queryKey: ['todos-month', currentProject?.id, year, month],
@@ -41,6 +78,11 @@ export function TodosPage() {
   const { data: undated, isLoading: loadingUndated } = useQuery({
     queryKey: ['todos-undated', currentProject?.id],
     queryFn: () => todosApi.undated(currentProject!.id),
+    enabled: !!currentProject,
+  });
+  const { data: members } = useQuery({
+    queryKey: ['project-members', currentProject?.id],
+    queryFn: () => projectsApi.members(currentProject!.id),
     enabled: !!currentProject,
   });
 
@@ -61,10 +103,10 @@ export function TodosPage() {
   const allTodos = useMemo(() => [...(monthTodos ?? []), ...(undated ?? [])], [monthTodos, undated]);
   const filtered = useMemo(
     () =>
-      (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter)).sort(
-        (a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31'),
-      ),
-    [allTodos, statusFilter],
+      (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter))
+        .filter((t) => assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
+        .sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31')),
+    [allTodos, statusFilter, assigneeFilter],
   );
 
   if (!currentProject || !user) return <NoProjectState />;
@@ -103,6 +145,19 @@ export function TodosPage() {
             <ChevronRight size={14} />
           </Button>
         </div>
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="담당자 전체" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">담당자 전체</SelectItem>
+            {members?.map((m) => (
+              <SelectItem key={m.id} value={String(m.id)}>
+                {m.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex gap-1">
           {(['ALL', 'TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'] as const).map((s) => (
             <button
@@ -118,6 +173,8 @@ export function TodosPage() {
           ))}
         </div>
       </div>
+
+      <TodoProgressPanel todos={allTodos} month={monthKey} />
 
       {isLoading ? (
         <LoadingBlock />
