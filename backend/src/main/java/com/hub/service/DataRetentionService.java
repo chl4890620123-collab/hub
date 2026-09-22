@@ -2,6 +2,7 @@ package com.hub.service;
 
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.DocumentRepository;
+import com.hub.repository.MeetingRepository;
 import com.hub.repository.RefreshTokenRepository;
 import com.hub.repository.SearchLogRepository;
 import org.slf4j.Logger;
@@ -23,6 +24,10 @@ import java.time.LocalDate;
  * - archived documents past retention: only their full_text/content/embedding columns are cleared: the
  *   document/version/chunk rows stay so evidence/decision/todo/change records that cite them by id keep
  *   working. Search/RAG already exclude archived documents, so nothing user-visible changes but size.
+ * - meeting STT transcripts past their own (shorter) retention: same clear-content-keep-the-row shape.
+ *   No controller ever exposes the raw transcript/segment text to a client - it is only an AI analysis
+ *   input and the evidence-grounding source at creation time, and every evidence quote already has its
+ *   own independent copy in evidence.evidence_text - so "근거 보기" keeps working after this runs.
  */
 @Service
 public class DataRetentionService {
@@ -32,21 +37,27 @@ public class DataRetentionService {
     private final SearchLogRepository searchLogs;
     private final ConnectorRepository connectors;
     private final DocumentRepository documents;
+    private final MeetingRepository meetings;
     private final boolean enabled;
     private final int retentionMonths;
+    private final int sttRetentionMonths;
 
     public DataRetentionService(RefreshTokenRepository refreshTokens,
                                 SearchLogRepository searchLogs,
                                 ConnectorRepository connectors,
                                 DocumentRepository documents,
+                                MeetingRepository meetings,
                                 @Value("${hub.data-retention-enabled:true}") boolean enabled,
-                                @Value("${hub.data-retention-months:12}") int retentionMonths) {
+                                @Value("${hub.data-retention-months:12}") int retentionMonths,
+                                @Value("${hub.stt-retention-months:6}") int sttRetentionMonths) {
         this.refreshTokens = refreshTokens;
         this.searchLogs = searchLogs;
         this.connectors = connectors;
         this.documents = documents;
+        this.meetings = meetings;
         this.enabled = enabled;
         this.retentionMonths = retentionMonths;
+        this.sttRetentionMonths = sttRetentionMonths;
     }
 
     @Scheduled(fixedDelayString = "${hub.data-retention-interval-ms:86400000}",
@@ -64,5 +75,9 @@ public class DataRetentionService {
 
         int archivedVersionsCleared = documents.purgeArchivedContentOlderThan(cutoff);
         if (archivedVersionsCleared > 0) log.info("Data retention cleanup cleared content for {} archived document version(s) before {}", archivedVersionsCleared, cutoff);
+
+        LocalDate sttCutoff = LocalDate.now().minusMonths(Math.max(1, sttRetentionMonths));
+        int meetingsCleared = meetings.purgeTranscriptsOlderThan(sttCutoff);
+        if (meetingsCleared > 0) log.info("Data retention cleanup cleared STT transcript text for {} meeting(s) before {}", meetingsCleared, sttCutoff);
     }
 }

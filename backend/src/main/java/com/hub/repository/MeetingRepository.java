@@ -74,4 +74,24 @@ public class MeetingRepository {
     public void lockMeeting(long meetingId) { jdbc.queryForObject("SELECT id FROM meeting WHERE id=? FOR UPDATE", Long.class, meetingId); }
     public String transcript(long meetingId) { return jdbc.queryForObject("SELECT transcript_text FROM meeting WHERE id=?", String.class, meetingId); }
     public long projectId(long meetingId) { return jdbc.queryForObject("SELECT project_id FROM meeting WHERE id=?", Long.class, meetingId); }
+
+    private static final String STT_RETENTION_PLACEHOLDER = "[보관 기간이 지나 원문 음성 인식 결과가 정리되었습니다]";
+
+    /**
+     * The raw STT transcript/segments are only ever read as an AI analysis input and as the grounding
+     * source at evidence-creation time - every already-confirmed evidence quote keeps its own separate
+     * copy in evidence.evidence_text, so clearing old transcript text here never breaks "근거 보기".
+     * Meeting/transcript_segment rows stay (evidence.transcript_segment_id still resolves), only the
+     * text itself is cleared. Idempotent: already-cleared rows are skipped on later runs.
+     */
+    public int purgeTranscriptsOlderThan(LocalDate cutoff) {
+        java.sql.Date cutoffDate = java.sql.Date.valueOf(cutoff);
+        jdbc.update("""
+                UPDATE transcript_segment SET text=?
+                WHERE text<>? AND meeting_id IN (SELECT id FROM meeting WHERE created_at<?)
+                """, STT_RETENTION_PLACEHOLDER, STT_RETENTION_PLACEHOLDER, cutoffDate);
+        return jdbc.update(
+                "UPDATE meeting SET transcript_text=? WHERE created_at<? AND transcript_text IS NOT NULL AND transcript_text<>?",
+                STT_RETENTION_PLACEHOLDER, cutoffDate, STT_RETENTION_PLACEHOLDER);
+    }
 }
