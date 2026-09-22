@@ -90,6 +90,18 @@ public class DocumentController {
         return body;
     }
 
+    public record ReviseDraftRequest(Long meetingDocumentId) {}
+
+    /** Read-only: proposes a revision but saves nothing. The caller edits the draft and saves it via
+     * PUT /{documentId} (editManual) like any other manual edit. */
+    @PostMapping("/{documentId}/revise-draft")
+    public Map<String,Object> reviseDraft(@PathVariable long projectId, @PathVariable long documentId,
+                                          @RequestBody ReviseDraftRequest request, Authentication auth) {
+        User user = current.requireOperational(auth); access.requireAccess(projectId, user);
+        String revisedText = documents.reviseDraftFromMeeting(projectId, documentId, request.meetingDocumentId());
+        return Map.of("revisedText", revisedText);
+    }
+
     @PostMapping("/{versionId}/analyze")
     public ResponseEntity<Map<String,Object>> analyze(@PathVariable long projectId, @PathVariable long versionId,
                                                        @RequestParam(required = false) LocalDate sourceDate, Authentication auth) {

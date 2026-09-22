@@ -39,6 +39,12 @@ export const documentsApi = {
   editManual: (projectId: number, documentId: number, title: string, text: string) =>
     apiPut<UploadResult>(`/api/projects/${projectId}/documents/${documentId}`, { title, text }),
 
+  /** Read-only: proposes a revision from a meeting-transcript document, saves nothing. */
+  reviseDraft: (projectId: number, documentId: number, meetingDocumentId: number) =>
+    apiPost<{ revisedText: string }>(`/api/projects/${projectId}/documents/${documentId}/revise-draft`, {
+      meetingDocumentId,
+    }),
+
   analyze: (projectId: number, versionId: number, sourceDate?: string) =>
     apiPost<UploadResult>(
       `/api/projects/${projectId}/documents/${versionId}/analyze${sourceDate ? `?sourceDate=${sourceDate}` : ''}`,

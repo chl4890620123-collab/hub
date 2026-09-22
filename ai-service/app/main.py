@@ -11,6 +11,7 @@ from app.providers.speech import create_speech_provider
 from app.services.analyzer import Analyzer
 from app.services.rag import RagService
 from app.services.change import ChangeService
+from app.services.revise import ReviseService
 from app.services.embedding import EmbeddingService
 
 gemini = GeminiProvider()
@@ -20,6 +21,7 @@ embedding = EmbeddingService()
 analyzer = Analyzer(gemini)
 rag = RagService(gemini)
 changes = ChangeService(gemini)
+reviser = ReviseService(gemini)
 
 
 @asynccontextmanager
@@ -70,6 +72,14 @@ async def rag_answer(req: RagRequest):
 async def change(req: ChangeRequest):
     try:
         return await changes.compare(req.before, req.after)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.post("/api/v1/revise", response_model=ReviseResponse)
+async def revise(req: ReviseRequest):
+    try:
+        return await reviser.revise(req)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

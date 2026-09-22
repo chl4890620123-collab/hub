@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { GitCompare, Trash2, Upload } from 'lucide-react';
+import { GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { JobStatusPanel } from '@/components/feedback/JobStatusPanel';
 import { VersionCompareDialog } from '@/features/documents/VersionCompareDialog';
+import { ReviseFromMeetingDialog } from '@/features/documents/ReviseFromMeetingDialog';
+import type { DocumentRow } from '@/api/types';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useIsAdmin } from '@/hooks/useAuth';
 import { documentsApi } from '@/api/endpoints/documents';
@@ -97,6 +99,7 @@ export function DocumentsPage() {
   const queryClient = useQueryClient();
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [compareDocId, setCompareDocId] = useState<number | null>(null);
+  const [revising, setRevising] = useState<DocumentRow | null>(null);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents', currentProject?.id],
@@ -151,6 +154,11 @@ export function DocumentsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {doc.archived && <Badge variant="outline">보관됨</Badge>}
+                    {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
+                      <Button variant="ghost" size="sm" onClick={() => setRevising(doc)}>
+                        <Sparkles size={13} /> 회의 내용으로 수정
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => setCompareDocId(doc.id)}>
                       <GitCompare size={13} /> 버전 비교
                     </Button>
@@ -172,6 +180,15 @@ export function DocumentsPage() {
         projectId={currentProject.id}
         open={compareDocId != null}
         onOpenChange={(open) => !open && setCompareDocId(null)}
+      />
+
+      <ReviseFromMeetingDialog
+        projectId={currentProject.id}
+        document={revising}
+        meetingDocuments={(documents ?? []).filter((d) => d.source_type === 'MEETING_TRANSCRIPT')}
+        open={revising != null}
+        onOpenChange={(open) => !open && setRevising(null)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['documents', currentProject.id] })}
       />
     </div>
   );

@@ -69,6 +69,15 @@ class ChangeResponse(BaseModel):
     changes: list[ChangeItem] = Field(default_factory=list)
 
 
+class ReviseRequest(BaseModel):
+    original_text: str = Field(min_length=1)
+    meeting_text: str = Field(min_length=1)
+
+
+class ReviseResponse(BaseModel):
+    revised_text: str
+
+
 class EmbedRequest(BaseModel):
     texts: list[str] = Field(min_length=1, max_length=128)
     input_type: Literal["query", "passage"] = "passage"

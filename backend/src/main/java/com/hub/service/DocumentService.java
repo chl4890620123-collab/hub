@@ -129,6 +129,31 @@ public class DocumentService {
         documents.updateSummary(versionId, UnicodeText.nfc(summary == null ? "" : summary));
     }
 
+    /**
+     * Proposes a revised version of a manually-entered document, grounded in another document that is
+     * itself a meeting transcript (see importMeetingTranscript) - nothing is saved yet. The caller edits
+     * the draft further and saves it through the existing manualEdit(), which is what actually creates
+     * the new version; the existing 두 문서의 달라진 내용 비교 (version compare) feature then shows the diff
+     * against the original with no extra plumbing.
+     */
+    public String reviseDraftFromMeeting(long projectId, long documentId, Long meetingDocumentId) {
+        var meta = documents.findMeta(documentId).filter(m -> m.projectId() == projectId)
+                .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        if (!"MANUAL_TEXT".equals(meta.sourceType()))
+            throw new IllegalArgumentException("직접 입력한 자료만 회의 내용으로 수정할 수 있습니다.");
+        if (meetingDocumentId == null) throw new IllegalArgumentException("참고할 회의 기록을 선택해 주세요.");
+        var meetingMeta = documents.findMeta(meetingDocumentId).filter(m -> m.projectId() == projectId)
+                .orElseThrow(() -> new IllegalArgumentException("회의 기록을 찾을 수 없습니다."));
+        if (!"MEETING_TRANSCRIPT".equals(meetingMeta.sourceType()))
+            throw new IllegalArgumentException("회의 녹음 기록만 참고 자료로 선택할 수 있습니다.");
+
+        String originalText = documents.versionText(documents.latestVersion(documentId)
+                .orElseThrow(() -> new IllegalStateException("자료 버전을 찾을 수 없습니다.")).id());
+        String meetingText = documents.versionText(documents.latestVersion(meetingDocumentId)
+                .orElseThrow(() -> new IllegalStateException("회의 기록 버전을 찾을 수 없습니다.")).id());
+        return ai.revise(originalText, meetingText).revisedText();
+    }
+
     public long importExternalText(long projectId,
                                    String sourceType,
                                    String sourceIdentifier,

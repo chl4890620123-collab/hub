@@ -66,6 +66,15 @@ public class AiClient {
                 .body(AiDtos.ChangeResponse.class));
     }
 
+    public AiDtos.ReviseResponse revise(String originalText, String meetingText) {
+        return call(() -> client.post()
+                .uri("/api/v1/revise")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("original_text", originalText, "meeting_text", meetingText))
+                .retrieve()
+                .body(AiDtos.ReviseResponse.class));
+    }
+
     public String ocr(String filename, String contentType, byte[] data) {
         Map<?, ?> response = upload("/api/v1/ocr", filename, contentType, data, Map.class);
         Object text = response == null ? null : response.get("text");

@@ -32,6 +32,7 @@ public final class AiDtos {
     public record RagResponse(String answer, List<RagEvidence> evidence) {}
     public record ChangeItem(String category, String before, String after, String reason) {}
     public record ChangeResponse(List<ChangeItem> changes) {}
+    public record ReviseResponse(String revisedText) {}
     public record SttResponse(String text, List<SttSegment> segments) {}
     public record EmbedResponse(String model, int dimensions, List<List<Float>> vectors) {}
     public record SttSegment(@JsonAlias("start_ms") Long startMs, @JsonAlias("end_ms") Long endMs,
