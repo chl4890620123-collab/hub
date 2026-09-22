@@ -19,7 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class GoogleOAuthService {
     // "email" is requested so the screen can name the Google account that was linked, not just say "connected".
-    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly email";
+    // calendar.events (not the broader "calendar" scope) is enough to create/update/delete the events Hub
+    // itself makes for a todo's due date, without also granting read/write access to the rest of the
+    // account's calendar. Anyone who linked Google before this scope was added must reconnect once for
+    // calendar sync to start working - GoogleCalendarService treats the resulting 403 as "not linked".
+    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events email";
     private final HubProperties props;
     private final GoogleAccessTokenProvider tokens;
     private final RestClient client;

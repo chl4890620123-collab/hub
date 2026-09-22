@@ -69,6 +69,9 @@ export interface TodoItem {
   duplicateReason: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Set once confirming this todo (with a due date) created a matching event on the assignee's own
+   * Google Calendar - null if never synced (no due date, assignee hasn't linked Google, or scope). */
+  googleCalendarEventId: string | null;
 }
 
 /** decision_candidate row - GET pending/review endpoints. snake_case DB projection. */

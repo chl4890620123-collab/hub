@@ -27,5 +27,6 @@ public record TodoItem(
         Long possibleDuplicateOfId,
         String duplicateReason,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String googleCalendarEventId
 ) {}

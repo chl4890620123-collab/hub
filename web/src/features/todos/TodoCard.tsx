@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { CalendarCheck, FileText } from 'lucide-react';
 import type { TodoItem } from '@/api/types';
 import { StatusCycleButton } from '@/features/todos/StatusCycleButton';
 import { formatDate } from '@/lib/format';
@@ -27,6 +27,11 @@ export function TodoCard({
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-400">
         <span>{todo.assigneeText ?? '담당자 미정'}</span>
         <span>· {formatDate(todo.dueDate)}</span>
+        {todo.googleCalendarEventId && (
+          <span className="flex items-center gap-1 text-accent-600" title="담당자의 구글 캘린더에 등록됨">
+            <CalendarCheck size={12} /> 캘린더
+          </span>
+        )}
         <button onClick={onShowEvidence} className="ml-auto flex items-center gap-1 text-accent-600 hover:underline">
           <FileText size={12} /> 근거
         </button>

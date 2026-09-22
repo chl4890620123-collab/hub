@@ -16,9 +16,10 @@ import java.util.List;
 public class TodoService {
     private final TodoRepository todos;private final FeedbackRepository feedback;private final RevisionRepository revisions;
     private final TimelineRepository timeline;private final ProjectRepository projects;private final UserRepository users;private final EvidenceRepository evidence;private final ObjectMapper json;
+    private final GoogleCalendarService calendar;
     public TodoService(TodoRepository todos,FeedbackRepository feedback,RevisionRepository revisions,TimelineRepository timeline,
-                       ProjectRepository projects,UserRepository users,EvidenceRepository evidence,ObjectMapper json){
-        this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;}
+                       ProjectRepository projects,UserRepository users,EvidenceRepository evidence,ObjectMapper json,GoogleCalendarService calendar){
+        this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;this.calendar=calendar;}
     public List<TodoItem> month(long projectId,int year,int month){LocalDate from=LocalDate.of(year,month,1);return todos.listMonth(projectId,from,from.plusMonths(1));}
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
     public List<TodoItem> pending(long projectId){return todos.pending(projectId);}
@@ -35,6 +36,10 @@ public class TodoService {
         }
         long id=todos.createConfirmed(projectId,versionId,title.trim(),assigneeId,assigneeText,dueDate,actor.id());
         timeline.append(projectId,"TODO_CREATED",title.trim(),null,LocalDateTime.now(),"TODO",id);
+        if(assigneeId!=null&&dueDate!=null){
+            String eventId=calendar.createEvent(assigneeId,title.trim(),null,dueDate);
+            if(eventId!=null)todos.setCalendarEventId(id,eventId);
+        }
         return id;
     }
 
@@ -51,6 +56,10 @@ public class TodoService {
         if(before.dueDateSuggestion()!=null&&!before.dueDateSuggestion().equals(dueDate))feedback.add(before.projectId(),"TODO",before.id(),"due_date",before.dueDateSuggestion().toString(),String.valueOf(dueDate),"DUE_DATE_CORRECTION",actor.id());
         if(before.assigneeText()!=null&&!before.assigneeText().isBlank()&&!before.assigneeText().equals(confirmedAssignee))feedback.add(before.projectId(),"TODO",before.id(),"assignee",before.assigneeText(),confirmedAssignee,"ASSIGNEE_CORRECTION",actor.id());
         timeline.append(before.projectId(),"TODO_CONFIRMED",before.title(),null,LocalDateTime.now(),"TODO",before.id());
+        if(dueDate!=null){
+            String eventId=calendar.createEvent(assigneeId,before.title(),before.description(),dueDate);
+            if(eventId!=null)todos.setCalendarEventId(before.id(),eventId);
+        }
     }
 
     @Transactional
@@ -111,5 +120,9 @@ public class TodoService {
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"STATUS_CHANGE",json.writeValueAsString(before),"{\"taskStatus\":\""+status+"\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),status,LocalDateTime.now(),"TODO",before.id());
+        if("DONE".equals(status)&&before.googleCalendarEventId()!=null&&before.assigneeId()!=null){
+            calendar.deleteEvent(before.assigneeId(),before.googleCalendarEventId());
+            todos.setCalendarEventId(before.id(),null);
+        }
     }
 }

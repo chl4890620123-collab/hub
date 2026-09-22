@@ -17,9 +17,14 @@ import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 import { mockMode } from '@/api/mockApi';
 
-const PROVIDERS: { type: ConnectorType; label: string; icon: typeof Github }[] = [
+const PROVIDERS: { type: ConnectorType; label: string; icon: typeof Github; note?: string }[] = [
   { type: 'GITHUB', label: 'GitHub', icon: Github },
-  { type: 'GOOGLE_DRIVE', label: 'Google Drive', icon: HardDrive },
+  {
+    type: 'GOOGLE_DRIVE',
+    label: 'Google Drive',
+    icon: HardDrive,
+    note: '같은 연결로 할 일에 기한을 정하면 내 구글 캘린더에도 자동으로 등록됩니다.',
+  },
   { type: 'SLACK', label: 'Slack', icon: MessageSquare },
   { type: 'NOTION', label: 'Notion', icon: NotebookText },
 ];
@@ -75,6 +80,7 @@ export function ConnectorsPage() {
                 <p className="text-xs text-ink-400">
                   {state?.lastSyncedAt ? `마지막 동기화: ${formatDateTime(state.lastSyncedAt)}` : '아직 가져온 자료가 없습니다.'}
                 </p>
+                {provider.note && <p className="text-xs text-ink-400">{provider.note}</p>}
                 <div className="flex gap-2">
                   {mockMode ? (
                     <Button
