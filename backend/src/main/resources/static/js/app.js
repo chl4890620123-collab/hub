@@ -19,7 +19,7 @@ async function refreshSession(){
  refreshInFlight=(async()=>{try{const r=await fetch('/api/auth/refresh',{method:'POST',headers:headers(false)});return r.ok;}finally{refreshInFlight=null;}})();
  return refreshInFlight;
 }
-async function api(url,opts={}){const retry=Boolean(opts._retried),request={...opts};delete request._retried;const method=(request.method||'GET').toUpperCase(),isForm=request.body instanceof FormData;if(method==='GET')request.cache='no-store';if(method!=='GET'&&method!=='HEAD')request.headers={...(request.headers||{}),...headers(!isForm&&request.body!==undefined)};const r=await fetch(url,request);if(r.status===401&&!retry&&!url.startsWith('/api/auth/')){if(await refreshSession())return api(url,{...opts,_retried:true});location.replace('/login');throw new Error('로그인이 필요합니다.');}if(!r.ok){const type=r.headers.get('content-type')||'';if(type.includes('json')){const body=await r.json();throw new Error(body.message||body.error||`HTTP ${r.status}`);}throw new Error((await r.text())||`HTTP ${r.status}`);}const type=r.headers.get('content-type')||'';return type.includes('json')?r.json():r.text();}
+async function api(url,opts={}){const retry=Boolean(opts._retried),request={...opts};delete request._retried;const method=(request.method||'GET').toUpperCase(),isForm=request.body instanceof FormData;if(method==='GET')request.cache='no-store';if(method!=='GET'&&method!=='HEAD')request.headers={...(request.headers||{}),...headers(!isForm&&request.body!==undefined)};const r=await fetch(url,request);if(r.status===401&&!retry&&!url.startsWith('/api/auth/')){if(await refreshSession())return api(url,{...opts,_retried:true});location.replace('/login');throw new Error('로그인이 필요합니다.');}if(!r.ok){const type=r.headers.get('content-type')||'';if(type.includes('json')){const body=await r.json();const e=new Error(body.message||body.error||`HTTP ${r.status}`);e.status=r.status;e.code=body.error;e.hint=body.hint;throw e;}const e=new Error((await r.text())||`HTTP ${r.status}`);e.status=r.status;throw e;}const type=r.headers.get('content-type')||'';return type.includes('json')?r.json():r.text();}
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function renderJobStatus(job,label){const root=document.getElementById('jobStatusPanel');if(!root)return;root.hidden=false;root.replaceChildren(el('strong','',label||'AI가 자료를 확인하고 있습니다'),el('span','muted',` ${jobStatusLabel(job.status)} · ${job.progress||0}%`));if(job.errorMessage)root.appendChild(el('div','notice',`처리 중 문제가 생겼습니다. ${job.errorMessage}`));}
@@ -28,6 +28,8 @@ async function waitForJob(jobId,label){const job=await pollJob(jobId,label);if(!
 async function waitForRawJob(jobId,label){const job=await pollJob(jobId,label);if(!job.resultJson)return null;try{return JSON.parse(job.resultJson);}catch{return null;}}
 function flash(msg,ok=true){const x=document.getElementById('flash');x.hidden=false;x.textContent=msg;x.style.background=ok?'#eaf7ed':'#fdecec';x.style.color=ok?'#176a2f':'#9a1f1f';setTimeout(()=>x.hidden=true,4500);}
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function icon(name,cls='ui-icon'){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class',cls);const use=document.createElementNS('http://www.w3.org/2000/svg','use');use.setAttribute('href','#'+name);svg.appendChild(use);return svg;}
+function iconText(name,text,tag='span',cls){const wrap=el(tag,(cls?cls+' ':'')+'icon-inline');wrap.appendChild(icon(name));wrap.appendChild(document.createTextNode(text));return wrap;}
 function value(row,key){if(row==null)return null;return row[key]??row[key.toUpperCase()]??row[key.toLowerCase()];}
 function safe(v){return v==null?'':String(v);}
 function jobStatusLabel(status){return {PENDING:'준비 중',RUNNING:'처리 중',SUCCESS:'완료',FAILED:'처리 실패'}[status]||'처리 중';}
@@ -81,7 +83,7 @@ function viewAllowed(name){if(!document.getElementById(`view-${name}`))return fa
 function preferredInitialView(){const saved=sessionStorage.getItem('hub.lastView');if(saved&&viewAllowed(saved))return saved;return 'dashboard';}
 function setProjectAvailability(available){const onboarding=document.getElementById('emptyProjectOnboarding');if(!onboarding)return;if(available){onboarding.hidden=true;document.querySelectorAll('.project-required').forEach(x=>x.removeAttribute('disabled'));return;}onboarding.hidden=false;const admin=currentUser?.globalRole==='ADMIN';document.getElementById('emptyProjectTitle').textContent=admin?'첫 프로젝트를 만들어 주세요':'프로젝트 배정을 기다리고 있습니다';document.getElementById('emptyProjectMessage').textContent=admin?'프로젝트를 만든 뒤 문서, 회의, 연결 서비스를 사용할 수 있습니다.':'관리자가 프로젝트를 만든 뒤 배정하면 문서, 회의, 검색 기능을 사용할 수 있습니다.';document.getElementById('emptyProjectCreate').hidden=!admin;document.querySelectorAll('.project-required').forEach(x=>x.setAttribute('disabled','disabled'));}
 function requireCurrentProject(){if(currentProject)return true;flash(currentUser?.globalRole==='ADMIN'?'먼저 프로젝트를 만들어 주세요.':'아직 배정된 프로젝트가 없습니다. 관리자에게 요청해 주세요.',false);return false;}
-function switchView(name){const target=viewAllowed(name)?name:'dashboard';if(target==='connectors')setTimeout(()=>void refreshConnectorStates(),0);document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view===target));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${target}`));sessionStorage.setItem('hub.lastView',target);if(target==='admin')loadAdmin();}
+function switchView(name){const target=viewAllowed(name)?name:'dashboard';if(target==='connectors')setTimeout(()=>void refreshConnectorStates(),0);if(target==='sheets')setTimeout(()=>void loadSheetsView(),0);document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view===target));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${target}`));sessionStorage.setItem('hub.lastView',target);if(target==='admin')loadAdmin();}
 
 const CONNECTOR_LABELS={GOOGLE_DRIVE:'Google Drive',GITHUB:'GitHub',SLACK:'Slack',NOTION:'Notion',EXTERNAL:'연결 서비스'};
 /** Admin-off connector types stay hidden from the connectors screen entirely, not just blocked server-side. */
@@ -150,13 +152,14 @@ function renderConnectorLink(form,type,data){
  * instead of scanning a flat <select> - a repo/folder/channel/page reads much more like a place to open. */
 async function openConnectorBrowser(form){
  if(!form||!requireCurrentProject())return;
- const type=form.dataset.type,icon=form.dataset.icon||'📁',noun=form.dataset.noun||'항목';
+ const type=form.dataset.type,iconKey=form.dataset.icon||'i-folder',noun=form.dataset.noun||'항목';
  const scopeInput=form.querySelector('.connector-scope-value');
  const dialog=document.createElement('dialog');dialog.className='connector-browser-dialog';
  const head=el('div','connector-browser-head');
- head.append(el('span','connector-browser-icon',icon),el('strong','',`${connectorName(type)} ${noun} 찾아보기`));
- const refreshBtn=el('button','ghost compact-button','🔄 새로고침');refreshBtn.type='button';
- const closeBtn=el('button','ghost compact-button','✕');closeBtn.type='button';
+ const headIcon=el('span','connector-browser-icon');headIcon.appendChild(icon(iconKey));
+ head.append(headIcon,el('strong','',`${connectorName(type)} ${noun} 찾아보기`));
+ const refreshBtn=el('button','ghost compact-button','새로고침');refreshBtn.type='button';
+ const closeBtn=el('button','ghost compact-button','닫기');closeBtn.type='button';
  head.append(refreshBtn,closeBtn);
  const body=el('div','connector-browser-body');
  dialog.append(head,body);
@@ -175,12 +178,13 @@ async function openConnectorBrowser(form){
    if(!list.length){body.appendChild(el('div','connector-browser-empty',`찾아볼 수 있는 ${noun}이(가) 없습니다.`));return;}
    list.forEach(t=>{
     const row=el('div','connector-browser-row');
-    row.append(el('span','connector-browser-row-icon',icon));
+    const rowIcon=el('span','connector-browser-row-icon');rowIcon.appendChild(icon(iconKey));
+    row.append(rowIcon);
     const text=el('span','connector-browser-row-text');
     text.append(el('strong','',t.name));if(t.description)text.append(el('small','',t.description));
     row.appendChild(text);
     const choose=el('button','ghost compact-button','선택');choose.type='button';
-    choose.onclick=()=>{scopeInput.value=t.id;const browseBtn=form.querySelector('.connector-browse-btn');if(browseBtn)browseBtn.textContent=`${icon} ${t.name}`;dialog.close();};
+    choose.onclick=()=>{scopeInput.value=t.id;const browseBtn=form.querySelector('.connector-browse-btn');if(browseBtn)browseBtn.replaceChildren(icon(iconKey),document.createTextNode(t.name));dialog.close();};
     row.appendChild(choose);
     if(isSafeExternalUrl(t.url)){
       const open=el('a','ghost compact-button','열기 ↗');open.href=t.url;open.target='_blank';open.rel='noopener noreferrer';
@@ -197,7 +201,7 @@ async function openConnectorBrowser(form){
 async function init(){
  currentUser=await api('/api/me');document.getElementById('meName').textContent=currentUser.displayName;
  document.body.classList.remove('auth-loading');const authLoading=document.getElementById('authLoadingScreen');if(authLoading)authLoading.hidden=true;
- bindNav();bindForms();
+ bindNav();bindForms();bindDashboardRail();bindSheetForms();
  document.getElementById('profileCompanyName').value=currentUser.companyName||'';document.getElementById('profileDepartmentName').value=currentUser.departmentName||'';document.getElementById('profileTeamName').value=currentUser.teamName||'';document.getElementById('profileJobTitle').value=currentUser.jobTitle||'';
  const accountLoginId=document.getElementById('accountLoginId'),accountEmail=document.getElementById('accountEmail'),accountRole=document.getElementById('accountRole'),accountStatus=document.getElementById('accountStatus');
  if(accountLoginId)accountLoginId.textContent=currentUser.loginId||'-';if(accountEmail)accountEmail.textContent=currentUser.email||'-';if(accountRole)accountRole.textContent=currentUser.globalRole==='ADMIN'?'관리자':'팀원';if(accountStatus)accountStatus.textContent=accountStatusLabel(currentUser.accountStatus);
@@ -206,7 +210,7 @@ async function init(){
  // under it; left unconditional, a general user sees an empty violet-highlighted admin heading.
  const adminGroupLabel=document.querySelector('.nav-group-label-admin');
  await applyConnectorPolicy();
- if(currentUser.globalRole==='ADMIN'){document.getElementById('adminNav').hidden=false;document.getElementById('newProjectBtn').hidden=false;document.getElementById('renameProjectBtn').hidden=false;if(adminGroupLabel)adminGroupLabel.hidden=false;const dashOverview=document.getElementById('dashboardAdminOverview');if(dashOverview)dashOverview.hidden=false;const dashLink=document.getElementById('dashboardAdminLink');if(dashLink)dashLink.hidden=false;}else{document.getElementById('newProjectBtn').hidden=true;document.getElementById('renameProjectBtn').hidden=true;if(adminGroupLabel)adminGroupLabel.hidden=true;}
+ if(currentUser.globalRole==='ADMIN'){document.getElementById('adminNav').hidden=false;document.getElementById('newProjectBtn').hidden=false;document.getElementById('renameProjectBtn').hidden=false;if(adminGroupLabel)adminGroupLabel.hidden=false;const railAdminTab=document.getElementById('railAdminTab');if(railAdminTab)railAdminTab.hidden=false;const railAdminPanel=document.getElementById('railAdminPanel');if(railAdminPanel)railAdminPanel.hidden=false;}else{document.getElementById('newProjectBtn').hidden=true;document.getElementById('renameProjectBtn').hidden=true;if(adminGroupLabel)adminGroupLabel.hidden=true;}
  await loadProjects();setProjectAvailability(Boolean(currentProject));
  // "담당자 배정" used to be admin-only; now anyone holding confirm-permission on at least one of
  // their own projects sees it too (each project's own grant still gates the screen's actual data).
@@ -215,6 +219,18 @@ async function init(){
 }
 async function loadProjects(){projects=await api('/api/projects');const sel=document.getElementById('projectSelect');sel.replaceChildren();projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});const savedProject=Number(sessionStorage.getItem('hub.projectId'));const candidate=projects.some(p=>Number(p.id)===Number(currentProject))?currentProject:(projects.some(p=>Number(p.id)===savedProject)?savedProject:projects[0]?.id||null);currentProject=candidate;sel.value=currentProject||'';if(currentProject)sessionStorage.setItem('hub.projectId',String(currentProject));sel.onchange=async()=>{currentProject=Number(sel.value);sessionStorage.setItem('hub.projectId',String(currentProject));await refreshAll();};}
 function bindNav(){document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>switchView(b.dataset.view));document.querySelectorAll('[data-open-view]').forEach(a=>a.onclick=e=>{e.preventDefault();switchView(a.dataset.openView);});}
+/** Dashboard right rail: quick-input / admin-summary / recent-flow behind one tab bar instead of three
+ * always-visible stacked sections - the same content, just not all competing for attention at once. */
+function bindDashboardRail(){
+ const tabs=[...document.querySelectorAll('.rail-tab')];
+ if(!tabs.length)return;
+ tabs.forEach(tab=>tab.onclick=()=>{
+  if(tab.hidden)return;
+  tabs.forEach(t=>{t.classList.toggle('active',t===tab);t.setAttribute('aria-selected',String(t===tab));});
+  document.querySelectorAll('.rail-panel').forEach(p=>p.classList.toggle('active',p.dataset.railPanel===tab.dataset.rail));
+  if(tab.dataset.rail==='timeline')loadTimeline().catch(()=>{});
+ });
+}
 function bindForms(){
  document.getElementById('emptyProjectCreate').onclick=async()=>{const name=await requestText('첫 프로젝트','프로젝트 이름');if(!name)return;try{await api('/api/projects',{method:'POST',body:JSON.stringify({name,description:''})});await loadProjects();setProjectAvailability(Boolean(currentProject));await refreshAll();flash('첫 프로젝트를 만들었습니다.');}catch(err){flash(errorMessage(err),false);}};
  document.getElementById('logoutBtn').onclick=async()=>{try{await api('/api/auth/logout',{method:'POST'});}finally{location.replace('/login');}};
@@ -407,7 +423,7 @@ function buildTodoCard(t,isAdmin,muted){
  statusBtn.type='button';statusBtn.title='클릭하면 다음 상태로 바뀝니다 (메뉴 없이 계속 눌러 되돌릴 수 있어요)';
  statusBtn.disabled=t.assignmentStatus==='REASSIGNMENT_REQUIRED'||!(isAdmin||(t.reviewStatus==='CONFIRMED'&&Number(t.assigneeId)===Number(currentUser?.id)));
  statusBtn.onclick=async()=>{const next=nextTaskStatus(t.taskStatus);try{await api(`/api/todos/${t.id}/status`,{method:'PATCH',body:JSON.stringify({status:next})});await loadTodos();}catch(err){flash(errorMessage(err),false);}};
- const attachBtn=el('button','ghost compact-button','📎 첨부파일');attachBtn.type='button';
+ const attachBtn=iconText('i-upload','첨부파일','button','ghost compact-button');attachBtn.type='button';
  const attachBox=el('div','todo-attachments');attachBox.hidden=true;
  attachBtn.onclick=async()=>{
   attachBox.hidden=!attachBox.hidden;
@@ -450,7 +466,7 @@ async function renderTodoAttachments(box,todoId){
   const form=document.createElement('form');form.className='row';
   const label=el('label','file-picker compact-file-picker');
   const input=document.createElement('input');input.type='file';input.required=true;
-  label.append(input,el('span','file-picker-btn','📎 파일 선택'),el('span','file-picker-name','선택된 파일이 없습니다.'));
+  label.append(input,iconText('i-upload','파일 선택','span','file-picker-btn'),el('span','file-picker-name','선택된 파일이 없습니다.'));
   bindFilePickerLabel(input);
   const btn=el('button','ghost compact-button','추가');btn.type='submit';
   form.append(label,btn);
@@ -497,7 +513,7 @@ function buildTodoReviewItem(t,opts={}){
  projectMembers.forEach(m=>{const o=document.createElement('option'),id=value(m,'user_id');o.value=id;o.textContent=value(m,'display_name');if(Number(t.assigneeSuggestionId)===Number(id))o.selected=true;assignee.appendChild(o);});
  const due=document.createElement('input');due.type='date';due.value=t.dueDateSuggestion||localDate();
  const confirmBtn=el('button','', '이 사람에게 배정');confirmBtn.onclick=async()=>{if(!assignee.value){flash('업무 확정 전에 실제 팀원을 선택해 주세요.',false);return;}await api(`/api/todos/${t.id}/confirm`,{method:'POST',body:JSON.stringify({assigneeId:Number(assignee.value),dueDate:due.value||null})});flash('담당자와 기한을 정해 할 일을 배정했습니다.');await change();};
- const editBtn=el('button','ghost compact-button','✏️ 수정');editBtn.type='button';editBtn.onclick=async()=>{
+ const editBtn=iconText('i-edit','수정','button','ghost compact-button');editBtn.type='button';editBtn.onclick=async()=>{
   const result=await requestManualEdit(t.title,t.description||'');
   if(!result)return;
   try{await api(`/api/todos/${t.id}`,{method:'PATCH',body:JSON.stringify({title:result.title,description:result.text})});flash('할 일 후보 내용을 수정했습니다.');await change();}catch(err){flash(errorMessage(err),false);}
@@ -614,7 +630,7 @@ async function loadDocuments(){
   const versions=versionsByDoc[docIndex];versions.forEach(v=>versionOptions.push({id:value(v,'id'),label:`${name} · ${value(v,'version_no')}번째 저장본`,documentId:id}));
   if(versions.length){
    const actions=el('div','row document-actions'),latestId=value(versions[0],'id'),detail=el('button','ghost','원문 / 요약 보기');detail.type='button';detail.onclick=()=>openVersion(latestId);actions.append(detail);
-   if(value(d,'source_type')==='MANUAL_TEXT'){const edit=el('button','ghost','✏️ 수정');edit.type='button';edit.onclick=async()=>{
+   if(value(d,'source_type')==='MANUAL_TEXT'){const edit=iconText('i-edit','수정','button','ghost');edit.type='button';edit.onclick=async()=>{
     const current=await api(`/api/versions/${latestId}`);const result=await requestManualEdit(name,value(current,'full_text'));if(!result)return;
     try{flash('수정한 내용을 다시 정리하고 있습니다.');const r=await api(`/api/projects/${currentProject}/documents/${id}`,{method:'PUT',body:JSON.stringify(result)});await waitForJob(r.jobId,'수정 내용 정리');flash('수정한 내용을 반영했습니다.');await refreshAll();}catch(err){flash(errorMessage(err),false);}
    };actions.appendChild(edit);}
@@ -910,7 +926,7 @@ async function handleDocumentUpload(e,resultRoot,title){
 function renderAnalysisResult(root,data,title,editCtx){
  if(!root)return;const normalized=normalizeAnalysis(data);root.replaceChildren();const box=el('div','analysis-result');
  const heading=el('div','row between');heading.appendChild(el('strong','',title));
- if(editCtx?.documentId){const edit=el('button','ghost compact-button','✏️ 내용 수정');edit.type='button';edit.onclick=async()=>{
+ if(editCtx?.documentId){const edit=iconText('i-edit','내용 수정','button','ghost compact-button');edit.type='button';edit.onclick=async()=>{
   const result=await requestManualEdit(editCtx.title,editCtx.text);if(!result)return;
   try{flash('수정한 내용을 다시 정리하고 있습니다.');const d=await api(`/api/projects/${currentProject}/documents/${editCtx.documentId}`,{method:'PUT',body:JSON.stringify(result)});
    const analysis=await waitForJob(d.jobId,'수정 내용 정리');renderAnalysisResult(root,analysis,title,{documentId:editCtx.documentId,title:result.title,text:result.text});
@@ -953,4 +969,244 @@ async function uploadAudioFile(){const input=document.getElementById('audioFileI
 async function analyzeAudioBlob(blob,fileName){
  const state=document.getElementById('recordState');if(state)state.textContent='음성 파일을 올리고 글로 바꾸는 중...' ;const fd=new FormData();fd.append('file',blob,fileName);const title=document.getElementById('meetingTitle')?.value.trim()||'회의';
  try{const d=await api(`/api/projects/${currentProject}/meetings?title=${encodeURIComponent(title)}&meetingAt=${encodeURIComponent(localDateTimeWithOffset())}`,{method:'POST',body:fd});const analysis=await waitForJob(d.jobId,'회의 음성 AI 분석');renderAnalysisResult(document.getElementById('meetingResult'),analysis,'회의 요약');flash('회의 음성 분석을 완료했습니다.');await refreshAll();}catch(e){flash(errorMessage(e),false);}finally{if(state)state.textContent='녹음 또는 음성 파일 분석을 다시 실행할 수 있습니다.';}
+}
+
+// 자료표: an Excel-like CRUD grid per project. Columns/rows are plain add-edit-delete, no formulas -
+// that matches what was actually asked for. currentSheetPassword is kept in memory only (never stored)
+// and resent as a header on every call to a locked sheet's content, since there is no server-side
+// "unlocked" session for this - closing/leaving the page forgets it, same as re-entering a real lock.
+let currentSheet=null,currentSheetPassword=null,currentSheetRows=[];
+function sheetPwHeaders(){return currentSheetPassword?{'X-Sheet-Password':currentSheetPassword}:{};}
+function requestSheetPassword(hint){
+ return operationDialog('비밀번호로 잠긴 표',()=>{
+  const node=el('div','stack');
+  const input=document.createElement('input');input.type='password';input.placeholder='비밀번호';input.autocomplete='current-password';
+  node.appendChild(input);
+  if(hint)node.appendChild(el('p','sheet-unlock-hint',`힌트: ${hint}`));
+  return{node,getValue:()=>input.value||null,focus:()=>input.focus()};
+ });
+}
+function requestSheetSecurity(hasPassword){
+ return operationDialog('보안 설정',()=>{
+  const node=el('div','stack');
+  const current=document.createElement('input');current.type='password';current.placeholder=hasPassword?'현재 비밀번호':'설정된 비밀번호가 없습니다';current.autocomplete='current-password';
+  const next=document.createElement('input');next.type='password';next.placeholder='새 비밀번호 (4자 이상, 비우면 잠금 해제)';next.autocomplete='new-password';
+  const hint=document.createElement('input');hint.placeholder='비밀번호 힌트 (선택)';hint.maxLength=300;
+  node.append(el('small','',hasPassword?'현재 비밀번호를 확인해야 바꿀 수 있습니다.':'표를 잠그려면 새 비밀번호를 입력하세요.'),current,el('small','','새 비밀번호'),next,el('small','','힌트'),hint);
+  return{node,getValue:()=>({currentPassword:current.value||null,newPassword:next.value||null,hint:hint.value||null}),focus:()=>current.focus()};
+ });
+}
+function populateSheetProjectSelects(){
+ ['sheetCreateProject','sheetImportProject'].forEach(id=>{
+  const sel=document.getElementById(id);if(!sel)return;
+  const prior=sel.value;sel.replaceChildren();
+  projects.forEach(p=>{const o=document.createElement('option');o.value=String(p.id);o.textContent=p.name;sel.appendChild(o);});
+  const fallback=String(currentProject||projects[0]?.id||'');
+  sel.value=projects.some(p=>String(p.id)===prior)?prior:fallback;
+ });
+}
+async function loadSheetsView(){
+ populateSheetProjectSelects();
+ const workspace=document.getElementById('sheetWorkspace');if(workspace)workspace.hidden=true;
+ currentSheet=null;currentSheetPassword=null;
+ await loadSheetList();
+}
+async function loadSheetList(){
+ const root=document.getElementById('sheetList');if(!root)return;
+ if(!currentProject){root.replaceChildren(el('div','empty sheet-card-empty','먼저 프로젝트를 선택해 주세요.'));return;}
+ root.replaceChildren(el('div','muted','불러오는 중...'));
+ try{
+  const list=await api(`/api/projects/${currentProject}/sheets`);
+  if(!list.length){root.replaceChildren(el('div','empty sheet-card-empty','아직 만든 자료표가 없습니다. 위에서 새로 만들거나 엑셀 파일을 가져와 보세요.'));return;}
+  root.replaceChildren();
+  list.forEach(s=>{
+   const card=el('div','sheet-card');
+   const title=el('div','sheet-card-title');
+   title.appendChild(icon('i-table'));title.appendChild(document.createTextNode(s.name));
+   if(s.passwordProtected)title.appendChild(icon('i-lock','ui-icon sheet-card-lock'));
+   card.appendChild(title);
+   card.appendChild(el('div','sheet-card-meta',`열 ${s.columns.length}개 · 행 ${s.rowCount}개 · ${String(s.updatedAt||'').slice(0,10)} 업데이트`));
+   const open=el('button','ghost','열기');open.type='button';open.onclick=()=>openSheet(s.id);
+   card.appendChild(open);
+   root.appendChild(card);
+  });
+ }catch(err){root.replaceChildren(el('div','notice',errorMessage(err)));}
+}
+async function openSheet(id,password){
+ try{
+  const data=await api(`/api/sheets/${id}`,{headers:password?{'X-Sheet-Password':password}:{}});
+  currentSheet=data.file;currentSheetRows=data.rows;currentSheetPassword=password||null;
+  renderSheetWorkspace();
+ }catch(err){
+  if(err.code==='SHEET_LOCKED'){
+   const entered=await requestSheetPassword(err.hint);
+   if(entered==null)return;
+   await openSheet(id,entered);
+   return;
+  }
+  flash(errorMessage(err),false);
+ }
+}
+function renderSheetWorkspace(){
+ if(!currentSheet)return;
+ document.getElementById('sheetWorkspace').hidden=false;
+ document.getElementById('sheetTitle').textContent=currentSheet.name;
+ renderSheetTable();
+}
+function renderSheetTable(){
+ const table=document.getElementById('sheetTable');if(!table)return;
+ table.replaceChildren();
+ const thead=document.createElement('thead'),headRow=document.createElement('tr');
+ currentSheet.columns.forEach(col=>{
+  const th=document.createElement('th'),wrap=el('div','sheet-th-row');
+  const labelInput=document.createElement('input');labelInput.className='sheet-th-label';labelInput.value=col.label;labelInput.title='열 이름 (바꾸면 저장됩니다)';
+  labelInput.onblur=()=>{const next=labelInput.value.trim();if(next&&next!==col.label)renameColumn(col.key,next);else labelInput.value=col.label;};
+  const removeBtn=el('button','sheet-th-remove');removeBtn.type='button';removeBtn.title='이 열 삭제';removeBtn.appendChild(icon('i-trash'));
+  removeBtn.onclick=()=>removeColumn(col.key,col.label);
+  wrap.append(labelInput,removeBtn);th.appendChild(wrap);headRow.appendChild(th);
+ });
+ headRow.appendChild(document.createElement('th'));
+ thead.appendChild(headRow);table.appendChild(thead);
+ const tbody=document.createElement('tbody');
+ currentSheetRows.forEach(row=>{
+  const tr=document.createElement('tr');
+  currentSheet.columns.forEach(col=>{
+   const td=document.createElement('td'),input=document.createElement('input');
+   input.className='sheet-cell-input';input.value=row.cells?.[col.key]||'';
+   input.onblur=()=>{const value=input.value;if(value!==(row.cells?.[col.key]||'')){row.cells=row.cells||{};row.cells[col.key]=value;saveSheetRow(row);}};
+   td.appendChild(input);tr.appendChild(td);
+  });
+  const removeTd=document.createElement('td');removeTd.className='sheet-row-remove-cell';
+  const removeBtn=el('button','sheet-row-remove');removeBtn.type='button';removeBtn.title='이 행 삭제';removeBtn.appendChild(icon('i-trash'));
+  removeBtn.onclick=()=>removeSheetRow(row);
+  removeTd.appendChild(removeBtn);tr.appendChild(removeTd);
+  tbody.appendChild(tr);
+ });
+ table.appendChild(tbody);
+}
+async function saveSheetRow(row){
+ try{await api(`/api/sheets/${currentSheet.id}/rows/${row.id}`,{method:'PUT',headers:sheetPwHeaders(),body:JSON.stringify({cells:row.cells})});}
+ catch(err){flash(errorMessage(err),false);}
+}
+async function addSheetRow(){
+ if(!currentSheet)return;
+ const cells={};currentSheet.columns.forEach(c=>cells[c.key]='');
+ try{
+  const row=await api(`/api/sheets/${currentSheet.id}/rows`,{method:'POST',headers:sheetPwHeaders(),body:JSON.stringify({cells})});
+  currentSheetRows.push(row);renderSheetTable();
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function removeSheetRow(row){
+ if(!confirm('이 행을 삭제할까요?'))return;
+ try{
+  await api(`/api/sheets/${currentSheet.id}/rows/${row.id}`,{method:'DELETE',headers:sheetPwHeaders()});
+  currentSheetRows=currentSheetRows.filter(r=>r.id!==row.id);renderSheetTable();
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function renameColumn(key,newLabel){
+ const columns=currentSheet.columns.map(c=>c.key===key?newLabel:c.label);
+ try{
+  await api(`/api/sheets/${currentSheet.id}/columns`,{method:'PUT',headers:sheetPwHeaders(),body:JSON.stringify({columns})});
+  await openSheet(currentSheet.id,currentSheetPassword);
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function removeColumn(key,label){
+ if(currentSheet.columns.length<=1){flash('열은 최소 1개는 있어야 합니다.',false);return;}
+ if(!confirm(`'${label}' 열을 삭제할까요?\n이 열에 입력된 값도 함께 사라집니다.`))return;
+ const columns=currentSheet.columns.filter(c=>c.key!==key).map(c=>c.label);
+ try{
+  await api(`/api/sheets/${currentSheet.id}/columns`,{method:'PUT',headers:sheetPwHeaders(),body:JSON.stringify({columns})});
+  await openSheet(currentSheet.id,currentSheetPassword);
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function addSheetColumn(){
+ if(!currentSheet)return;
+ const label=await requestText('새 열 이름','예: 담당자');
+ if(!label)return;
+ const columns=[...currentSheet.columns.map(c=>c.label),label];
+ try{
+  await api(`/api/sheets/${currentSheet.id}/columns`,{method:'PUT',headers:sheetPwHeaders(),body:JSON.stringify({columns})});
+  await openSheet(currentSheet.id,currentSheetPassword);
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function editSheetSecurity(){
+ if(!currentSheet)return;
+ const result=await requestSheetSecurity(currentSheet.passwordProtected);
+ if(!result)return;
+ try{
+  await api(`/api/sheets/${currentSheet.id}/security`,{method:'PUT',body:JSON.stringify(result)});
+  currentSheetPassword=result.newPassword||null;
+  flash(result.newPassword?'비밀번호를 설정했습니다.':'비밀번호 잠금을 해제했습니다.');
+  await openSheet(currentSheet.id,currentSheetPassword);
+  await loadSheetList();
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function exportSheet(){
+ if(!currentSheet)return;
+ try{
+  const r=await fetch(`/api/sheets/${currentSheet.id}/export`,{headers:sheetPwHeaders()});
+  if(!r.ok){const body=await r.json().catch(()=>({}));throw new Error(body.message||'내보내기에 실패했습니다.');}
+  const blob=await r.blob(),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`${currentSheet.name}.xlsx`;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }catch(err){flash(errorMessage(err),false);}
+}
+async function deleteSheet(){
+ if(!currentSheet)return;
+ if(!confirm(`'${currentSheet.name}' 표를 삭제할까요?\n삭제하면 되돌릴 수 없습니다.`))return;
+ try{
+  await api(`/api/sheets/${currentSheet.id}`,{method:'DELETE',headers:sheetPwHeaders()});
+  flash('자료표를 삭제했습니다.');
+  currentSheet=null;currentSheetPassword=null;
+  document.getElementById('sheetWorkspace').hidden=true;
+  await loadSheetList();
+ }catch(err){flash(errorMessage(err),false);}
+}
+function bindSheetForms(){
+ const createForm=document.getElementById('sheetCreateForm');
+ if(createForm)createForm.onsubmit=async e=>{
+  e.preventDefault();
+  const f=new FormData(e.target),projectId=Number(f.get('projectId'));
+  const columns=String(f.get('columns')||'').split(',').map(s=>s.trim()).filter(Boolean);
+  if(!projectId){flash('저장할 프로젝트를 선택해 주세요.',false);return;}
+  if(!columns.length){flash('열 이름을 하나 이상 입력해 주세요.',false);return;}
+  const password=f.get('password')||null;
+  try{
+   const r=await api(`/api/projects/${projectId}/sheets`,{method:'POST',body:JSON.stringify({name:f.get('name'),columns,password,hint:f.get('hint')||null})});
+   e.target.reset();
+   const sameProject=projectId===Number(currentProject);
+   flash(sameProject?'자료표를 만들었습니다.':'다른 프로젝트에 자료표를 만들었습니다.');
+   if(sameProject){await loadSheetList();await openSheet(r.id,password);}
+  }catch(err){flash(errorMessage(err),false);}
+ };
+ const importForm=document.getElementById('sheetImportForm');
+ if(importForm)importForm.onsubmit=async e=>{
+  e.preventDefault();
+  const form=e.target,f=new FormData(form),projectId=Number(f.get('projectId')),file=f.get('file');
+  if(!projectId){flash('저장할 프로젝트를 선택해 주세요.',false);return;}
+  if(!file||!file.size){flash('가져올 엑셀 파일을 선택해 주세요.',false);return;}
+  const password=f.get('password')||'';
+  try{
+   validateClientFile(file,30*1024*1024,'엑셀 파일');
+   flash('엑셀 파일을 가져오는 중입니다.');
+   const params=new URLSearchParams();
+   if(f.get('name'))params.set('name',f.get('name'));
+   if(password)params.set('password',password);
+   if(f.get('hint'))params.set('hint',f.get('hint'));
+   const fd=new FormData();fd.append('file',file);
+   const r=await api(`/api/projects/${projectId}/sheets/import?${params.toString()}`,{method:'POST',body:fd});
+   form.reset();
+   const nameLabel=form.querySelector('.file-picker-name');if(nameLabel)nameLabel.textContent='선택된 파일이 없습니다.';
+   const sameProject=projectId===Number(currentProject);
+   flash(sameProject?'엑셀 파일을 가져왔습니다.':'다른 프로젝트로 엑셀 파일을 가져왔습니다.');
+   if(sameProject){await loadSheetList();await openSheet(r.id,password||null);}
+  }catch(err){flash(errorMessage(err),false);}
+ };
+ const backBtn=document.getElementById('sheetBackBtn');
+ if(backBtn)backBtn.onclick=async()=>{document.getElementById('sheetWorkspace').hidden=true;currentSheet=null;currentSheetPassword=null;await loadSheetList();};
+ const addColBtn=document.getElementById('sheetAddColumnBtn');if(addColBtn)addColBtn.onclick=addSheetColumn;
+ const addRowBtn=document.getElementById('sheetAddRowBtn');if(addRowBtn)addRowBtn.onclick=addSheetRow;
+ const securityBtn=document.getElementById('sheetSecurityBtn');if(securityBtn)securityBtn.onclick=editSheetSecurity;
+ const exportBtn=document.getElementById('sheetExportBtn');if(exportBtn)exportBtn.onclick=exportSheet;
+ const deleteBtn=document.getElementById('sheetDeleteBtn');if(deleteBtn)deleteBtn.onclick=deleteSheet;
 }

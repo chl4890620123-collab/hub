@@ -1,6 +1,7 @@
 package com.hub.controller;
 
 import com.hub.service.AuthException;
+import com.hub.service.SheetLockedException;
 import com.hub.service.StateConflictException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -48,6 +49,14 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, Object> notFound(EmptyResultDataAccessException ignored) {
         return error("NOT_FOUND", "요청한 데이터를 찾을 수 없습니다.");
+    }
+
+    @ExceptionHandler(SheetLockedException.class)
+    @ResponseStatus(HttpStatus.LOCKED)
+    public Map<String, Object> sheetLocked(SheetLockedException exception) {
+        Map<String, Object> body = new java.util.HashMap<>(error("SHEET_LOCKED", safe(exception)));
+        body.put("hint", exception.hint());
+        return body;
     }
 
     @ExceptionHandler(StateConflictException.class)
