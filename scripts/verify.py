@@ -40,12 +40,15 @@ check("classpath:config/search-rules.yml" in app_yml, "search rules must use bun
 # that is a plain responsive layout, not the mobile-app-shaped navigation this check still forbids.
 index = text("backend/src/main/resources/templates/index.html")
 app_js = text("backend/src/main/resources/static/js/app.js")
-for marker in ["view-search", "view-meetings", "recordBtn", "audioFileInput", "view-todos", "view-connectors", "view-admin"]:
+for marker in ["view-dashboard", "view-meetings", "recordBtn", "audioFileInput", "view-todos", "view-connectors", "view-admin"]:
     check(marker in index, f"web feature missing: {marker}")
 for forbidden in ["mobileClient", "X-Hub-Client", "data-mobile-only", "/mobile", "/manifest.webmanifest", "/sw.js"]:
     check(forbidden not in index + app_js, f"legacy mobile/PWA branch remains: {forbidden}")
 app_css = text("backend/src/main/resources/static/css/app.css")
-check('data-view="search"' in index and "dataset.view" in app_js, "sidebar navigation binding is broken")
+# Search lives inside the dashboard view now (no standalone "자료 찾기" nav item/section) - the nav
+# binding check follows that move instead of the old separate view-search/data-view="search" pair.
+check('data-view="dashboard"' in index and "dataset.view" in app_js and "searchForm" in index,
+      "sidebar navigation binding is broken")
 for forbidden in ["compact-bottom-nav", "compactMoreSheet", "data-compact-view", "compact-feature-grid"]:
     check(forbidden not in index + app_js + app_css, f"compact mobile navigation remains: {forbidden}")
 check("window.isSecureContext" in app_js, "secure-context recording guard missing")

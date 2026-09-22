@@ -51,8 +51,26 @@ jobs:
           HUB_AI_MODE=mock HUB_EMBED_MODE=hash PYTHONPATH=. python -m compileall -q app tests
           HUB_AI_MODE=mock HUB_EMBED_MODE=hash PYTHONPATH=. python -m pytest -q
 
+  # The real UI, served by Spring Boot itself (see backend/Dockerfile and PageController) - separate
+  # from web-and-config's frontend/, which only ships TypeScript API contracts, not an application.
+  web-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: TypeScript typecheck and build
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+
   backend:
-    needs: [web-and-config, ai]
+    needs: [web-and-config, web-app, ai]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
