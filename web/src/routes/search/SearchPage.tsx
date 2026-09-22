@@ -1,0 +1,150 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search as SearchIcon } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { NoProjectState } from '@/components/layout/NoProjectState';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { LoadingBlock } from '@/components/ui/spinner';
+import { MaterialResultList } from '@/features/materials/MaterialResultList';
+import { useCurrentProject } from '@/hooks/useProjects';
+import { useCurrentUser } from '@/hooks/useAuth';
+import { materialsApi } from '@/api/endpoints/materials';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+
+const MAX_RECENT = 8;
+const SOURCE_FILTERS = [
+  { value: 'ALL', label: '전체 자료' },
+  { value: 'HUB', label: 'Hub 문서·회의록' },
+  { value: 'EXTERNAL', label: '연결 서비스' },
+] as const;
+
+export function SearchPage() {
+  const { currentProject } = useCurrentProject();
+  const { data: user } = useCurrentUser();
+  const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<(typeof SOURCE_FILTERS)[number]['value']>('ALL');
+  const [recentQueries, setRecentQueries] = useLocalStorage<string[]>(`hub.recent-searches.${user?.id ?? 'anon'}`, []);
+
+  const { data: hits, isFetching } = useQuery({
+    queryKey: ['materials-search', currentProject?.id, submittedQuery],
+    queryFn: () => materialsApi.search(currentProject!.id, submittedQuery),
+    enabled: !!currentProject && submittedQuery.trim().length > 0,
+  });
+
+  const { data: topSearches } = useQuery({
+    queryKey: ['top-searches', currentProject?.id],
+    queryFn: () => materialsApi.topSearches(currentProject!.id),
+    enabled: !!currentProject,
+  });
+
+  const filteredHits = (hits ?? []).filter((hit) => {
+    if (sourceFilter === 'ALL') return true;
+    if (sourceFilter === 'HUB') return hit.sourceType === 'HUB';
+    return hit.sourceType !== 'HUB';
+  });
+
+  if (!currentProject) return <NoProjectState />;
+
+  function runSearch(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setSubmittedQuery(trimmed);
+    setRecentQueries([trimmed, ...recentQueries.filter((r) => r !== trimmed)].slice(0, MAX_RECENT));
+  }
+
+  return (
+    <div>
+      <PageHeader title="자료 찾기" description="내 문서·회의록과 권한이 있는 Slack, Notion, Drive 자료를 한 번에 검색합니다." />
+
+      <p className="mb-3 text-xs text-ink-500">
+        검색 범위: 현재 프로젝트에서 접근 권한이 있는 전체 자료 · 회의록만 검색되는 것이 아니라 문서 원문과 연결 서비스 자료도 포함됩니다.
+      </p>
+
+      <form
+        className="mb-4 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          runSearch(query);
+        }}
+      >
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="검색어를 입력하세요"
+          className="max-w-lg"
+        />
+        <Button type="submit">
+          <SearchIcon size={14} /> 검색
+        </Button>
+      </form>
+
+      <div className="mb-5 flex flex-wrap gap-1.5">
+        {SOURCE_FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            onClick={() => setSourceFilter(filter.value)}
+            className={
+              'rounded-full px-3 py-1.5 text-xs font-medium ' +
+              (sourceFilter === filter.value ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-600 hover:bg-ink-200')
+            }
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {(recentQueries.length > 0 || (topSearches && topSearches.length > 0)) && (
+        <div className="mb-5 flex flex-wrap gap-4 text-sm">
+          {recentQueries.length > 0 && (
+            <div>
+              <span className="mr-2 text-ink-400">최근 검색</span>
+              {recentQueries.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => {
+                    setQuery(q);
+                    runSearch(q);
+                  }}
+                  className="mr-1.5 rounded-full bg-ink-100 px-2.5 py-1 text-xs text-ink-600 hover:bg-ink-200"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+          {topSearches && topSearches.length > 0 && (
+            <div>
+              <span className="mr-2 text-ink-400">인기 검색어</span>
+              {topSearches.map((t) => (
+                <button
+                  key={t.query_text}
+                  onClick={() => {
+                    setQuery(t.query_text);
+                    runSearch(t.query_text);
+                  }}
+                  className="mr-1.5 rounded-full bg-accent-50 px-2.5 py-1 text-xs text-accent-700 hover:bg-accent-100"
+                >
+                  {t.query_text}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isFetching ? (
+        <LoadingBlock label="검색 중..." />
+      ) : submittedQuery ? (
+        <MaterialResultList hits={filteredHits} emptyLabel="선택한 범위에서 검색 결과가 없습니다." />
+      ) : (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-ink-400">검색어를 입력해 자료를 찾아보세요.</CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

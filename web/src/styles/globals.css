@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Design tokens adapted from the Linear design system (getdesign.md analysis): a single lavender
+ * accent reserved for primary actions, focus rings, and active/selected states (never a
+ * background fill or decorative color), plus the typography scale below.
+ */
+@theme {
+  --font-sans: "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Malgun Gothic", system-ui, sans-serif;
+
+  --color-accent-50: #eef0fc;
+  --color-accent-100: #dbe0f8;
+  --color-accent-300: #a6b0e8;
+  --color-accent-500: #5e6ad2;
+  --color-accent-600: #4c56c2;
+  --color-accent-700: #3c4494;
+
+  --color-success-500: #159447;
+
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+
+  --color-danger-500: #dc2626;
+  --color-warning-500: #d97706;
+
+  /* Fixed-dark surfaces (login backdrop, modal scrim, sidebar tooltip) — never flipped by the theme. */
+  --color-shell-900: #010102;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --text-headline: 1.75rem;
+  --text-headline--line-height: 1.2;
+  --text-headline--font-weight: 600;
+  --text-card-title: 1.375rem;
+  --text-card-title--line-height: 1.25;
+  --text-card-title--font-weight: 600;
+  --text-subhead: 1.25rem;
+  --text-subhead--line-height: 1.4;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.5;
+}
+
+/*
+ * Dark theme overrides for ink-*/accent-*/red-*/amber-*/danger-500/warning-500 live in
+ * src/providers/ThemeProvider.tsx (and mirrored in index.html for the pre-mount FOUC guard) as
+ * inline custom properties on <html> rather than a [data-theme="dark"] CSS rule here: a plain
+ * top-level rule redefining these variables was reliably compiled but silently dropped from the
+ * live stylesheet by the Tailwind v4 setup used here, for reasons not fully root-caused.
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+}
+
+* {
+  border-color: var(--color-ink-200);
+}
