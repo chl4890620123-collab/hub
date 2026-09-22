@@ -14,11 +14,37 @@ import { todosApi } from '@/api/endpoints/todos';
 import { materialsApi } from '@/api/endpoints/materials';
 import { documentsApi } from '@/api/endpoints/documents';
 import { adminSignupApi, adminReassignmentApi, adminUsersApi } from '@/api/endpoints/admin';
+import { connectorsApi } from '@/api/endpoints/connectors';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
 import { formatDate, formatDateTime, localMonth } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
+
+const CONNECTOR_LABELS: Record<string, string> = { GOOGLE_DRIVE: 'Google Drive', GITHUB: 'GitHub', SLACK: 'Slack', NOTION: 'Notion' };
+
+function ConnectorSyncChips({ projectId }: { projectId: number }) {
+  const { data: statuses } = useQuery({
+    queryKey: ['connector-status', projectId],
+    queryFn: () => connectorsApi.status(projectId),
+  });
+  const successes = (statuses ?? []).filter((s) => s.lastStatus === 'SUCCESS');
+
+  if (successes.length === 0) return null;
+  return (
+    <div className="mb-4 flex flex-wrap gap-2">
+      {successes.map((s) => (
+        <span
+          key={s.connectorType}
+          className="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-500 dark:bg-ink-100"
+        >
+          {CONNECTOR_LABELS[s.connectorType] ?? s.connectorType} · 가져오기 완료
+          {s.lastSyncedAt ? ` · 마지막 성공 ${formatDateTime(s.lastSyncedAt)}` : ''}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function AdminOverviewCards({ projectId }: { projectId: number }) {
   const { data: signups } = useQuery({ queryKey: ['admin-signups'], queryFn: adminSignupApi.list });
@@ -220,6 +246,7 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="대시보드" description={`${currentProject.name} 프로젝트 현황입니다.`} />
+      <ConnectorSyncChips projectId={currentProject.id} />
       {isAdmin && <AdminOverviewCards projectId={currentProject.id} />}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DashboardTodos projectId={currentProject.id} userId={user.id} />
