@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search as SearchIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -11,9 +11,13 @@ import { MaterialResultList } from '@/features/materials/MaterialResultList';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { materialsApi } from '@/api/endpoints/materials';
+import type { MaterialHit } from '@/api/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { toast } from '@/stores/toastStore';
+import { errorMessage } from '@/lib/errors';
 
 const MAX_RECENT = 8;
+const SEARCH_PAGE_SIZE = 30;
 const SOURCE_FILTERS = [
   { value: 'ALL', label: '전체 자료' },
   { value: 'HUB', label: 'Hub 문서·회의록' },
@@ -27,12 +31,43 @@ export function SearchPage() {
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<(typeof SOURCE_FILTERS)[number]['value']>('ALL');
   const [recentQueries, setRecentQueries] = useLocalStorage<string[]>(`hub.recent-searches.${user?.id ?? 'anon'}`, []);
+  const [hits, setHits] = useState<MaterialHit[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
-  const { data: hits, isFetching } = useQuery({
-    queryKey: ['materials-search', currentProject?.id, submittedQuery],
-    queryFn: () => materialsApi.search(currentProject!.id, submittedQuery),
-    enabled: !!currentProject && submittedQuery.trim().length > 0,
-  });
+  useEffect(() => {
+    if (!currentProject || !submittedQuery) return;
+    let cancelled = false;
+    setIsFetching(true);
+    materialsApi
+      .search(currentProject.id, submittedQuery, 0)
+      .then((results) => {
+        if (cancelled) return;
+        setHits(results);
+        setHasMore(results.length >= SEARCH_PAGE_SIZE);
+      })
+      .catch((error) => !cancelled && toast.error(errorMessage(error)))
+      .finally(() => !cancelled && setIsFetching(false));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id, submittedQuery]);
+
+  async function loadMore() {
+    if (!currentProject || !submittedQuery) return;
+    setLoadingMore(true);
+    try {
+      const results = await materialsApi.search(currentProject.id, submittedQuery, hits.length);
+      setHits((prev) => [...prev, ...results]);
+      setHasMore(results.length >= SEARCH_PAGE_SIZE);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const { data: topSearches } = useQuery({
     queryKey: ['top-searches', currentProject?.id],
@@ -139,7 +174,16 @@ export function SearchPage() {
       {isFetching ? (
         <LoadingBlock label="검색 중..." />
       ) : submittedQuery ? (
-        <MaterialResultList hits={filteredHits} emptyLabel="선택한 범위에서 검색 결과가 없습니다." />
+        <>
+          <MaterialResultList hits={filteredHits} emptyLabel="선택한 범위에서 검색 결과가 없습니다." />
+          {hasMore && (
+            <div className="mt-3 flex justify-center">
+              <Button variant="outline" disabled={loadingMore} onClick={loadMore}>
+                {loadingMore ? '불러오는 중...' : '더 보기'}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <Card>
           <CardContent className="py-10 text-center text-sm text-ink-400">검색어를 입력해 자료를 찾아보세요.</CardContent>

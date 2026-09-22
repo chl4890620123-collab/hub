@@ -9,8 +9,10 @@ export const connectorsApi = {
     apiDelete<{ status: string }>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/link`),
   connect: (projectId: number, type: ConnectorType) =>
     apiPost<{ status: string }>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/link`),
+  /** Runs in the background - poll the returned jobId (useJobPolling) and read resultJson for the
+   * imported count once it reaches SUCCESS. */
   import: (projectId: number, type: ConnectorType, scope: string) =>
-    apiPost<{ imported: number }>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/import`, { scope }),
+    apiPost<{ jobId: number; status: string }>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/import`, { scope }),
 
   /** Server-initiated OAuth redirect - navigate the browser here directly, don't fetch() it. */
   authorizeUrl: (projectId: number, type: ConnectorType) =>

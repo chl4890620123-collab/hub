@@ -2,8 +2,8 @@ import { apiGet, apiPost } from '@/api/client';
 import type { MaterialAskResponse, MaterialHit, TimelineEvent, WorkContextBundle } from '@/api/types';
 
 export const materialsApi = {
-  search: (projectId: number, q: string) =>
-    apiGet<MaterialHit[]>(`/api/projects/${projectId}/materials/search?q=${encodeURIComponent(q)}`),
+  search: (projectId: number, q: string, offset = 0) =>
+    apiGet<MaterialHit[]>(`/api/projects/${projectId}/materials/search?q=${encodeURIComponent(q)}&offset=${offset}`),
   ask: (projectId: number, question: string) =>
     apiPost<MaterialAskResponse>(`/api/projects/${projectId}/materials/ask`, { question }),
   topSearches: (projectId: number) =>
