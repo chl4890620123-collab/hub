@@ -96,7 +96,7 @@ export function AnalysisResultPanel({ jobId, projectId }: { jobId: number | null
                 key={todo.id}
                 todo={todo}
                 members={members ?? []}
-                onEdit={(title, description) => edit.mutateAsync({ id: todo.id, title, description })}
+                onEdit={async (title, description) => { await edit.mutateAsync({ id: todo.id, title, description }); }}
                 onConfirm={(assigneeId, dueDate) => confirm.mutate({ id: todo.id, assigneeId, dueDate })}
                 onReject={() => reject.mutate(todo.id)}
                 onMergeDuplicate={() => mergeDuplicate.mutate(todo.id)}
