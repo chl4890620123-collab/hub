@@ -1,4 +1,5 @@
 import pytest
+from app import config
 from app.providers.gemini_speech import GeminiSpeechProvider
 from app.providers.paddle_ocr import PaddleOcrProvider
 
