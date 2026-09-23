@@ -17,7 +17,7 @@ import { adminSignupApi, adminReassignmentApi, adminUsersApi } from '@/api/endpo
 import { connectorsApi } from '@/api/endpoints/connectors';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
-import { formatDate, formatDateTime, localMonth } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
@@ -133,6 +133,11 @@ function DashboardTodos({ projectId, userId }: { projectId: number; userId: numb
   );
 }
 
+function localDate() {
+  const date = new Date();
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
 function QuickManualNoteForm({ projectId }: { projectId: number }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
@@ -146,7 +151,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
       documentsApi.manual(projectId, {
         title,
         text,
-        sourceDate: localMonth() + '-01',
+        sourceDate: localDate(),
         dueDate: dueDate || undefined,
         assigneeId: assigneeId ? Number(assigneeId) : undefined,
       }),
