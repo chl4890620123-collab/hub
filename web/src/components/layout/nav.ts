@@ -28,7 +28,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { to: '/ask', label: 'AI에게 묻기', icon: Sparkles },
   { to: '/context', label: '관련 업무 모아보기', icon: ListChecks },
   { to: '/todos', label: '할 일·일정', icon: CalendarCheck },
-  { to: '/review', label: '담당자 배정', icon: ListChecks, requiresConfirm: true },
+  { to: '/review', label: 'AI 검토함', icon: ListChecks, requiresConfirm: true },
   { to: '/documents', label: '문서 요약', icon: FileText },
   { to: '/meetings', label: '회의 녹음', icon: Mic },
   { to: '/sheets', label: '자료표', icon: Table },
