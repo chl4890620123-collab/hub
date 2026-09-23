@@ -28,6 +28,7 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
   const fileRef = useRef<HTMLInputElement>(null);
   const [dueDate, setDueDate] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
 
   const upload = useMutation({
@@ -40,6 +41,9 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
       toast.success('업로드했습니다. AI 분석이 진행됩니다.');
       onJobStarted(result.jobId);
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
+      setSelectedFile(null);
+      setDueDate('');
+      setAssigneeId('');
       if (fileRef.current) fileRef.current.value = '';
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -51,17 +55,35 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
         <CardTitle>파일 업로드</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-3">
-        <input ref={fileRef} type="file" className="text-sm" />
+        <div className="flex min-w-64 flex-col gap-1">
+          <Label htmlFor="document-file">파일 선택</Label>
+          <input
+            id="document-file"
+            ref={fileRef}
+            type="file"
+            className="sr-only"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
+          <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="justify-start">
+            파일 선택
+          </Button>
+          <span className="max-w-64 truncate text-xs text-ink-400">
+            {selectedFile ? selectedFile.name : '선택된 파일 없음'}
+          </span>
+        </div>
         <div>
           <Label htmlFor="doc-due-date">후속 할 일 기한 (선택)</Label>
-          <Input id="doc-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+          <Input id="doc-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" />
         </div>
         <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
         <Button
-          disabled={upload.isPending}
+          disabled={!selectedFile || upload.isPending}
           onClick={() => {
-            const file = fileRef.current?.files?.[0];
-            if (file) upload.mutate(file);
+            if (!selectedFile) {
+              toast.error('업로드할 파일을 먼저 선택해주세요.');
+              return;
+            }
+            upload.mutate(selectedFile);
           }}
         >
           <Upload size={14} /> 업로드
@@ -109,7 +131,7 @@ function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJo
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <Label htmlFor="manual-due-date">후속 할 일 기한 (선택)</Label>
-            <Input id="manual-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+            <Input id="manual-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" />
           </div>
           <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
         </div>
