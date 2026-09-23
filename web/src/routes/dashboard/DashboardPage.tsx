@@ -198,7 +198,15 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <Label htmlFor="quick-due-date">완료 기한 (선택)</Label>
-              <Input id="quick-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+              <Input
+                id="quick-due-date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                className="w-48 cursor-pointer [color-scheme:dark]"
+                aria-label="완료 기한 선택"
+              />
             </div>
             <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
           </div>
