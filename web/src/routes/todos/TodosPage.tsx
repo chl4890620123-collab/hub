@@ -224,10 +224,10 @@ export function TodosPage() {
 
       {isLoading ? (
         <LoadingBlock />
-      ) : filtered.length === 0 ? (
-        <EmptyState title="조건에 맞는 할 일이 없습니다." />
       ) : viewMode === 'calendar' ? (
         <CalendarGrid items={filtered} getDate={(t) => t.dueDate} renderItem={(t) => cardFor(t, true)} year={year} month={month} />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="조건에 맞는 할 일이 없습니다." />
       ) : (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'flex flex-col gap-2'}>
           {filtered.map((todo) => (

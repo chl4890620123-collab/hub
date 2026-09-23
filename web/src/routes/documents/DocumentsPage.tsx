@@ -247,8 +247,6 @@ export function DocumentsPage() {
         <CardContent>
           {isLoading ? (
             <LoadingBlock />
-          ) : filtered.length === 0 ? (
-            <EmptyState title="등록된 문서가 없습니다." />
           ) : viewMode === 'calendar' ? (
             <div>
               <div className="mb-3 flex items-center justify-center gap-2">
@@ -270,6 +268,8 @@ export function DocumentsPage() {
                 month={month}
               />
             </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState title="등록된 문서가 없습니다." />
           ) : (
             <>
               <ul className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'flex flex-col gap-2'}>
