@@ -59,7 +59,7 @@ public class UserRepository {
     }
 
     public List<User> list() {
-        return jdbc.query(userSelect() + " WHERE approval_status='APPROVED' ORDER BY id", (rs,n)->mapUser(rs));
+        return jdbc.query(userSelect() + " WHERE approval_status='APPROVED' ORDER BY CASE WHEN global_role='ADMIN' THEN 0 ELSE 1 END, display_name, id", (rs,n)->mapUser(rs));
     }
 
     public List<SignupApplication> listPendingApplications() {
