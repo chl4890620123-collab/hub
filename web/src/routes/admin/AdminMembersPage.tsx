@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { adminSignupApi, adminProjectApi } from '@/api/endpoints/admin';
+import { projectsApi } from '@/api/endpoints/projects';
 import { useCurrentProject, useProjects } from '@/hooks/useProjects';
 import type { SignupApplication } from '@/api/types';
 import { formatDateTime } from '@/lib/format';
@@ -137,16 +138,30 @@ export function AdminMembersPage() {
   const [projectChoice, setProjectChoice] = useState<Record<number, string>>({});
   const [addMemberUserId, setAddMemberUserId] = useState('');
   const [addMemberProjectId, setAddMemberProjectId] = useState('');
+  const { data: addableUsers } = useQuery({
+    queryKey: ['project-addable-users', addMemberProjectId],
+    queryFn: () => projectsApi.addableUsers(Number(addMemberProjectId)),
+    enabled: !!addMemberProjectId,
+  });
   const [rejectTarget, setRejectTarget] = useState<SignupApplication | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-signups'] });
 
+  const resolveProjectId = (app: SignupApplication): number | null => {
+    const chosen = projectChoice[app.id];
+    if (chosen) return Number(chosen);
+    return app.requestedProjectId ?? null;
+  };
+
   const approve = useMutation({
     mutationFn: ({ userId, projectId }: { userId: number; projectId?: number }) => adminSignupApi.approve(userId, projectId),
-    onSuccess: () => {
-      toast.success('가입을 승인했습니다.');
+    onSuccess: (result) => {
+      if (result.projectAssigned) toast.success('가입을 승인하고 프로젝트에 배정했습니다.');
+      else toast.info('가입을 승인했습니다. 다만 프로젝트에 배정되지 않아 아직 아무 프로젝트도 볼 수 없습니다 - 아래 "기존 사용자를 프로젝트에 추가"에서 배정해 주세요.');
       invalidate();
+      queryClient.invalidateQueries({ queryKey: ['project-members'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -166,6 +181,8 @@ export function AdminMembersPage() {
     onSuccess: () => {
       toast.success('프로젝트에 추가했습니다.');
       setAddMemberUserId('');
+      queryClient.invalidateQueries({ queryKey: ['project-members'] });
+      queryClient.invalidateQueries({ queryKey: ['project-addable-users'] });
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -201,7 +218,7 @@ export function AdminMembersPage() {
                         onValueChange={(v) => setProjectChoice((prev) => ({ ...prev, [app.id]: v }))}
                       >
                         <SelectTrigger className="w-36">
-                          <SelectValue placeholder="프로젝트" />
+                          <SelectValue placeholder="프로젝트 (필수)" />
                         </SelectTrigger>
                         <SelectContent>
                           {projects.map((p) => (
@@ -214,10 +231,11 @@ export function AdminMembersPage() {
                     )}
                     <Button
                       size="sm"
+                      disabled={app.requestedRole === 'MEMBER' && !resolveProjectId(app)}
                       onClick={() =>
                         approve.mutate({
                           userId: app.id,
-                          projectId: projectChoice[app.id] ? Number(projectChoice[app.id]) : app.requestedProjectId ?? undefined,
+                          projectId: resolveProjectId(app) ?? undefined,
                         })
                       }
                     >
@@ -239,15 +257,13 @@ export function AdminMembersPage() {
           <CardTitle>기존 사용자를 프로젝트에 추가</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
-          <div>
-            <Input
-              placeholder="사용자 ID"
-              value={addMemberUserId}
-              onChange={(e) => setAddMemberUserId(e.target.value)}
-              className="w-32"
-            />
-          </div>
-          <Select value={addMemberProjectId} onValueChange={setAddMemberProjectId}>
+          <Select
+            value={addMemberProjectId}
+            onValueChange={(v) => {
+              setAddMemberProjectId(v);
+              setAddMemberUserId('');
+            }}
+          >
             <SelectTrigger className="w-44">
               <SelectValue placeholder="프로젝트 선택" />
             </SelectTrigger>
@@ -259,12 +275,27 @@ export function AdminMembersPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={addMemberUserId} onValueChange={setAddMemberUserId} disabled={!addMemberProjectId}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="사용자 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {addableUsers && addableUsers.length === 0 ? (
+                <SelectItem value="__no-users" disabled>
+                  추가 가능한 사용자가 없습니다
+                </SelectItem>
+              ) : (
+                addableUsers?.map((u) => (
+                  <SelectItem key={u.id} value={String(u.id)}>
+                    {u.displayName} (@{u.loginId})
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
           <Button disabled={!addMemberUserId || !addMemberProjectId || addMember.isPending} onClick={() => addMember.mutate()}>
             추가
           </Button>
-          <p className="w-full text-xs text-ink-400">
-            사용자 ID는 사용자 관리 탭에서 확인할 수 있습니다.
-          </p>
         </CardContent>
       </Card>
 

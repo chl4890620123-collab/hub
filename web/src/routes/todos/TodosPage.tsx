@@ -214,7 +214,7 @@ export function TodosPage() {
                 (statusFilter === s ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
               }
             >
-              {s === 'ALL' ? '진행 중' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '보류'}
+              {s === 'ALL' ? '전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '보류'}
             </button>
           ))}
         </div>

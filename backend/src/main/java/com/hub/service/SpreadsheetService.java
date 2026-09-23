@@ -78,10 +78,10 @@ public class SpreadsheetService {
         repo.renameFile(fileId, requireName(name));
     }
 
-    public void setColumns(long fileId, List<String> columnLabels, String password, User actor) {
+    public void setColumns(long fileId, List<SpreadsheetColumn> columns, String password, User actor) {
         var raw = requireOwnerOrAdmin(fileId, actor);
         requirePasswordUnlessAdmin(raw, password, actor);
-        repo.updateColumns(fileId, writeColumns(buildColumns(columnLabels)));
+        repo.updateColumns(fileId, writeColumns(mergeColumns(columns)));
         repo.touch(fileId);
     }
 
@@ -106,9 +106,10 @@ public class SpreadsheetService {
         requirePassword(raw, password);
         if (repo.listRows(fileId).size() >= MAX_ROWS) throw new IllegalArgumentException("행은 최대 " + MAX_ROWS + "개까지 만들 수 있습니다.");
         int position = repo.nextRowPosition(fileId);
-        long id = repo.createRow(fileId, position, writeCells(cleanCells(raw, cells)));
+        Map<String, String> cleaned = cleanCells(raw, cells);
+        long id = repo.createRow(fileId, position, writeCells(cleaned));
         repo.touch(fileId);
-        return new SpreadsheetRow(id, fileId, position, cleanCells(raw, cells), java.time.LocalDateTime.now());
+        return new SpreadsheetRow(id, fileId, position, cleaned, java.time.LocalDateTime.now());
     }
 
     public void updateRow(long fileId, long rowId, String password, Map<String, String> cells, User actor) {
@@ -261,6 +262,35 @@ public class SpreadsheetService {
             i++;
         }
         return columns;
+    }
+
+    /** Unlike {@link #buildColumns}, which always assigns fresh sequential keys by position (fine
+     * for a brand-new file), this preserves each existing column's key so its row data stays
+     * aligned - renumbering by position on every edit meant deleting a middle column silently
+     * shifted every later column's cell data one slot left (e.g. remove col 2 of 3, and col 3's
+     * data reappears under col 2's key while col 3 itself goes orphaned). A blank/missing key means
+     * "this is a new column" (from addColumn) and gets the next key strictly above every key already
+     * present, so it can never collide with one still in use. */
+    private static List<SpreadsheetColumn> mergeColumns(List<SpreadsheetColumn> inputs) {
+        if (inputs == null || inputs.isEmpty()) throw new IllegalArgumentException("열을 하나 이상 만들어 주세요.");
+        if (inputs.size() > MAX_COLUMNS) throw new IllegalArgumentException("열은 최대 " + MAX_COLUMNS + "개까지 만들 수 있습니다.");
+        int nextIndex = 1;
+        for (SpreadsheetColumn c : inputs) {
+            String key = c.key();
+            if (key != null && key.matches("c\\d+")) {
+                int idx = Integer.parseInt(key.substring(1));
+                if (idx >= nextIndex) nextIndex = idx + 1;
+            }
+        }
+        List<SpreadsheetColumn> result = new ArrayList<>();
+        int i = 0;
+        for (SpreadsheetColumn c : inputs) {
+            String label = c.label() == null || c.label().isBlank() ? "열" + (i + 1) : c.label().strip();
+            String key = (c.key() != null && !c.key().isBlank()) ? c.key() : "c" + (nextIndex++);
+            result.add(new SpreadsheetColumn(key, label));
+            i++;
+        }
+        return result;
     }
 
     private String writeColumns(List<SpreadsheetColumn> columns) {

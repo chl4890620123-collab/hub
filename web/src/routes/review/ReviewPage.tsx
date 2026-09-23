@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { todosApi } from '@/api/endpoints/todos';
@@ -16,6 +17,58 @@ import { BulkSelectionBar } from '@/features/review/BulkSelectionBar';
 import { useEvidenceStore } from '@/stores/evidenceStore';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
+
+function AddTeammateCard({ projectId }: { projectId: number }) {
+  const queryClient = useQueryClient();
+  const [userId, setUserId] = useState('');
+
+  const { data: addable, isLoading } = useQuery({
+    queryKey: ['project-addable-users', projectId],
+    queryFn: () => projectsApi.addableUsers(projectId),
+  });
+
+  const addMember = useMutation({
+    mutationFn: () => projectsApi.addMember(projectId, Number(userId)),
+    onSuccess: () => {
+      toast.success('팀원을 추가했습니다.');
+      setUserId('');
+      queryClient.invalidateQueries({ queryKey: ['project-addable-users', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle>팀원 추가</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-end gap-3">
+        <Select value={userId} onValueChange={setUserId} disabled={isLoading}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="추가할 사람 선택" />
+          </SelectTrigger>
+          <SelectContent>
+            {addable && addable.length === 0 ? (
+              <SelectItem value="__none" disabled>
+                추가할 수 있는 사람이 없습니다
+              </SelectItem>
+            ) : (
+              addable?.map((u) => (
+                <SelectItem key={u.id} value={String(u.id)}>
+                  {u.displayName} (@{u.loginId})
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        <Button disabled={!userId || addMember.isPending} onClick={() => addMember.mutate()}>
+          추가
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -80,11 +133,17 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
             <SelectValue placeholder="담당자" />
           </SelectTrigger>
           <SelectContent>
-            {members?.map((m) => (
-              <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+            {members && members.length === 0 ? (
+              <SelectItem value="__no-members" disabled>
+                배정 가능한 팀원이 없습니다
               </SelectItem>
-            ))}
+            ) : (
+              members?.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.displayName}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
         <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" />
@@ -199,6 +258,7 @@ export function ReviewPage() {
   return (
     <div>
       <PageHeader title="담당자 배정" description="AI가 제안한 할 일, 결정, 변경 후보를 검토하고 확정합니다." />
+      <AddTeammateCard projectId={currentProject.id} />
       <Tabs defaultValue="todos">
         <TabsList>
           <TabsTrigger value="todos">할 일</TabsTrigger>

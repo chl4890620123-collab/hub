@@ -53,11 +53,17 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
               <SelectValue placeholder="받는 사람" />
             </SelectTrigger>
             <SelectContent>
-              {members?.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>
-                  {m.displayName}
+              {members && members.length === 0 ? (
+                <SelectItem value="__no-members" disabled>
+                  전송 가능한 팀원이 없습니다
                 </SelectItem>
-              ))}
+              ) : (
+                members?.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.displayName}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
           <input ref={fileRef} type="file" className="text-xs" />

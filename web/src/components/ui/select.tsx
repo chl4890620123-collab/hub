@@ -45,6 +45,7 @@ export function SelectItem({ className, children, ...props }: React.ComponentPro
       className={cn(
         'relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-7 pr-3 text-sm text-ink-700 outline-none',
         'data-[highlighted]:bg-accent-50 data-[highlighted]:text-accent-700',
+        'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:text-ink-400',
         className,
       )}
       {...props}

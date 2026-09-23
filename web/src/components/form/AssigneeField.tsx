@@ -26,11 +26,17 @@ export function AssigneeField({
           <SelectValue placeholder="지정 안 함" />
         </SelectTrigger>
         <SelectContent>
-          {members?.map((m) => (
-            <SelectItem key={m.id} value={String(m.id)}>
-              {m.displayName}
+          {members && members.length === 0 ? (
+            <SelectItem value="__no-members" disabled>
+              배정 가능한 팀원이 없습니다
             </SelectItem>
-          ))}
+          ) : (
+            members?.map((m) => (
+              <SelectItem key={m.id} value={String(m.id)}>
+                {m.displayName}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
     </div>

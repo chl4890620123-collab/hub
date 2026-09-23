@@ -17,7 +17,6 @@
     const normalizeTodo = (wireValue) => {
         const wire = asRecord(wireValue);
         return {
-            id: typeof wire.id === "number" ? wire.id : null,
             title: text(wire.title) ?? "할 일 후보",
             description: text(wire.description),
             assigneeText: text(first(wire, "assigneeText", "assignee_text")),

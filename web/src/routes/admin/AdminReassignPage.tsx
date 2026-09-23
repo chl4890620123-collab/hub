@@ -66,11 +66,17 @@ export function AdminReassignPage() {
                   <SelectValue placeholder="새 담당자" />
                 </SelectTrigger>
                 <SelectContent>
-                  {members?.map((m) => (
-                    <SelectItem key={m.id} value={String(m.id)}>
-                      {m.displayName}
+                  {members && members.length === 0 ? (
+                    <SelectItem value="__no-members" disabled>
+                      배정 가능한 팀원이 없습니다
                     </SelectItem>
-                  ))}
+                  ) : (
+                    members?.map((m) => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {m.displayName}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <Button size="sm" disabled={!bulkAssignee || bulkResolve.isPending} onClick={() => bulkResolve.mutate()}>
@@ -121,11 +127,17 @@ function SingleResolveControl({
           <SelectValue placeholder="담당자" />
         </SelectTrigger>
         <SelectContent>
-          {members.map((m) => (
-            <SelectItem key={m.id} value={String(m.id)}>
-              {m.displayName}
+          {members.length === 0 ? (
+            <SelectItem value="__no-members" disabled>
+              배정 가능한 팀원이 없습니다
             </SelectItem>
-          ))}
+          ) : (
+            members.map((m) => (
+              <SelectItem key={m.id} value={String(m.id)}>
+                {m.displayName}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
       <Button size="sm" disabled={!value} onClick={() => onResolve(Number(value))}>

@@ -1,1 +1,0 @@
-import{z as a,g as r}from"./index-DCIRUHtA.js";const o={get:e=>a(`/api/jobs/${e}`),recent:e=>a(`/api/projects/${e}/jobs`)},u=new Set(["SUCCESS","FAILED"]);function i(e){return r({queryKey:["job",e],queryFn:()=>o.get(e),enabled:e!=null,refetchInterval:n=>{var s;const t=(s=n.state.data)==null?void 0:s.status;return t&&u.has(t)?!1:1500}})}export{o as j,i as u};

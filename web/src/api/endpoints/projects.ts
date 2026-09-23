@@ -24,6 +24,18 @@ function toProjectMember(row: RawProjectMember): ProjectMember {
   };
 }
 
+interface RawAddableUser {
+  user_id: number;
+  display_name: string;
+  login_id: string;
+}
+
+export interface AddableUser {
+  id: number;
+  displayName: string;
+  loginId: string;
+}
+
 export const projectsApi = {
   list: () => apiGet<Project[]>('/api/projects'),
   create: (name: string, description?: string) => apiPost<Project>('/api/projects', { name, description }),
@@ -31,4 +43,10 @@ export const projectsApi = {
     apiPut<{ status: string }>(`/api/projects/${projectId}`, { name, description }),
   members: (projectId: number) =>
     apiGet<RawProjectMember[]>(`/api/projects/${projectId}/members`).then((rows) => rows.map(toProjectMember)),
+  addableUsers: (projectId: number) =>
+    apiGet<RawAddableUser[]>(`/api/projects/${projectId}/addable-users`).then((rows) =>
+      rows.map((r): AddableUser => ({ id: r.user_id, displayName: r.display_name, loginId: r.login_id })),
+    ),
+  addMember: (projectId: number, userId: number) =>
+    apiPost<{ status: string }>(`/api/projects/${projectId}/members`, { userId }),
 };

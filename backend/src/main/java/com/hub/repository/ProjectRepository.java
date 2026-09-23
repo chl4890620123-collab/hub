@@ -85,6 +85,19 @@ public class ProjectRepository {
                 """, projectId);
     }
 
+    /** Active MEMBER-role users not yet on this project - the pool a decision-maker can invite in.
+     * Deliberately narrower than admin's full company user list (which also carries account
+     * status, other roles, etc.): this is only ever rendered as a "pick someone to add" list. */
+    public List<java.util.Map<String,Object>> listAddableUsers(long projectId) {
+        return jdbc.queryForList("""
+                SELECT u.id user_id,u.display_name,u.login_id
+                FROM app_user u
+                WHERE u.account_status='ACTIVE' AND u.global_role='MEMBER'
+                  AND NOT EXISTS (SELECT 1 FROM project_member pm WHERE pm.project_id=? AND pm.user_id=u.id)
+                ORDER BY u.display_name,u.id
+                """, projectId);
+    }
+
     /** Global ADMIN always passes independently of this - see ProjectAccessService.requireConfirmPermission. */
     public boolean canConfirm(long projectId, long userId) {
         Integer count = jdbc.queryForObject(

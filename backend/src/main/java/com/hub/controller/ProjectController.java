@@ -4,6 +4,7 @@ import com.hub.model.Project;
 import com.hub.model.User;
 import com.hub.repository.ProjectRepository;
 import com.hub.service.CurrentUserService;
+import com.hub.service.MembershipService;
 import com.hub.service.ProjectAccessService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -25,13 +26,16 @@ public class ProjectController {
     private final ProjectRepository projects;
     private final CurrentUserService currentUser;
     private final ProjectAccessService projectAccess;
+    private final MembershipService memberships;
 
     public ProjectController(ProjectRepository projects,
                              CurrentUserService currentUser,
-                             ProjectAccessService projectAccess) {
+                             ProjectAccessService projectAccess,
+                             MembershipService memberships) {
         this.projects = projects;
         this.currentUser = currentUser;
         this.projectAccess = projectAccess;
+        this.memberships = memberships;
     }
 
     public record CreateProject(
@@ -61,6 +65,26 @@ public class ProjectController {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
         return projects.listMembers(projectId);
+    }
+
+    /** Decision-maker self-service: who's left to invite into this project. Company ADMIN already
+     * has a broader version of this on /api/admin/projects/{id}/members - this is the narrower,
+     * project-scoped one a non-admin decision-maker can reach. */
+    @GetMapping("/{projectId}/addable-users")
+    public List<Map<String, Object>> addableUsers(@PathVariable long projectId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireConfirmPermission(projectId, user);
+        return projects.listAddableUsers(projectId);
+    }
+
+    public record AddMember(long userId) {}
+
+    @PostMapping("/{projectId}/members")
+    public Map<String, Object> addMember(@PathVariable long projectId, @RequestBody AddMember body, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireConfirmPermission(projectId, user);
+        memberships.add(projectId, body.userId(), user, "DECISION_MAKER_ADD");
+        return Map.of("status", "ADDED");
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/{projectId}")

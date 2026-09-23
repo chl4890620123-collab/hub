@@ -62,7 +62,7 @@ export function SheetWorkspace({
   };
 
   const renameColumn = async (key: string, label: string) => {
-    const columns = file.columns.map((c) => (c.key === key ? label : c.label));
+    const columns = file.columns.map((c) => ({ key: c.key, label: c.key === key ? label : c.label }));
     try {
       await sheetsApi.setColumns(file.id, columns, password);
       await refresh();
@@ -77,7 +77,7 @@ export function SheetWorkspace({
       return;
     }
     if (!window.confirm(`'${label}' 열을 삭제할까요?\n이 열에 입력된 값도 함께 사라집니다.`)) return;
-    const columns = file.columns.filter((c) => c.key !== key).map((c) => c.label);
+    const columns = file.columns.filter((c) => c.key !== key).map((c) => ({ key: c.key, label: c.label }));
     try {
       await sheetsApi.setColumns(file.id, columns, password);
       await refresh();
@@ -89,7 +89,7 @@ export function SheetWorkspace({
   const addColumn = async () => {
     const label = window.prompt('새 열 이름');
     if (!label) return;
-    const columns = [...file.columns.map((c) => c.label), label];
+    const columns = [...file.columns.map((c) => ({ key: c.key, label: c.label })), { key: '', label }];
     try {
       await sheetsApi.setColumns(file.id, columns, password);
       await refresh();

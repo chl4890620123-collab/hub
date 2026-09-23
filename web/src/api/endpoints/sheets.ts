@@ -1,5 +1,5 @@
 import { apiDownload, apiFetch, apiGet, apiUpload } from '@/api/client';
-import type { SpreadsheetDataRow, SpreadsheetFileRow, SpreadsheetUnlocked } from '@/api/types';
+import type { SpreadsheetColumn, SpreadsheetDataRow, SpreadsheetFileRow, SpreadsheetUnlocked } from '@/api/types';
 
 const PASSWORD_HEADER = 'X-Sheet-Password';
 const pwHeaders = (password?: string | null): Record<string, string> =>
@@ -50,7 +50,7 @@ export const sheetsApi = {
   rename: (id: number, name: string, password?: string | null) =>
     apiFetch<{ status: string }>(`/api/sheets/${id}`, { method: 'PUT', body: JSON.stringify({ name, password }) }),
 
-  setColumns: (id: number, columns: string[], password?: string | null) =>
+  setColumns: (id: number, columns: SpreadsheetColumn[], password?: string | null) =>
     apiFetch<{ status: string }>(`/api/sheets/${id}/columns`, {
       method: 'PUT',
       body: JSON.stringify({ columns, password }),

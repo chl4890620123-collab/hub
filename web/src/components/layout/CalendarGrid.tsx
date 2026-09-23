@@ -1,6 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { localDate } from '@/lib/format';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const MAX_VISIBLE = 3;
@@ -19,6 +20,7 @@ export function CalendarGrid<T>({
   renderItem: (item: T) => ReactNode;
 }) {
   const today = localDate();
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const byDate = useMemo(() => {
     const map = new Map<string, T[]>();
@@ -70,7 +72,13 @@ export function CalendarGrid<T>({
                   <div key={i}>{renderItem(item)}</div>
                 ))}
                 {dayItems.length > MAX_VISIBLE && (
-                  <p className="text-[11px] text-ink-400">+{dayItems.length - MAX_VISIBLE}개 더보기</p>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedDate(cell.date)}
+                    className="text-left text-[11px] text-accent-600 hover:underline"
+                  >
+                    +{dayItems.length - MAX_VISIBLE}개 더보기
+                  </button>
                 )}
               </div>
             </div>
@@ -88,6 +96,16 @@ export function CalendarGrid<T>({
           </div>
         </div>
       )}
+
+      <Dialog open={expandedDate != null} onOpenChange={(open) => !open && setExpandedDate(null)}>
+        <DialogContent>
+          <DialogTitle>{expandedDate}</DialogTitle>
+          <div className="flex max-h-[60vh] flex-col gap-1.5 overflow-y-auto">
+            {expandedDate &&
+              (byDate.get(expandedDate) ?? []).map((item, i) => <div key={i}>{renderItem(item)}</div>)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

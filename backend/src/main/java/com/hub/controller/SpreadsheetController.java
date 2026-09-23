@@ -1,5 +1,6 @@
 package com.hub.controller;
 
+import com.hub.model.SpreadsheetColumn;
 import com.hub.model.SpreadsheetFile;
 import com.hub.model.SpreadsheetRow;
 import com.hub.model.User;
@@ -32,7 +33,7 @@ public class SpreadsheetController {
 
     public record CreateRequest(String name, List<String> columns, String password, String hint) {}
     public record RenameRequest(String name, String password) {}
-    public record ColumnsRequest(List<String> columns, String password) {}
+    public record ColumnsRequest(List<SpreadsheetColumn> columns, String password) {}
     public record SecurityRequest(String currentPassword, String newPassword, String hint) {}
     public record RowRequest(Map<String, String> cells) {}
 

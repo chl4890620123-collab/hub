@@ -53,11 +53,17 @@ export function TodoCandidateCard({
             <SelectValue placeholder="담당자 선택" />
           </SelectTrigger>
           <SelectContent>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+            {members.length === 0 ? (
+              <SelectItem value="__no-members" disabled>
+                배정 가능한 팀원이 없습니다
               </SelectItem>
-            ))}
+            ) : (
+              members.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.displayName}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
         <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
