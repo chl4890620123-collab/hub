@@ -21,6 +21,12 @@ import { formatDate, formatDateTime, localMonth } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
+const TASK_STATUS_LABELS: Record<string, string> = { TODO: '시작 전', IN_PROGRESS: '진행 중', DONE: '완료', BLOCKED: '도움 필요' };
+const TIMELINE_LABELS: Record<string, string> = {
+  TODO_CREATED: '할 일 생성', TODO_CONFIRMED: '할 일 확정', TODO_STATUS: '상태 변경', TODO_COMPLETION_REQUESTED: '완료 승인 요청',
+  TODO_COMPLETION_REJECTED: '완료 반려', TODO_HELP_REQUESTED: '도움 요청', TODO_DUPLICATE_MERGED: '중복 병합', DECISION_CONFIRMED: '결정 확정',
+};
+
 const CONNECTOR_LABELS: Record<string, string> = { GOOGLE_DRIVE: 'Google Drive', GITHUB: 'GitHub', SLACK: 'Slack', NOTION: 'Notion' };
 
 function ConnectorSyncChips({ projectId }: { projectId: number }) {
@@ -86,12 +92,13 @@ function DashboardTodos({ projectId, userId }: { projectId: number; userId: numb
     queryFn: () => todosApi.month(projectId, now.getFullYear(), now.getMonth() + 1),
   });
 
+  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const myTop5 = useMemo(() => {
     return (todos ?? [])
-      .filter((t) => t.assigneeId === userId && t.taskStatus !== 'DONE')
-      .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
+      .filter((t) => t.assigneeId === userId && t.taskStatus !== 'DONE' && t.dueDate != null && t.dueDate <= todayKey)
+      .sort((a, b) => (a.dueDate ?? todayKey).localeCompare(b.dueDate ?? todayKey))
       .slice(0, 5);
-  }, [todos, userId]);
+  }, [todos, userId, todayKey]);
 
   return (
     <Card>
@@ -107,16 +114,16 @@ function DashboardTodos({ projectId, userId }: { projectId: number; userId: numb
         {isLoading ? (
           <LoadingBlock />
         ) : myTop5.length === 0 ? (
-          <EmptyState title="이번 달 예정된 할 일이 없습니다." />
+          <EmptyState title="오늘까지 처리할 할 일이 없습니다." />
         ) : (
           <ul className="flex flex-col gap-2">
             {myTop5.map((todo) => (
               <li key={todo.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2">
                 <div>
                   <p className="text-sm font-medium text-ink-800">{todo.title}</p>
-                  <p className="text-xs text-ink-400">{formatDate(todo.dueDate)}</p>
+                  <p className="text-xs text-ink-400">{todo.dueDate && todo.dueDate < todayKey ? `기한 지남 · ${formatDate(todo.dueDate)}` : `오늘 · ${formatDate(todo.dueDate)}`}</p>
                 </div>
-                <Badge variant={todo.taskStatus === 'IN_PROGRESS' ? 'accent' : 'neutral'}>{todo.taskStatus}</Badge>
+                <Badge variant={todo.taskStatus === 'IN_PROGRESS' ? 'accent' : 'neutral'}>{TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</Badge>
               </li>
             ))}
           </ul>
@@ -221,7 +228,7 @@ function WorkflowTimeline({ projectId }: { projectId: number }) {
             {events.slice(0, 10).map((event) => (
               <li key={event.id} className="flex items-start gap-3 border-b border-ink-100 pb-2 last:border-0">
                 <Badge variant="outline" className="mt-0.5 shrink-0">
-                  {event.eventType}
+                  {TIMELINE_LABELS[event.eventType] ?? event.eventType}
                 </Badge>
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink-800">{event.title}</p>
