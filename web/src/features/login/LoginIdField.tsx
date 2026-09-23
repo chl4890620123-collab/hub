@@ -47,7 +47,7 @@ export function LoginIdField({
           }}
           minLength={4}
           maxLength={40}
-          pattern="[A-Za-z0-9_.-]{4,40}"
+          pattern="[A-Za-z0-9_.\-]{4,40}"
           className="flex-1"
         />
         <Button

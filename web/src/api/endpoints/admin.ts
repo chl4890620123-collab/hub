@@ -1,9 +1,9 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/api/client';
+import { projectsApi } from '@/api/endpoints/projects';
 import type {
   AuditLogRow,
   GlobalRole,
   MaterialHit,
-  ProjectMember,
   ReassignmentRequest,
   RevisionRow,
   RuleInput,
@@ -43,7 +43,7 @@ export const adminProjectApi = {
     }),
   setConfirmPermission: (projectId: number, userId: number, granted: boolean) =>
     apiPut<{ status: string }>(`/api/admin/projects/${projectId}/confirm-permission`, { userId, granted }),
-  members: (projectId: number) => apiGet<ProjectMember[]>(`/api/projects/${projectId}/members`),
+  members: (projectId: number) => projectsApi.members(projectId),
 };
 
 export const adminReassignmentApi = {

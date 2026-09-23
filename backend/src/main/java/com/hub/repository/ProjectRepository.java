@@ -79,7 +79,7 @@ public class ProjectRepository {
 
     public List<java.util.Map<String,Object>> listMembers(long projectId) {
         return jdbc.queryForList("""
-                SELECT u.id user_id,u.display_name,u.email,'MEMBER' project_role,u.account_status,pm.can_confirm_todos
+                SELECT u.id user_id,u.display_name,u.login_id,u.email,'MEMBER' project_role,u.account_status,pm.can_confirm_todos
                 FROM project_member pm JOIN app_user u ON u.id=pm.user_id
                 WHERE pm.project_id=? AND u.account_status='ACTIVE' AND u.global_role='MEMBER' ORDER BY u.display_name,u.id
                 """, projectId);
