@@ -274,6 +274,15 @@ public class SpreadsheetService {
     private static List<SpreadsheetColumn> mergeColumns(List<SpreadsheetColumn> inputs) {
         if (inputs == null || inputs.isEmpty()) throw new IllegalArgumentException("열을 하나 이상 만들어 주세요.");
         if (inputs.size() > MAX_COLUMNS) throw new IllegalArgumentException("열은 최대 " + MAX_COLUMNS + "개까지 만들 수 있습니다.");
+        // Each incoming key is supposed to be either blank (a brand-new column) or one specific
+        // existing column's own key - never the same non-blank key twice. That would otherwise
+        // silently reproduce the exact corruption this method exists to prevent: two columns
+        // writing to and reading from the same cells_json slot, so editing one clobbers the other.
+        java.util.Set<String> seenKeys = new java.util.HashSet<>();
+        for (SpreadsheetColumn c : inputs) {
+            if (c.key() != null && !c.key().isBlank() && !seenKeys.add(c.key()))
+                throw new IllegalArgumentException("같은 열이 중복으로 전달됐습니다. 새로고침 후 다시 시도해 주세요.");
+        }
         int nextIndex = 1;
         for (SpreadsheetColumn c : inputs) {
             String key = c.key();
