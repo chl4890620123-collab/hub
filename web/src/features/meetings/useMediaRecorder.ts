@@ -23,7 +23,7 @@ function recordingErrorMessage(error: unknown): string {
   return `녹음을 시작하지 못했습니다.${detail ? ` ${detail}` : ' 음성 파일 업로드를 이용해 주세요.'}`;
 }
 
-export function useMediaRecorder() {
+export function useMediaRecorder(onAutoStop?: (blob: Blob) => void) {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -70,14 +70,21 @@ export function useMediaRecorder() {
     timerRef.current = setInterval(() => {
       const elapsed = Date.now() - startedAt;
       setElapsedMs(elapsed);
-      if (elapsed >= MAX_DURATION_MS) stop();
+      if (elapsed >= MAX_DURATION_MS) {
+        stop().then((blob) => onAutoStop?.(blob));
+      }
     }, 500);
   }
 
   function stop(): Promise<Blob> {
     return new Promise((resolve) => {
+      const recorder = recorderRef.current;
+      if (!recorder || recorder.state === 'inactive') {
+        resolve(new Blob(chunksRef.current, { type: recorder?.mimeType || mimeRef.current }));
+        return;
+      }
       resolveRef.current = resolve;
-      recorderRef.current?.stop();
+      recorder.stop();
       streamRef.current?.getTracks().forEach((track) => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
       setIsRecording(false);
