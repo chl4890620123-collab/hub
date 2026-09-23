@@ -22,6 +22,10 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
 
+  const { data: members, isLoading: membersLoading } = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => projectsApi.members(projectId),
+  });
   const { data: addable, isLoading } = useQuery({
     queryKey: ['project-addable-users', projectId],
     queryFn: () => projectsApi.addableUsers(projectId),
@@ -43,7 +47,8 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
       <CardHeader>
         <CardTitle>팀원 추가</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-wrap items-end gap-3">
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end gap-3">
         <Select value={userId} onValueChange={setUserId} disabled={isLoading}>
           <SelectTrigger className="w-56">
             <SelectValue placeholder="추가할 사람 선택" />
@@ -65,6 +70,19 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
         <Button disabled={!userId || addMember.isPending} onClick={() => addMember.mutate()}>
           추가
         </Button>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink-700">현재 팀원 {members?.length ?? 0}명</p>
+          {membersLoading ? <LoadingBlock /> : !members || members.length === 0 ? (
+            <p className="text-sm text-ink-400">아직 추가된 팀원이 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {members.map((m) => (
+                <Badge key={m.id} variant="outline">{m.displayName}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
