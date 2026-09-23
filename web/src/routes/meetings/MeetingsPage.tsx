@@ -21,7 +21,6 @@ function formatElapsed(ms: number): string {
 }
 
 function RecordingPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
-  const { isRecording, elapsedMs, start, stop } = useMediaRecorder();
   const [title, setTitle] = useState('');
 
   const upload = useMutation({
@@ -31,6 +30,11 @@ function RecordingPanel({ projectId, onJobStarted }: { projectId: number; onJobS
       onJobStarted(result.jobId);
     },
     onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const { isRecording, elapsedMs, start, stop } = useMediaRecorder((blob) => {
+    toast.success('최대 녹음 시간에 도달해 자동으로 업로드합니다.');
+    upload.mutate(blob);
   });
 
   return (
