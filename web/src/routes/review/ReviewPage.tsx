@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { todosApi } from '@/api/endpoints/todos';
@@ -22,6 +23,10 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
 
+  const { data: members, isLoading: membersLoading } = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => projectsApi.members(projectId),
+  });
   const { data: addable, isLoading } = useQuery({
     queryKey: ['project-addable-users', projectId],
     queryFn: () => projectsApi.addableUsers(projectId),
@@ -43,7 +48,8 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
       <CardHeader>
         <CardTitle>팀원 추가</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-wrap items-end gap-3">
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end gap-3">
         <Select value={userId} onValueChange={setUserId} disabled={isLoading}>
           <SelectTrigger className="w-56">
             <SelectValue placeholder="추가할 사람 선택" />
@@ -65,12 +71,28 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
         <Button disabled={!userId || addMember.isPending} onClick={() => addMember.mutate()}>
           추가
         </Button>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink-700">현재 팀원 {members?.length ?? 0}명</p>
+          {membersLoading ? <LoadingBlock /> : !members || members.length === 0 ? (
+            <p className="text-sm text-ink-400">아직 추가된 팀원이 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {members.map((m) => (
+                <Badge key={m.id} variant="outline">{m.displayName}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const date = new Date();
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+};
 
 function TodoReviewTab({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
@@ -98,7 +120,8 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
   });
   const reject = useMutation({
     mutationFn: (id: number) => todosApi.reject(id),
-    onSuccess: invalidate,
+    onSuccess: () => { toast.success('할 일 후보를 제외했습니다.'); invalidate(); },
+    onError: (error) => toast.error(errorMessage(error)),
   });
   const mergeDuplicate = useMutation({
     mutationFn: (id: number) => todosApi.mergeDuplicate(id),
@@ -106,6 +129,7 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
       toast.success('중복 항목을 병합했습니다.');
       invalidate();
     },
+    onError: (error) => toast.error(errorMessage(error)),
   });
   const bulkConfirm = useMutation({
     mutationFn: () => todosApi.bulkConfirm(projectId, [...selected], Number(bulkAssignee), bulkDueDate || null),
@@ -118,8 +142,12 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
   });
 
   const showEvidence = async (todoId: number, title: string) => {
-    const items = await todosApi.evidence(todoId);
-    openEvidence(title, items);
+    try {
+      const items = await todosApi.evidence(todoId);
+      openEvidence(title, items);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
   };
 
   if (isLoading) return <LoadingBlock />;
@@ -186,8 +214,8 @@ function DecisionReviewTab({ projectId }: { projectId: number }) {
     queryFn: () => decisionsApi.pending(projectId),
   });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['review-decisions', projectId] });
-  const confirm = useMutation({ mutationFn: (id: number) => decisionsApi.confirm(id), onSuccess: invalidate });
-  const reject = useMutation({ mutationFn: (id: number) => decisionsApi.reject(id), onSuccess: invalidate });
+  const confirm = useMutation({ mutationFn: (id: number) => decisionsApi.confirm(id), onSuccess: () => { toast.success('결정 사항을 확정했습니다.'); invalidate(); }, onError: (error) => toast.error(errorMessage(error)) });
+  const reject = useMutation({ mutationFn: (id: number) => decisionsApi.reject(id), onSuccess: () => { toast.success('결정 후보를 제외했습니다.'); invalidate(); }, onError: (error) => toast.error(errorMessage(error)) });
 
   if (isLoading) return <LoadingBlock />;
   if (!decisions || decisions.length === 0) return <EmptyState title="검토 대기 중인 결정 사항이 없습니다." />;
@@ -205,7 +233,7 @@ function DecisionReviewTab({ projectId }: { projectId: number }) {
               제외
             </Button>
             <button
-              onClick={async () => openEvidence(d.statement, await decisionsApi.evidence(d.id))}
+              onClick={async () => { try { openEvidence(d.statement, await decisionsApi.evidence(d.id)); } catch (error) { toast.error(errorMessage(error)); } }}
               className="ml-auto text-xs text-accent-600 hover:underline"
             >
               근거 보기
@@ -224,8 +252,8 @@ function ChangeReviewTab({ projectId }: { projectId: number }) {
     queryFn: () => changesApi.pending(projectId),
   });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['review-changes', projectId] });
-  const confirm = useMutation({ mutationFn: (id: number) => changesApi.confirm(projectId, id), onSuccess: invalidate });
-  const reject = useMutation({ mutationFn: (id: number) => changesApi.reject(projectId, id), onSuccess: invalidate });
+  const confirm = useMutation({ mutationFn: (id: number) => changesApi.confirm(projectId, id), onSuccess: () => { toast.success('변경 사항을 확정했습니다.'); invalidate(); }, onError: (error) => toast.error(errorMessage(error)) });
+  const reject = useMutation({ mutationFn: (id: number) => changesApi.reject(projectId, id), onSuccess: () => { toast.success('변경 후보를 제외했습니다.'); invalidate(); }, onError: (error) => toast.error(errorMessage(error)) });
 
   if (isLoading) return <LoadingBlock />;
   if (!changes || changes.length === 0) return <EmptyState title="검토 대기 중인 변경 사항이 없습니다." />;
@@ -257,7 +285,7 @@ export function ReviewPage() {
 
   return (
     <div>
-      <PageHeader title="담당자 배정" description="AI가 제안한 할 일, 결정, 변경 후보를 검토하고 확정합니다." />
+      <PageHeader title="AI 검토함" description="AI가 제안한 할 일, 결정, 변경 후보의 근거를 확인하고 확정합니다." />
       <AddTeammateCard projectId={currentProject.id} />
       <Tabs defaultValue="todos">
         <TabsList>

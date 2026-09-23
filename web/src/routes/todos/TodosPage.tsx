@@ -181,13 +181,13 @@ export function TodosPage() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCursor(new Date(year, month - 2, 1))}>
+          <Button variant="outline" size="icon" aria-label="이전 달" onClick={() => setCursor(new Date(year, month - 2, 1))}>
             <ChevronLeft size={14} />
           </Button>
           <span className="w-24 text-center text-sm font-medium text-ink-700">
             {year}년 {month}월
           </span>
-          <Button variant="outline" size="icon" onClick={() => setCursor(new Date(year, month, 1))}>
+          <Button variant="outline" size="icon" aria-label="다음 달" onClick={() => setCursor(new Date(year, month, 1))}>
             <ChevronRight size={14} />
           </Button>
         </div>
@@ -214,7 +214,7 @@ export function TodosPage() {
                 (statusFilter === s ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
               }
             >
-              {s === 'ALL' ? '전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '보류'}
+              {s === 'ALL' ? '전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '도움 필요'}
             </button>
           ))}
         </div>

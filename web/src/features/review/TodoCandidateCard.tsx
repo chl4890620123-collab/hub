@@ -12,6 +12,7 @@ export function TodoCandidateCard({
   selected,
   onToggleSelect,
   onConfirm,
+  onEdit,
   onReject,
   onMergeDuplicate,
   onShowEvidence,
@@ -24,6 +25,7 @@ export function TodoCandidateCard({
   selected?: boolean;
   onToggleSelect?: () => void;
   onConfirm: (assigneeId: number, dueDate: string | null) => void;
+  onEdit?: (title: string, description: string) => Promise<void> | void;
   onReject: () => void;
   onMergeDuplicate: () => void;
   onShowEvidence: () => void;
@@ -31,6 +33,8 @@ export function TodoCandidateCard({
 }) {
   const [assigneeId, setAssigneeId] = useState(todo.assigneeSuggestionId ? String(todo.assigneeSuggestionId) : '');
   const [dueDate, setDueDate] = useState(todo.dueDateSuggestion ?? new Date().toISOString().slice(0, 10));
+  const [title, setTitle] = useState(todo.title);
+  const [description, setDescription] = useState(todo.description ?? '');
 
   return (
     <div className="rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
@@ -38,11 +42,17 @@ export function TodoCandidateCard({
         {onToggleSelect && <input type="checkbox" checked={selected ?? false} onChange={onToggleSelect} className="mt-1" />}
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-ink-900">{todo.title}</p>
+            {onEdit ? (
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="할 일 제목" className="min-w-64 flex-1" />
+            ) : (
+              <p className="text-sm font-medium text-ink-900">{todo.title}</p>
+            )}
             <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{todo.confidence}</Badge>
             {todo.possibleDuplicateOfId && <Badge variant="warning">중복 의심</Badge>}
           </div>
-          {todo.description && <p className="mb-2 text-xs text-ink-500">{todo.description}</p>}
+          {onEdit ? (
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="할 일 설명" aria-label="할 일 설명" className="mb-2" />
+          ) : todo.description ? <p className="mb-2 text-xs text-ink-500">{todo.description}</p> : null}
           <p className="text-xs text-ink-400">AI 제안: {todo.assigneeSuggestionText ?? '담당자 없음'} · {todo.dueDateSuggestion ?? '기한 없음'}</p>
         </div>
       </div>
@@ -66,11 +76,16 @@ export function TodoCandidateCard({
             )}
           </SelectContent>
         </Select>
-        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" />
+        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-44 cursor-pointer [color-scheme:dark]" />
         <Button
           size="sm"
           disabled={!assigneeId || busy}
-          onClick={() => onConfirm(Number(assigneeId), dueDate || null)}
+          onClick={async () => {
+            if (onEdit && (title.trim() !== todo.title || description.trim() !== (todo.description ?? ''))) {
+              await onEdit(title.trim(), description.trim());
+            }
+            onConfirm(Number(assigneeId), dueDate || null);
+          }}
         >
           확정
         </Button>

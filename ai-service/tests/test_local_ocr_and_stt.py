@@ -1,4 +1,5 @@
 import pytest
+from app import config
 from app.providers.gemini_speech import GeminiSpeechProvider
 from app.providers.paddle_ocr import PaddleOcrProvider
 
@@ -12,7 +13,7 @@ def test_paddle_result_payload_accepts_wrapped_and_direct_shapes():
 
 def test_gemini_stt_request_reuses_transcribe_model_and_korean():
     body = GeminiSpeechProvider._request_body("files/demo", "audio/wav")
-    assert body["model"] == "gemini-3.5-transcribe"
+    assert body["model"] == config.GEMINI_TRANSCRIBE_MODEL
     cfg = body["generation_config"]["transcription_config"]
     assert cfg["language_codes"] == ["ko-KR"]
     assert cfg["mode"]["diarization_mode"] == "speaker"

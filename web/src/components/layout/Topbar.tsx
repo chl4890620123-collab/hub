@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, LogOut, Menu, Monitor, Moon, Plus, Search, Sun, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser, useIsAdmin, useLogout } from '@/hooks/useAuth';
@@ -25,6 +25,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const searchShortcut = useMemo(() => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'), []);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-ink-200 bg-white px-3 sm:px-5 dark:bg-ink-100">
@@ -87,7 +88,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         >
           <Search size={14} />
           <span className="hidden sm:inline">통합 검색</span>
-          <kbd className="hidden rounded border border-ink-200 bg-ink-50 px-1 text-[10px] sm:inline">⌘K</kbd>
+          <kbd className="hidden rounded border border-ink-200 bg-ink-50 px-1 text-[10px] sm:inline">{searchShortcut}</kbd>
         </button>
 
         <DropdownMenu.Root>

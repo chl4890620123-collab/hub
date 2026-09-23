@@ -42,7 +42,18 @@ export function AnalysisResultPanel({ jobId, projectId }: { jobId: number | null
     mutationFn: ({ id, assigneeId, dueDate }: { id: number; assigneeId: number; dueDate: string | null }) =>
       todosApi.confirm(id, assigneeId, dueDate),
     onSuccess: () => {
-      toast.success('할 일을 확정했습니다.');
+      toast.success('담당자를 저장하고 할 일에 등록했습니다.');
+      invalidatePending();
+      queryClient.invalidateQueries({ queryKey: ['todos', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['todos-undated', projectId] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const edit = useMutation({
+    mutationFn: ({ id, title, description }: { id: number; title: string; description: string }) =>
+      todosApi.editCandidate(id, title, description),
+    onSuccess: () => {
+      toast.success('할 일 내용을 수정했습니다.');
       invalidatePending();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -85,11 +96,12 @@ export function AnalysisResultPanel({ jobId, projectId }: { jobId: number | null
                 key={todo.id}
                 todo={todo}
                 members={members ?? []}
+                onEdit={async (title, description) => { await edit.mutateAsync({ id: todo.id, title, description }); }}
                 onConfirm={(assigneeId, dueDate) => confirm.mutate({ id: todo.id, assigneeId, dueDate })}
                 onReject={() => reject.mutate(todo.id)}
                 onMergeDuplicate={() => mergeDuplicate.mutate(todo.id)}
                 onShowEvidence={async () => openEvidence(todo.title, await todosApi.evidence(todo.id))}
-                busy={confirm.isPending || reject.isPending || mergeDuplicate.isPending}
+                busy={edit.isPending || confirm.isPending || reject.isPending || mergeDuplicate.isPending}
               />
             ))
           ) : (

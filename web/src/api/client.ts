@@ -102,8 +102,15 @@ export function apiUpload<T>(path: string, formData: FormData, method: 'POST' | 
 export async function apiDownload(
   path: string,
   headers?: Record<string, string>,
+  retried = false,
 ): Promise<{ blob: Blob; filename: string | null }> {
   const res = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers });
+  if (res.status === 401 && !retried && !path.startsWith('/api/auth/')) {
+    const recovered = await refreshSession();
+    if (recovered) return apiDownload(path, headers, true);
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+    throw new ApiError('로그인이 필요합니다.', 401, 'UNAUTHENTICATED');
+  }
   if (!res.ok) throw await ApiError.fromResponse(res);
   const disposition = res.headers.get('content-disposition') ?? '';
   const match = /filename\*=UTF-8''([^;]+)/.exec(disposition) ?? /filename="?([^";]+)"?/.exec(disposition);
