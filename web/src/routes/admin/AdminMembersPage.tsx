@@ -15,6 +15,8 @@ import { formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
+const ROLE_LABELS = { ADMIN: '관리자', MEMBER: '일반 사용자' } as const;
+
 function ProjectMembersPanel() {
   const { currentProject, projects } = useCurrentProject();
   const queryClient = useQueryClient();
@@ -207,7 +209,7 @@ export function AdminMembersPage() {
                       {app.displayName} <span className="text-ink-400">({app.loginId})</span>
                     </p>
                     <p className="text-xs text-ink-400">
-                      {app.email} · {app.requestedRole} · {formatDateTime(app.createdAt)}
+                      {app.email} · {ROLE_LABELS[app.requestedRole]} · {formatDateTime(app.createdAt)}
                     </p>
                     {app.requestedProjectName && <Badge variant="outline">희망: {app.requestedProjectName}</Badge>}
                   </div>
@@ -218,7 +220,7 @@ export function AdminMembersPage() {
                         onValueChange={(v) => setProjectChoice((prev) => ({ ...prev, [app.id]: v }))}
                       >
                         <SelectTrigger className="w-36">
-                          <SelectValue placeholder="프로젝트 (필수)" />
+                          <SelectValue placeholder="배정할 프로젝트" />
                         </SelectTrigger>
                         <SelectContent>
                           {projects.map((p) => (
