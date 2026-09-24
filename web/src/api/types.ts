@@ -9,7 +9,7 @@ export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED';
 export type ReviewStatus = 'AI_GENERATED' | 'REVIEWING' | 'CONFIRMED' | 'REJECTED';
-export type AssignmentStatus = 'ASSIGNED' | 'UNASSIGNED' | 'ORPHANED';
+export type AssignmentStatus = 'ACTIVE' | 'REASSIGNMENT_REQUIRED';
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export interface User {
