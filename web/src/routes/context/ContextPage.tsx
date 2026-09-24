@@ -37,6 +37,9 @@ const CHANGE_CATEGORY_LABELS: Record<string, string> = {
   CONTENT: '내용 변경',
 };
 
+const changeReason = (reason: string) =>
+  reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
+
 export function ContextPage() {
   const { currentProject } = useCurrentProject();
   const [query, setQuery] = useState('');
@@ -146,7 +149,7 @@ export function ContextPage() {
                   {bundle.changes.map((c) => (
                     <li key={c.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                       <p className="font-medium text-ink-800">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
-                      <p className="text-xs text-ink-500">{c.reason}</p>
+                      <p className="text-xs text-ink-500">{changeReason(c.reason)}</p>
                     </li>
                   ))}
                 </ul>
