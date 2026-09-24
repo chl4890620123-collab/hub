@@ -57,7 +57,7 @@ export function CommandPaletteSearch() {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="문서, 회의록, 첨부파일, GitHub·Drive·Slack·Notion 자료를 검색하세요..."
+            placeholder="문서, 회의록, 첨부파일, GitHub·Google Drive·Slack·Notion 자료를 검색하세요..."
             className="h-9 border-0 px-0 focus:ring-0"
           />
         </div>
