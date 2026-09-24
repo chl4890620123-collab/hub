@@ -21,7 +21,7 @@ const SEARCH_PAGE_SIZE = 30;
 const SOURCE_FILTERS = [
   { value: 'ALL', label: '전체 자료' },
   { value: 'HUB', label: 'Hub 문서·회의록·첨부파일' },
-  { value: 'EXTERNAL', label: '연결 서비스' },
+  { value: 'EXTERNAL', label: 'GitHub·Drive·Slack·Notion' },
 ] as const;
 
 export function SearchPage() {
@@ -92,7 +92,10 @@ export function SearchPage() {
 
   return (
     <div>
-      <PageHeader title="자료 찾기" description="내 문서·회의록과 권한이 있는 Slack, Notion, Drive 자료를 한 번에 검색합니다." />
+      <PageHeader
+        title="자료 찾기"
+        description="현재 프로젝트의 문서·회의록·첨부파일과 GitHub, Google Drive, Slack, Notion 자료를 한 번에 검색합니다."
+      />
 
       <p className="mb-3 text-xs text-ink-500">
         검색 범위: 현재 프로젝트에서 볼 수 있는 문서, 회의록, 업무 첨부파일과 연결 서비스 자료입니다.
