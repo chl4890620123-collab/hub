@@ -53,7 +53,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
 
 function eventTypeLabel(type: string | null): string {
   if (!type) return '기록';
-  return EVENT_TYPE_LABELS[type] ?? type.replaceAll('_', ' ').toLowerCase();
+  return EVENT_TYPE_LABELS[type] ?? '기타 활동';
 }
 
 function entityTypeLabel(type: string | null): string {
