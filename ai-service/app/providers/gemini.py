@@ -63,6 +63,35 @@ class GeminiProvider:
             pass
         return min(config.GEMINI_MAX_RETRY_DELAY_SECONDS, 2.0 * (2**attempt))
 
+    @staticmethod
+    def _quota_reason(response: httpx.Response) -> str | None:
+        """Classify Google's 429 so daily quota is not retried like a short rate limit."""
+        if response.status_code != 429:
+            return None
+        try:
+            error = response.json().get("error", {})
+            code = str(error.get("status") or error.get("reason") or "").lower()
+            message = str(error.get("message") or "").lower()
+            details = error.get("details") or []
+            blob = json.dumps(details, ensure_ascii=False).lower()
+        except Exception:  # noqa: BLE001 - classification must never hide the original response
+            return "rate_limit"
+        combined = " ".join((code, message, blob))
+        if any(token in combined for token in (
+            "quota_exceeded", "perday", "per_day", "requestsperday", "requests per day",
+            "daily quota", "daily limit",
+        )):
+            return "daily_quota"
+        return "rate_limit"
+
+    @staticmethod
+    def _raise_quota_error(response: httpx.Response) -> None:
+        reason = GeminiProvider._quota_reason(response)
+        if reason == "daily_quota":
+            raise RuntimeError("GEMINI_DAILY_QUOTA_EXHAUSTED: Gemini 일일 요청 한도를 소진했습니다. 한도 초기화 후 다시 시도해 주세요.")
+        if reason == "rate_limit":
+            raise RuntimeError("GEMINI_RATE_LIMITED: Gemini 분당 요청/토큰 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.")
+
     async def json_generate(self, prompt: str) -> dict:
         if not self.enabled:
             raise RuntimeError("Gemini provider is not enabled")
@@ -72,10 +101,14 @@ class GeminiProvider:
         response: httpx.Response | None = None
         for attempt in range(config.GEMINI_RETRIES + 1):
             response = await client.post(url, headers=headers, json=self.request_body(prompt))
+            if response.status_code == 429 and self._quota_reason(response) == "daily_quota":
+                self._raise_quota_error(response)
             if response.status_code not in {429, 500, 502, 503, 504} or attempt >= config.GEMINI_RETRIES:
                 break
             await asyncio.sleep(self._retry_delay(response, attempt))
         assert response is not None
+        if response.status_code == 429:
+            self._raise_quota_error(response)
         response.raise_for_status()
         data = response.json()
         try:
