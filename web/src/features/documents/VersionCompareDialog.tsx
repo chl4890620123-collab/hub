@@ -8,6 +8,19 @@ import { documentsApi } from '@/api/endpoints/documents';
 import { changesApi } from '@/api/endpoints/decisionsChanges';
 import { formatDateTime } from '@/lib/format';
 
+const CHANGE_CATEGORY_LABELS: Record<string, string> = {
+  SCHEDULE: '일정 변경',
+  BUDGET: '예산 변경',
+  ASSIGNEE: '담당자 변경',
+  FEATURE: '기능 변경',
+  CONTRACT: '계약 변경',
+  CONTENT: '내용 변경',
+};
+
+function changeReason(reason: string): string {
+  return reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
+}
+
 export function VersionCompareDialog({
   documentId,
   projectId,
@@ -79,10 +92,10 @@ export function VersionCompareDialog({
                 ) : (
                   compare.data.changes.map((c, i) => (
                     <div key={i} className="rounded-md border border-ink-200 p-3">
-                      <p className="mb-1 text-xs font-semibold text-ink-500">{c.category}</p>
+                      <p className="mb-1 text-xs font-semibold text-ink-500">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
                       <p className="mb-1 text-sm text-red-600 line-through">{c.before}</p>
                       <p className="mb-1 text-sm text-accent-700">{c.after}</p>
-                      <p className="text-xs text-ink-400">{c.reason}</p>
+                      <p className="text-xs text-ink-400">{changeReason(c.reason)}</p>
                     </div>
                   ))
                 )}
