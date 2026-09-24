@@ -24,6 +24,17 @@ import { formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
+const DOCUMENT_SOURCE_LABELS: Record<string, string> = {
+  FILE: '업로드 파일',
+  MANUAL_TEXT: '직접 입력',
+  MEETING_TRANSCRIPT: '회의 녹음 기록',
+  LOCAL_PC: '내 PC 파일',
+  GITHUB: 'GitHub',
+  GOOGLE_DRIVE: 'Google Drive',
+  SLACK: 'Slack',
+  NOTION: 'Notion',
+};
+
 function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [dueDate, setDueDate] = useState('');
@@ -206,7 +217,7 @@ export function DocumentsPage() {
         <p className="truncate text-sm font-medium text-ink-800">{doc.original_name}</p>
         {!compact && (
           <p className="text-xs text-ink-400">
-            {doc.source_type} · v{doc.latest_version} · {formatDateTime(doc.created_at)}
+            {DOCUMENT_SOURCE_LABELS[doc.source_type] ?? '등록 자료'} · 버전 {doc.latest_version} · {formatDateTime(doc.created_at)}
           </p>
         )}
       </div>
@@ -215,7 +226,7 @@ export function DocumentsPage() {
           {doc.archived && <Badge variant="outline">보관됨</Badge>}
           {doc.has_original && (
             <Button variant="ghost" size="sm" disabled={download.isPending} onClick={() => download.mutate(doc)}>
-              <Download size={13} /> 원본 보기
+              <Download size={13} /> 원본 다운로드
             </Button>
           )}
           {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
@@ -238,7 +249,7 @@ export function DocumentsPage() {
 
   return (
     <div>
-      <PageHeader title="문서 요약" description="문서를 업로드하거나 직접 입력하면 AI가 요약과 할 일을 추출합니다." />
+      <PageHeader title="문서 요약" description="문서를 업로드하거나 직접 입력하면 AI가 내용을 요약하고 할 일·담당자·기한 후보를 정리합니다." />
 
       <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <UploadPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
