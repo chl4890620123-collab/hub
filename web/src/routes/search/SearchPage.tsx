@@ -21,7 +21,7 @@ const SEARCH_PAGE_SIZE = 30;
 const SOURCE_FILTERS = [
   { value: 'ALL', label: '전체 자료' },
   { value: 'HUB', label: 'Hub 문서·회의록·첨부파일' },
-  { value: 'EXTERNAL', label: 'GitHub·Drive·Slack·Notion' },
+  { value: 'EXTERNAL', label: 'GitHub·Google Drive·Slack·Notion' },
 ] as const;
 
 export function SearchPage() {
@@ -45,7 +45,7 @@ export function SearchPage() {
       .then((results) => {
         if (cancelled) return;
         setHits(results);
-        setHasMore(results.length >= SEARCH_PAGE_SIZE);
+        setHasMore(results.length >= SEARCH_PAGE_SIZE && !results.some((hit) => hit.sourceType === 'ATTACHMENT'));
       })
       .catch((error) => !cancelled && toast.error(errorMessage(error)))
       .finally(() => !cancelled && setIsFetching(false));
@@ -61,7 +61,7 @@ export function SearchPage() {
     try {
       const results = await materialsApi.search(currentProject.id, submittedQuery, hits.length);
       setHits((prev) => [...prev, ...results]);
-      setHasMore(results.length >= SEARCH_PAGE_SIZE);
+      setHasMore(results.length >= SEARCH_PAGE_SIZE && !results.some((hit) => hit.sourceType === 'ATTACHMENT'));
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
