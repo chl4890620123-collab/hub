@@ -49,12 +49,12 @@ public class FileAttachmentService {
         access.requireAccess(projectId, actor);
         LinkedHashMap<Long, Recipient> result = new LinkedHashMap<>();
         for (var row : projects.listMembers(projectId)) {
-            Number id = (Number) row.get("user_id");
-            if (id == null) continue;
+            Object idValue = value(row, "user_id");
+            if (!(idValue instanceof Number id)) continue;
             result.put(id.longValue(), new Recipient(
                     id.longValue(),
-                    String.valueOf(row.getOrDefault("display_name", "")),
-                    String.valueOf(row.getOrDefault("login_id", "")),
+                    String.valueOf(value(row, "display_name")),
+                    String.valueOf(value(row, "login_id")),
                     false
             ));
         }
@@ -132,6 +132,12 @@ public class FileAttachmentService {
     private static String safeName(MultipartFile file) {
         String name = file.getOriginalFilename();
         return (name == null || name.isBlank()) ? "attachment.bin" : java.nio.file.Path.of(name).getFileName().toString();
+    }
+
+    private static Object value(java.util.Map<String, Object> row, String key) {
+        Object value = row.get(key);
+        if (value == null) value = row.get(key.toUpperCase(java.util.Locale.ROOT));
+        return value == null ? "" : value;
     }
 
     private static String blankToNull(String value) { return value == null || value.isBlank() ? null : value.strip(); }
