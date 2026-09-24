@@ -4,6 +4,7 @@ import com.hub.model.User;
 import com.hub.repository.FileAttachmentRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.TodoRepository;
+import com.hub.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,13 +23,14 @@ public class FileAttachmentService {
     private final FileAttachmentRepository attachments;
     private final TodoRepository todos;
     private final ProjectRepository projects;
+    private final UserRepository users;
     private final ProjectAccessService access;
     private final FileStorageService storage;
 
     public FileAttachmentService(FileAttachmentRepository attachments, TodoRepository todos, ProjectRepository projects,
-                                 ProjectAccessService access, FileStorageService storage) {
+                                 UserRepository users, ProjectAccessService access, FileStorageService storage) {
         this.attachments = attachments; this.todos = todos; this.projects = projects;
-        this.access = access; this.storage = storage;
+        this.users = users; this.access = access; this.storage = storage;
     }
 
     public long attachToTodo(long todoId, MultipartFile file, String note, User actor) {
@@ -42,7 +44,8 @@ public class FileAttachmentService {
     public long sendToMember(long projectId, long recipientId, MultipartFile file, String note, User actor) {
         access.requireAccess(projectId, actor);
         boolean recipientOk = recipientId == actor.id()
-                || projects.isMember(projectId, recipientId);
+                || projects.isMember(projectId, recipientId)
+                || users.findById(recipientId).map(User::isAdmin).orElse(false);
         if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트의 팀원이어야 합니다.");
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,
