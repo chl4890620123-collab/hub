@@ -17,6 +17,7 @@ HUB_JWT_SECRET=<32자 이상>
 HUB_AI_MODE=gemini
 GEMINI_API_KEY=<secret>
 GEMINI_MODEL=gemini-3.8-flash
+GEMINI_FALLBACK_MODEL=gemini-3.6-flash
 GEMINI_TRANSCRIBE_MODEL=gemini-3.5-transcribe
 HUB_EMBED_MODE=e5
 
@@ -30,6 +31,8 @@ GITHUB_TOKEN=
 ```
 
 OCR/STT provider 선택용 ENV는 제거했습니다. 실제 모드에서 OCR은 local PaddleOCR, STT는 Gemini로 고정되어 운영자가 provider 변수를 중복 관리하지 않습니다. mock 모드는 `HUB_AI_MODE=mock` 하나로 전환합니다.
+
+텍스트 분석·RAG 요청에서 기본 Gemini 모델이 재시도 후에도 429를 반환하면 `GEMINI_FALLBACK_MODEL`로 재시도합니다. 음성 전사 모델은 독립 설정이며 변경되지 않습니다. 기본 모델과 대체 모델이 모두 한도 초과이면 작업은 기존과 같이 실패로 기록됩니다. 서버 `.env`에 `GEMINI_MODEL`이 있으면 코드 기본값보다 우선합니다.
 
 관리자 가입은 최초 계정을 포함해 항상 기존 관리자의 승인 대기 상태로 처리합니다(자가 승인 불가). 관리자가 0명인 첫 배포에서는 운영자가 `HUB_BOOTSTRAP_ADMIN_PASSWORD`를 서버의 `.env`에 직접 정해서 넣어야 `BootstrapService`가 그 값으로 관리자 계정 하나를 만듭니다(코드/마이그레이션에 비밀번호를 적어두지 않음). 최초 로그인 시 비밀번호 변경이 강제되며, 관리자가 이미 있으면 이 값은 무시됩니다.
 
