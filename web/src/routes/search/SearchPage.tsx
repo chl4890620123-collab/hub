@@ -45,7 +45,8 @@ export function SearchPage() {
       .then((results) => {
         if (cancelled) return;
         setHits(results);
-        setHasMore(results.length >= SEARCH_PAGE_SIZE && !results.some((hit) => hit.sourceType === 'ATTACHMENT'));
+        const primaryCount = results.filter((hit) => hit.sourceType !== 'ATTACHMENT').length;
+        setHasMore(primaryCount >= SEARCH_PAGE_SIZE);
       })
       .catch((error) => !cancelled && toast.error(errorMessage(error)))
       .finally(() => !cancelled && setIsFetching(false));
@@ -59,9 +60,10 @@ export function SearchPage() {
     if (!currentProject || !submittedQuery) return;
     setLoadingMore(true);
     try {
-      const results = await materialsApi.search(currentProject.id, submittedQuery, hits.length);
+      const primaryOffset = hits.filter((hit) => hit.sourceType !== 'ATTACHMENT').length;
+      const results = await materialsApi.search(currentProject.id, submittedQuery, primaryOffset);
       setHits((prev) => [...prev, ...results]);
-      setHasMore(results.length >= SEARCH_PAGE_SIZE && !results.some((hit) => hit.sourceType === 'ATTACHMENT'));
+      setHasMore(results.length >= SEARCH_PAGE_SIZE);
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
