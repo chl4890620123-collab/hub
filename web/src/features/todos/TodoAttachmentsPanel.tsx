@@ -53,7 +53,12 @@ export function TodoAttachmentsPanel({ todoId }: { todoId: number }) {
               <span className="truncate text-ink-700">
                 {a.fileName} ({formatBytes(a.sizeBytes)})
               </span>
-              <button onClick={() => download.mutate(a.id)} className="shrink-0 text-accent-600 hover:underline">
+              <button
+                onClick={() => download.mutate(a.id)}
+                className="shrink-0 text-accent-600 hover:underline"
+                aria-label={`${a.fileName} 다운로드`}
+                title="다운로드"
+              >
                 <Download size={12} />
               </button>
             </li>
