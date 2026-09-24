@@ -24,9 +24,10 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
   const rows = todos.filter((t) => t.reviewStatus === 'CONFIRMED' && (!t.dueDate || t.dueDate.startsWith(month)));
   const total = rows.length;
   const done = rows.filter((t) => t.taskStatus === 'DONE').length;
-  const doing = rows.filter((t) => t.taskStatus === 'IN_PROGRESS').length;
-  const waiting = rows.filter((t) => t.taskStatus === 'TODO').length;
-  const blocked = rows.filter((t) => t.taskStatus === 'BLOCKED').length;
+  const activeRows = rows.filter((t) => t.assignmentStatus === 'ACTIVE');
+  const doing = activeRows.filter((t) => t.taskStatus === 'IN_PROGRESS').length;
+  const waiting = activeRows.filter((t) => t.taskStatus === 'TODO').length;
+  const blocked = activeRows.filter((t) => t.taskStatus === 'BLOCKED').length;
   const reassign = rows.filter((t) => t.assignmentStatus === 'REASSIGNMENT_REQUIRED').length;
   const pct = total ? Math.round((done * 100) / total) : 0;
 
@@ -144,6 +145,7 @@ export function TodosPage() {
   const evidenceMutation = useMutation({
     mutationFn: (todo: TodoItem) => todosApi.evidence(todo.id).then((items) => ({ todo, items })),
     onSuccess: ({ todo, items }) => openEvidence(todo.title, items),
+    onError: (error) => toast.error(errorMessage(error)),
   });
 
   const allTodos = useMemo(() => [...(monthTodos ?? []), ...(undated ?? [])], [monthTodos, undated]);
