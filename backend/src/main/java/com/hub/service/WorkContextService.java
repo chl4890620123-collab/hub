@@ -5,6 +5,7 @@ import com.hub.model.MaterialHit;
 import com.hub.model.TimelineEvent;
 import com.hub.model.TodoItem;
 import com.hub.model.WorkContextBundle;
+import com.hub.model.User;
 import com.hub.repository.ChangeRepository;
 import com.hub.repository.DecisionRepository;
 import com.hub.repository.TimelineRepository;
@@ -41,9 +42,15 @@ public class WorkContextService {
      * Connects heterogeneous sources into one work context. AI writes only the summary; official
      * TODO/decision/change records are read from Hub DB and keep their review state.
      */
-    public WorkContextBundle build(long projectId, String query) {
+    public WorkContextBundle build(long projectId, String query, User actor) {
         String q = required(query);
-        List<MaterialHit> sources = materials.search(projectId, q).stream().limit(12).toList();
+        List<MaterialHit> allSources = materials.search(projectId, q, 0, actor);
+        List<MaterialHit> sources = java.util.stream.Stream.concat(
+                        allSources.stream().filter(hit -> "ATTACHMENT".equalsIgnoreCase(hit.sourceType())).limit(3),
+                        allSources.stream().filter(hit -> !"ATTACHMENT".equalsIgnoreCase(hit.sourceType()))
+                )
+                .limit(12)
+                .toList();
         MaterialAskResponse ask;
         try {
             ask = materials.ask(projectId, q);

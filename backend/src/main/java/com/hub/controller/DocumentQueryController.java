@@ -101,4 +101,16 @@ public class DocumentQueryController {
         audit.add(user.id(), projectId, "DOCUMENT_ARCHIVE", "DOCUMENT", documentId, "{}");
         return Map.of("status", "ARCHIVED");
     }
+
+    @DeleteMapping("/api/documents/{documentId}/permanent")
+    public Map<String, Object> deletePermanently(@PathVariable long documentId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        long projectId = documents.projectIdForDocument(documentId);
+        projectAccess.requireAdmin(projectId, user);
+        var file = documents.findFile(documentId).orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        documents.deletePermanently(documentId);
+        storage.deleteQuietly(file.storagePath());
+        audit.add(user.id(), projectId, "DOCUMENT_DELETE", "DOCUMENT", documentId, "{}");
+        return Map.of("status", "DELETED");
+    }
 }

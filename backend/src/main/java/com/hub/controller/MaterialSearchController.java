@@ -45,7 +45,7 @@ public class MaterialSearchController {
         projectAccess.requireAccess(projectId, user);
         // Only log the query once per search, not on every "더보기" page.
         if (offset <= 0) searchLogs.log(projectId, user.id(), q == null ? "" : q.trim());
-        return materials.search(projectId, q, offset);
+        return materials.search(projectId, q, offset, user);
     }
 
     public record AskRequest(String question) {}

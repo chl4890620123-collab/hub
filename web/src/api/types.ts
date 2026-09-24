@@ -9,7 +9,7 @@ export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED';
 export type ReviewStatus = 'AI_GENERATED' | 'REVIEWING' | 'CONFIRMED' | 'REJECTED';
-export type AssignmentStatus = 'ASSIGNED' | 'UNASSIGNED' | 'ORPHANED';
+export type AssignmentStatus = 'ACTIVE' | 'REASSIGNMENT_REQUIRED';
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export interface User {
@@ -223,6 +223,13 @@ export interface ChangeEvidenceView {
   pageNo: number | null;
 }
 
+export interface FileTransferRecipient {
+  id: number;
+  displayName: string;
+  loginId: string;
+  admin: boolean;
+}
+
 export interface AttachmentView {
   id: number;
   todoId: number | null;
@@ -256,8 +263,13 @@ export interface SignupApplication {
 
 export interface ReassignmentRequest {
   id: number;
+  todo_id?: number;
   project_id?: number;
-  old_assignee_id?: number;
+  former_assignee_id?: number | null;
+  former_assignee_name?: string | null;
+  title?: string;
+  task_status?: TaskStatus;
+  due_date?: string | null;
   reason?: string;
   created_at?: string;
   [key: string]: unknown;

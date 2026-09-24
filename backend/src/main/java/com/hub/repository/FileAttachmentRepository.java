@@ -56,19 +56,30 @@ public class FileAttachmentRepository {
     /** Sent or received within the project - a small personal inbox, newest first. */
     public List<Attachment> listForUser(long projectId, long userId) {
         return jdbc.query(selectColumns() + """
-                 FROM file_attachment WHERE project_id=? AND (sender_id=? OR recipient_id=?) ORDER BY id DESC LIMIT 300
+                 FROM file_attachment WHERE project_id=? AND todo_id IS NULL AND (sender_id=? OR recipient_id=?) ORDER BY id DESC LIMIT 300
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
-    /** Project-scoped filename/note lookup used as an additive search source. */
-    public List<Attachment> search(long projectId, String query, int limit) {
+    /** Filename/note lookup with the same visibility rules as download: project todo attachments are
+     * visible to project members, while direct transfers stay private to sender/recipient unless the
+     * viewer is a global administrator. */
+    public List<Attachment> searchVisible(long projectId, long userId, boolean admin, String query, int limit) {
         String term = "%" + (query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT)) + "%";
         int bounded = Math.max(1, Math.min(limit, 100));
+        if (admin) {
+            return jdbc.query(selectColumns() + """
+                     FROM file_attachment
+                     WHERE project_id=? AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
+                     ORDER BY id DESC LIMIT ?
+                    """, (rs, n) -> map(rs), projectId, term, term, bounded);
+        }
         return jdbc.query(selectColumns() + """
                  FROM file_attachment
-                 WHERE project_id=? AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
+                 WHERE project_id=?
+                   AND (todo_id IS NOT NULL OR sender_id=? OR recipient_id=?)
+                   AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
                  ORDER BY id DESC LIMIT ?
-                """, (rs, n) -> map(rs), projectId, term, term, bounded);
+                """, (rs, n) -> map(rs), projectId, userId, userId, term, term, bounded);
     }
 
     public void markRead(long id) {

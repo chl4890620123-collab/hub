@@ -5,8 +5,9 @@ import { jobsApi } from '@/api/endpoints/jobs';
 import { formatDateTime } from '@/lib/format';
 
 const JOB_TYPE_LABELS: Record<string, string> = {
-  DOCUMENT_ANALYZE: '문서 정리',
-  MEETING_ANALYZE: '회의 정리',
+  DOCUMENT_ANALYSIS: '문서 정리',
+  MEETING_STT_ANALYSIS: '회의 음성 정리',
+  CONNECTOR_IMPORT: '연결 서비스 자료 가져오기',
 };
 
 const JOB_STATUS_LABELS: Record<string, string> = {
@@ -37,7 +38,7 @@ export function JobHistoryPanel({ projectId }: { projectId: number }) {
             {jobs.slice(0, 20).map((job) => (
               <li key={job.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                 <p className="font-medium text-ink-800">
-                  {JOB_TYPE_LABELS[job.jobType] ?? job.jobType.replaceAll('_', ' ')} · {JOB_STATUS_LABELS[job.status] ?? '처리 중'}
+                  {JOB_TYPE_LABELS[job.jobType] ?? 'AI 처리'} · {JOB_STATUS_LABELS[job.status] ?? '처리 중'}
                 </p>
                 <p className="text-xs text-ink-400">
                   진행 {job.progress || 0}% · {formatDateTime(job.updatedAt)}

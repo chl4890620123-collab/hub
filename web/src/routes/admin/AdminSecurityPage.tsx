@@ -30,9 +30,10 @@ function ConnectorPolicyPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>커넥터 사용 정책</CardTitle>
+        <CardTitle>외부 서비스 사용 설정</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="mb-3 text-xs text-ink-500">회사에서 사용할 외부 서비스를 켜거나 끕니다. 꺼진 서비스는 연결 화면에도 표시되지 않습니다.</p>
         {isLoading ? (
           <LoadingBlock />
         ) : (
@@ -78,11 +79,11 @@ function SensitiveTermsPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>민감 정보 해시 처리 단어</CardTitle>
+        <CardTitle>회의에서 가릴 민감 정보</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-xs text-ink-500">
-          여기 등록한 단어/값은 회의 STT 텍스트에서 저장·검색되기 전에 해시로 가려집니다.
+          여기에 등록한 단어나 값은 회의 음성을 글로 바꾼 뒤 저장·검색하기 전에 알아볼 수 없는 값으로 바꿉니다.
         </p>
         <div className="flex gap-2">
           <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="가릴 단어나 값" className="max-w-xs" />

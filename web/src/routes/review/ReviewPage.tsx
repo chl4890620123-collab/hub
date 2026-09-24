@@ -19,6 +19,18 @@ import { useEvidenceStore } from '@/stores/evidenceStore';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
+const CHANGE_CATEGORY_LABELS: Record<string, string> = {
+  SCHEDULE: '일정 변경',
+  BUDGET: '예산 변경',
+  ASSIGNEE: '담당자 변경',
+  FEATURE: '기능 변경',
+  CONTRACT: '계약 변경',
+  CONTENT: '내용 변경',
+};
+
+const changeReason = (reason: string) =>
+  reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
+
 function AddTeammateCard({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
@@ -46,7 +58,8 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
   return (
     <Card className="mb-4">
       <CardHeader>
-        <CardTitle>팀원 추가</CardTitle>
+        <CardTitle>담당자로 배정할 팀원</CardTitle>
+        <p className="text-xs text-ink-400">필요한 경우에만 현재 프로젝트에 팀원을 추가하세요. 추가된 팀원은 할 일 담당자로 선택할 수 있습니다.</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -89,17 +102,12 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
   );
 }
 
-const today = () => {
-  const date = new Date();
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
-};
-
 function TodoReviewTab({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const openEvidence = useEvidenceStore((s) => s.open);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkAssignee, setBulkAssignee] = useState('');
-  const [bulkDueDate, setBulkDueDate] = useState(today);
+  const [bulkDueDate, setBulkDueDate] = useState('');
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['review-todos', projectId],
@@ -158,7 +166,7 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
       <BulkSelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
         <Select value={bulkAssignee} onValueChange={setBulkAssignee}>
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="담당자" />
+            <SelectValue placeholder="최종 담당자" />
           </SelectTrigger>
           <SelectContent>
             {members && members.length === 0 ? (
@@ -174,7 +182,7 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
             )}
           </SelectContent>
         </Select>
-        <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" />
+        <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" aria-label="선택한 할 일의 최종 기한 (선택)" />
         <Button size="sm" disabled={!bulkAssignee || bulkConfirm.isPending} onClick={() => bulkConfirm.mutate()}>
           일괄 확정
         </Button>
@@ -247,6 +255,7 @@ function DecisionReviewTab({ projectId }: { projectId: number }) {
 
 function ChangeReviewTab({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
+  const openEvidence = useEvidenceStore((s) => s.open);
   const { data: changes, isLoading } = useQuery({
     queryKey: ['review-changes', projectId],
     queryFn: () => changesApi.pending(projectId),
@@ -262,9 +271,10 @@ function ChangeReviewTab({ projectId }: { projectId: number }) {
     <div className="flex flex-col gap-2">
       {changes.map((c) => (
         <div key={c.id} className="rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
-          <p className="mb-1 text-sm font-medium text-ink-900">{c.category}</p>
-          <p className="mb-1 text-xs text-ink-500">before: {c.before_text}</p>
-          <p className="mb-2 text-xs text-ink-500">after: {c.after_text}</p>
+          <p className="mb-1 text-sm font-medium text-ink-900">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
+          <p className="mb-1 text-xs text-ink-500">변경 전: {c.before_text || '내용 없음'}</p>
+          <p className="mb-1 text-xs text-ink-500">변경 후: {c.after_text || '내용 없음'}</p>
+          {c.reason && <p className="mb-2 text-xs text-ink-400">변경 이유: {changeReason(c.reason)}</p>}
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => confirm.mutate(c.id)}>
               확정
@@ -272,6 +282,35 @@ function ChangeReviewTab({ projectId }: { projectId: number }) {
             <Button size="sm" variant="outline" onClick={() => reject.mutate(c.id)}>
               제외
             </Button>
+            <button
+              onClick={async () => {
+                try {
+                  const items = await changesApi.evidence(projectId, c.id);
+                  openEvidence(
+                    CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항 근거',
+                    items.map((item) => ({
+                      id: item.id,
+                      versionId: item.versionId,
+                      chunkId: item.chunkId,
+                      quote: `${item.side === 'BEFORE' ? '변경 전' : '변경 후'}: ${item.quote}`,
+                      contentHash: item.contentHash,
+                      documentName: item.documentName,
+                      paragraphRef: item.paragraphRef,
+                      pageNo: item.pageNo,
+                      meetingTitle: null,
+                      startMs: null,
+                      endMs: null,
+                      speaker: null,
+                    })),
+                  );
+                } catch (error) {
+                  toast.error(errorMessage(error));
+                }
+              }}
+              className="ml-auto text-xs text-accent-600 hover:underline"
+            >
+              근거 보기
+            </button>
           </div>
         </div>
       ))}
@@ -285,8 +324,13 @@ export function ReviewPage() {
 
   return (
     <div>
-      <PageHeader title="AI 검토함" description="AI가 제안한 할 일, 결정, 변경 후보의 근거를 확인하고 확정합니다." />
-      <AddTeammateCard projectId={currentProject.id} />
+      <PageHeader
+        title="AI 검토함"
+        description="AI가 만든 후보를 사람이 확인하는 곳입니다. 확정하기 전에는 실제 할 일이나 결정으로 반영되지 않습니다."
+      />
+      <p className="mb-4 text-xs text-ink-500">
+        할 일에서는 담당자와 기한을 정해 확정하고, 결정·변경 이력은 원문 근거를 확인한 뒤 확정하거나 제외할 수 있습니다.
+      </p>
       <Tabs defaultValue="todos">
         <TabsList>
           <TabsTrigger value="todos">할 일</TabsTrigger>
@@ -303,6 +347,9 @@ export function ReviewPage() {
           <ChangeReviewTab projectId={currentProject.id} />
         </TabsContent>
       </Tabs>
+      <div className="mt-6">
+        <AddTeammateCard projectId={currentProject.id} />
+      </div>
     </div>
   );
 }

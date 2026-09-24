@@ -12,7 +12,7 @@ public class ProjectAccessService {
 
     public void requireAccess(long projectId, User user) {
         if (!projects.canAccess(projectId, user.id(), user.isAdmin())) {
-            throw new AccessDeniedException("Project access denied");
+            throw new AccessDeniedException("이 프로젝트를 볼 수 있는 권한이 없습니다.");
         }
     }
 
@@ -23,7 +23,7 @@ public class ProjectAccessService {
     public void requireAdmin(long projectId, User user) {
         requireAccess(projectId, user);
         if (user == null || !user.isAdmin()) {
-            throw new AccessDeniedException("Administrator permission required");
+            throw new AccessDeniedException("관리자 권한이 필요합니다.");
         }
     }
 
@@ -35,7 +35,7 @@ public class ProjectAccessService {
     public void requireConfirmPermission(long projectId, User user) {
         requireAccess(projectId, user);
         if (!canConfirm(projectId, user)) {
-            throw new AccessDeniedException("Todo confirm permission required");
+            throw new AccessDeniedException("할 일을 확정할 수 있는 권한이 필요합니다.");
         }
     }
 }

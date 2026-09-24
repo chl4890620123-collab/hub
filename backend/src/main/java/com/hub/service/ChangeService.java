@@ -97,8 +97,8 @@ public class ChangeService {
             timeline.append(
                     projectId,
                     "DOCUMENT_CHANGED",
-                    "Document change analysis",
-                    "Grounded changes: " + grounded.size(),
+                    "문서 변경 내용 확인",
+                    "원문에서 확인된 변경 사항 " + grounded.size() + "건",
                     LocalDateTime.now(),
                     "CHANGE_ANALYSIS",
                     analysisId

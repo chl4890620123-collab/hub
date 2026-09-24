@@ -53,7 +53,7 @@ public class ProjectController {
     @PostMapping
     public Project create(@Valid @RequestBody CreateProject request, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        if (!user.isAdmin()) throw new org.springframework.security.access.AccessDeniedException("Administrator permission required");
+        if (!user.isAdmin()) throw new org.springframework.security.access.AccessDeniedException("관리자 권한이 필요합니다.");
         String name = request.name().trim();
         String description = request.description() == null ? null : request.description().trim();
         long id = projects.create(name, description, user.id());

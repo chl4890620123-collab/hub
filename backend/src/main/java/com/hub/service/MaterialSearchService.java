@@ -7,6 +7,7 @@ import com.hub.dto.AiDtos;
 import com.hub.model.MaterialAskResponse;
 import com.hub.model.MaterialHit;
 import com.hub.model.SearchHit;
+import com.hub.model.User;
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.DocumentRepository;
 import com.hub.repository.FileAttachmentRepository;
@@ -27,6 +28,7 @@ import java.util.Set;
 @Service
 public class MaterialSearchService {
     private static final int MAX_RESULTS = 30;
+    private static final int ATTACHMENT_RESULTS = 10;
     private static final int SEMANTIC_CANDIDATES = 60;
     private static final int LEXICAL_CANDIDATES = 100;
     private static final int TEMPLATE_CANDIDATES = 40;
@@ -76,38 +78,46 @@ public class MaterialSearchService {
      * keyword retrieval. Historical versions remain auditable but are excluded from default search.
      */
     public List<MaterialHit> search(long projectId, String query) {
-        return search(projectId, query, 0);
+        return search(projectId, query, 0, null);
+    }
+
+    public List<MaterialHit> search(long projectId, String query, int offset) {
+        return search(projectId, query, offset, null);
     }
 
     /**
-     * offset pages through the same fully-ranked candidate list rankCandidates already builds
-     * (bounded by the per-engine candidate caps above, not by MAX_RESULTS) - "load more" is a
-     * second slice of that list, not a second query with a bigger limit.
+     * User-visible search may include attachment metadata, but only with the same actor visibility
+     * rules used for downloading those attachments. Internal/admin search calls that do not supply
+     * an actor keep the established document/connector search behavior unchanged.
      */
-    public List<MaterialHit> search(long projectId, String query, int offset) {
+    public List<MaterialHit> search(long projectId, String query, int offset, User actor) {
         String normalized = requiredQuery(query);
         SearchQueryPlan plan = queryRouter.route(normalized);
         SearchRuleService.RuleMatch rule = searchRules.match(projectId, normalized).orElse(null);
         List<MaterialHit> primary = recommendDocuments(rankCandidates(projectId, plan, rule), plan, Math.max(0, offset));
-        if (offset > 0 || primary.size() >= MAX_RESULTS) return primary;
+        if (actor == null || offset > 0) return primary;
         // Attachment metadata is deliberately additive: failures here must not break the proven document search path.
         try {
             List<MaterialHit> merged = new ArrayList<>(primary);
             Set<String> seen = new LinkedHashSet<>();
             primary.forEach(hit -> seen.add(hit.sourceType() + ":" + hit.evidenceId()));
             int rank = merged.size() + 1;
-            for (FileAttachmentRepository.Attachment attachment : attachments.search(projectId, plan.searchText(), MAX_RESULTS)) {
+            int attachmentCount = 0;
+            for (FileAttachmentRepository.Attachment attachment :
+                    attachments.searchVisible(projectId, actor.id(), actor.isAdmin(), plan.searchText(), ATTACHMENT_RESULTS)) {
                 String key = "ATTACHMENT:" + attachment.id();
                 if (!seen.add(key)) continue;
                 String note = blankTo(attachment.note(), "첨부파일 이름이 검색어와 일치합니다.");
                 merged.add(new MaterialHit(
                         attachment.id(), "ATTACHMENT", "업무 첨부파일", "ATTACHMENT", attachment.fileName(),
                         attachment.todoId() == null ? "프로젝트 파일 전송" : "할 일 #" + attachment.todoId() + " 첨부파일",
-                        excerpt(note, normalized, SearchText.terms(plan.searchText()), 620), "", "",
+                        excerpt(note, normalized, SearchText.terms(plan.searchText()), 620), "",
+                        "/api/attachments/" + attachment.id() + "/download",
                         attachment.createdAt().atOffset(java.time.ZoneOffset.UTC), rank++, "첨부파일 일치",
-                        "현재 프로젝트의 첨부파일 이름 또는 메모에서 찾았습니다."
+                        "현재 프로젝트에서 볼 수 있는 첨부파일의 이름 또는 메모에서 찾았습니다."
                 ));
-                if (merged.size() >= MAX_RESULTS) break;
+                attachmentCount++;
+                if (attachmentCount >= ATTACHMENT_RESULTS) break;
             }
             return merged;
         } catch (RuntimeException ignored) {

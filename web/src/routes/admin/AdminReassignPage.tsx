@@ -10,6 +10,7 @@ import { adminReassignmentApi, adminProjectApi } from '@/api/endpoints/admin';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
+import { formatDate } from '@/lib/format';
 
 export function AdminReassignPage() {
   const { currentProject } = useCurrentProject();
@@ -87,7 +88,7 @@ export function AdminReassignPage() {
             <ul className="flex flex-col gap-2">
               {requests.map((req) => (
                 <li key={req.id} className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2">
-                  <label className="flex items-center gap-2 text-sm text-ink-700">
+                  <label className="flex min-w-0 flex-1 items-start gap-2 text-sm text-ink-700">
                     <input
                       type="checkbox"
                       checked={selected.has(req.id)}
@@ -98,8 +99,16 @@ export function AdminReassignPage() {
                           return next;
                         })
                       }
+                      className="mt-1"
                     />
-                    #{req.id} {req.reason ? `· ${req.reason}` : ''}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink-800">{req.title ?? `할 일 #${req.todo_id ?? req.id}`}</p>
+                      <p className="text-xs text-ink-400">
+                        {req.former_assignee_name ? `기존 담당자: ${req.former_assignee_name}` : '기존 담당자 없음'}
+                        {req.due_date ? ` · 기한 ${formatDate(req.due_date)}` : ' · 기한 없음'}
+                      </p>
+                      {req.reason && <p className="mt-1 text-xs text-ink-500">재배정 사유: {req.reason}</p>}
+                    </div>
                   </label>
                   <SingleResolveControl members={members ?? []} onResolve={(assigneeId) => resolve.mutate({ id: req.id, newAssigneeId: assigneeId })} />
                 </li>

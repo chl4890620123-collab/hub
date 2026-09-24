@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
+const CONFIDENCE_LABELS = {
+  HIGH: '신뢰 높음',
+  MEDIUM: '신뢰 보통',
+  LOW: '신뢰 낮음',
+} as const;
+
 export function TodoCandidateCard({
   todo,
   members,
@@ -32,7 +38,7 @@ export function TodoCandidateCard({
   busy?: boolean;
 }) {
   const [assigneeId, setAssigneeId] = useState(todo.assigneeSuggestionId ? String(todo.assigneeSuggestionId) : '');
-  const [dueDate, setDueDate] = useState(todo.dueDateSuggestion ?? new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(todo.dueDateSuggestion ?? '');
   const [title, setTitle] = useState(todo.title);
   const [description, setDescription] = useState(todo.description ?? '');
 
@@ -47,36 +53,51 @@ export function TodoCandidateCard({
             ) : (
               <p className="text-sm font-medium text-ink-900">{todo.title}</p>
             )}
-            <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{todo.confidence}</Badge>
+            <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{CONFIDENCE_LABELS[todo.confidence]}</Badge>
             {todo.possibleDuplicateOfId && <Badge variant="warning">중복 의심</Badge>}
           </div>
           {onEdit ? (
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="할 일 설명" aria-label="할 일 설명" className="mb-2" />
           ) : todo.description ? <p className="mb-2 text-xs text-ink-500">{todo.description}</p> : null}
-          <p className="text-xs text-ink-400">AI 제안: {todo.assigneeSuggestionText ?? '담당자 없음'} · {todo.dueDateSuggestion ?? '기한 없음'}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-md bg-ink-50 px-3 py-2 dark:bg-ink-200/60">
+              <p className="text-[11px] font-medium text-ink-400">AI 추천 담당자</p>
+              <p className="mt-0.5 text-xs font-medium text-ink-700">{todo.assigneeSuggestionText ?? '추천 없음'}</p>
+            </div>
+            <div className="rounded-md bg-ink-50 px-3 py-2 dark:bg-ink-200/60">
+              <p className="text-[11px] font-medium text-ink-400">AI 추천 기한</p>
+              <p className="mt-0.5 text-xs font-medium text-ink-700">{todo.dueDateSuggestion ?? '추천 없음'}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={assigneeId} onValueChange={setAssigneeId}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="담당자 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {members.length === 0 ? (
-              <SelectItem value="__no-members" disabled>
-                배정 가능한 팀원이 없습니다
-              </SelectItem>
-            ) : (
-              members.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>
-                  {m.displayName}
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <p className="mb-1 text-[11px] font-medium text-ink-400">최종 담당자</p>
+          <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="담당자 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {members.length === 0 ? (
+                <SelectItem value="__no-members" disabled>
+                  배정 가능한 팀원이 없습니다
                 </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
-        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-44 cursor-pointer [color-scheme:dark]" />
+              ) : (
+                members.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.displayName}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] font-medium text-ink-400">최종 기한 (선택)</p>
+          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-44 cursor-pointer [color-scheme:dark]" />
+        </div>
         <Button
           size="sm"
           disabled={!assigneeId || busy}

@@ -9,6 +9,18 @@ const SOURCE_LABELS: Record<string, string> = {
   GOOGLE_DRIVE: 'Google Drive',
   SLACK: 'Slack',
   NOTION: 'Notion',
+  ATTACHMENT: '업무 첨부파일',
+};
+
+const ITEM_TYPE_LABELS: Record<string, string> = {
+  DOCUMENT: '문서',
+  ATTACHMENT: '첨부파일',
+  DRIVE_FILE: 'Google Drive 파일',
+  SLACK_MESSAGE: 'Slack 메시지',
+  GIT_ISSUE: 'GitHub 이슈',
+  GIT_PR: 'GitHub Pull Request',
+  GIT_COMMIT: 'GitHub 커밋',
+  NOTION_PAGE: 'Notion 페이지',
 };
 
 function MaterialResultCard({ hit }: { hit: MaterialHit }) {
@@ -16,7 +28,7 @@ function MaterialResultCard({ hit }: { hit: MaterialHit }) {
     <li className="rounded-lg border border-ink-200 p-4 transition-shadow hover:shadow-sm">
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <Badge variant="outline">{SOURCE_LABELS[hit.sourceType] ?? hit.sourceLabel}</Badge>
-        <span className="text-xs text-ink-400">{hit.itemType}</span>
+        <span className="text-xs text-ink-400">{ITEM_TYPE_LABELS[hit.itemType] ?? '자료'}</span>
         {hit.recommendationReason && (
           <span className="text-xs text-accent-600">{hit.recommendationReason}</span>
         )}
@@ -29,11 +41,11 @@ function MaterialResultCard({ hit }: { hit: MaterialHit }) {
         {hit.sourceUrl && (
           <a
             href={hit.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
+            target={hit.sourceType === 'ATTACHMENT' ? undefined : '_blank'}
+            rel={hit.sourceType === 'ATTACHMENT' ? undefined : 'noreferrer'}
             className="flex items-center gap-1 text-accent-600 hover:underline"
           >
-            원문 열기 <ExternalLink size={12} />
+            {hit.sourceType === 'ATTACHMENT' ? '파일 다운로드' : '원문 열기'} <ExternalLink size={12} />
           </a>
         )}
       </div>

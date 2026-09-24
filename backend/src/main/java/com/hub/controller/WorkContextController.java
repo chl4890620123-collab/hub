@@ -29,6 +29,6 @@ public class WorkContextController {
     public WorkContextBundle context(@PathVariable long projectId, @RequestParam String q, Authentication auth) {
         User user = current.requireOperational(auth);
         access.requireAccess(projectId, user);
-        return contexts.build(projectId, q);
+        return contexts.build(projectId, q, user);
     }
 }

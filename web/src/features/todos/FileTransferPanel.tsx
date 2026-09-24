@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { attachmentsApi } from '@/api/endpoints/attachments';
-import { projectsApi } from '@/api/endpoints/projects';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
@@ -19,9 +19,19 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { data: user } = useCurrentUser();
 
-  const { data: members } = useQuery({ queryKey: ['project-members', projectId], queryFn: () => projectsApi.members(projectId) });
+  const { data: recipients } = useQuery({
+    queryKey: ['file-transfer-recipients', projectId],
+    queryFn: () => attachmentsApi.recipients(projectId),
+  });
   const { data: inbox, isLoading } = useQuery({ queryKey: ['file-transfers', projectId], queryFn: () => attachmentsApi.inbox(projectId) });
+
+  const personName = (id: number | null) => {
+    if (id == null) return '알 수 없는 사용자';
+    if (id === user?.id) return '나';
+    return recipients?.find((person) => person.id === id)?.displayName ?? `사용자 #${id}`;
+  };
 
   const addFiles = (files: FileList | File[]) => {
     const next = Array.from(files).map((file) => ({
@@ -36,17 +46,23 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
   };
 
   const send = useMutation({
-    mutationFn: async (files: File[]) => {
-      for (const file of files) await attachmentsApi.send(projectId, Number(recipientId), file);
-      return files.length;
+    mutationFn: async (items: SelectedFile[]) => {
+      let sent = 0;
+      for (const item of items) {
+        await attachmentsApi.send(projectId, Number(recipientId), item.file);
+        sent += 1;
+        setSelectedFiles((rows) => rows.filter((row) => row.id !== item.id));
+      }
+      return sent;
     },
     onSuccess: (count) => {
       toast.success(`${count}개 파일을 전송했습니다.`);
-      queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] });
-      setSelectedFiles([]);
       if (fileRef.current) fileRef.current.value = '';
     },
-    onError: (error) => toast.error(errorMessage(error)),
+    onError: (error) => {
+      toast.error(`전송하지 못한 파일은 선택 목록에 남겨뒀습니다. ${errorMessage(error)}`);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] }),
   });
 
   const download = useMutation({
@@ -61,7 +77,8 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
     },
   });
 
-  const checkedFiles = selectedFiles.filter((item) => item.checked).map((item) => item.file);
+  const checkedItems = selectedFiles.filter((item) => item.checked);
+  const checkedFiles = checkedItems.map((item) => item.file);
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
@@ -79,10 +96,12 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
           <Select value={recipientId} onValueChange={setRecipientId}>
             <SelectTrigger><SelectValue placeholder="받는 사람 선택" /></SelectTrigger>
             <SelectContent>
-              {members && members.length === 0 ? (
-                <SelectItem value="__no-members" disabled>전송 가능한 팀원이 없습니다</SelectItem>
-              ) : members?.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>{m.displayName}</SelectItem>
+              {recipients && recipients.length === 0 ? (
+                <SelectItem value="__no-recipients" disabled>전송 가능한 팀원이나 관리자가 없습니다</SelectItem>
+              ) : recipients?.map((person) => (
+                <SelectItem key={person.id} value={String(person.id)}>
+                  {person.displayName}{person.id === user?.id ? ' (나)' : person.admin ? ' · 관리자' : ''}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -134,22 +153,26 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
           <Button
             size="sm"
             disabled={!recipientId || checkedFiles.length === 0 || send.isPending}
-            onClick={() => send.mutate(checkedFiles)}
+            onClick={() => send.mutate(checkedItems)}
           >
             <Send size={13} /> {send.isPending ? '전송 중...' : `선택한 ${checkedFiles.length}개 전송`}
           </Button>
         </div>
 
-        <div className="mb-2 text-xs font-medium text-ink-500">받은 파일</div>
+        <div className="mb-2 text-xs font-medium text-ink-500">최근 주고받은 파일</div>
         {isLoading ? <LoadingBlock /> : !inbox || inbox.length === 0 ? (
-          <EmptyState title="받은 파일이 없습니다." />
+          <EmptyState title="아직 주고받은 파일이 없습니다." />
         ) : (
           <ul className="flex flex-col gap-1.5">
             {inbox.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm">
                 <div className="min-w-0">
                   <p className="truncate text-ink-800">{item.fileName}</p>
-                  <p className="text-xs text-ink-400">{formatBytes(item.sizeBytes)} · {formatDateTime(item.createdAt)}</p>
+                  <p className="text-xs text-ink-400">
+                    {item.senderId === user?.id ? `${personName(item.recipientId)}에게 보냄` : `${personName(item.senderId)}이(가) 보냄`}
+                    {' · '}{formatBytes(item.sizeBytes)} · {formatDateTime(item.createdAt)}
+                    {item.senderId !== user?.id && !item.read ? ' · 안 읽음' : ''}
+                  </p>
                 </div>
                 <button onClick={() => download.mutate(item.id)} className="shrink-0 text-accent-600 hover:underline" aria-label={`${item.fileName} 다운로드`}>
                   <Download size={14} />

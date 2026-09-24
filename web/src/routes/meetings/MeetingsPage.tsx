@@ -26,7 +26,7 @@ function RecordingPanel({ projectId, onJobStarted }: { projectId: number; onJobS
   const upload = useMutation({
     mutationFn: (blob: Blob) => meetingsApi.upload(projectId, title || '녹음 회의', blob, localDateTimeWithOffset()),
     onSuccess: (result) => {
-      toast.success('녹음을 업로드했습니다. STT/분석이 진행됩니다.');
+      toast.success('녹음을 업로드했습니다. 음성 변환과 AI 분석이 진행됩니다.');
       onJobStarted(result.jobId);
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -83,7 +83,7 @@ function AudioUploadPanel({ projectId, onJobStarted }: { projectId: number; onJo
   const upload = useMutation({
     mutationFn: (file: File) => meetingsApi.upload(projectId, title || file.name, file),
     onSuccess: (result) => {
-      toast.success('업로드했습니다. STT/분석이 진행됩니다.');
+      toast.success('업로드했습니다. 음성 변환과 AI 분석이 진행됩니다.');
       onJobStarted(result.jobId);
       if (fileRef.current) fileRef.current.value = '';
     },
@@ -139,14 +139,17 @@ export function MeetingsPage() {
 
   return (
     <div>
-      <PageHeader title="회의 녹음" description="음성을 녹음하거나 업로드하면 자동으로 텍스트 변환 및 요약이 진행됩니다." />
+      <PageHeader
+        title="회의 녹음"
+        description="녹음이나 오디오 파일을 올리면 음성을 텍스트로 바꾸고, 할 일·담당자·기한 후보를 정리합니다. 확인 후 확정하면 실제 할 일 목록에 등록됩니다."
+      />
 
       <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RecordingPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
         <AudioUploadPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
       </div>
 
-      {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} />}
+      {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} context="meeting" />}
     </div>
   );
 }

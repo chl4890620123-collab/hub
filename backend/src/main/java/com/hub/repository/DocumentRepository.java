@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -296,6 +297,52 @@ public class DocumentRepository {
 
     public void archive(long documentId) {
         jdbc.update("UPDATE document SET archived=TRUE,archived_at=CURRENT_TIMESTAMP WHERE id=?", documentId);
+    }
+
+    /**
+     * Permanently removes one document after detaching business records that are allowed to survive
+     * without their source document. Evidence and version-comparison rows that directly depend on the
+     * deleted document are removed; confirmed todos/decisions themselves remain.
+     */
+    @Transactional
+    public void deletePermanently(long documentId) {
+        jdbc.update("""
+                UPDATE todo SET source_document_version_id=NULL
+                WHERE source_document_version_id IN (
+                  SELECT id FROM document_version WHERE document_id=?
+                )
+                """, documentId);
+        jdbc.update("""
+                UPDATE decision_candidate SET source_document_version_id=NULL
+                WHERE source_document_version_id IN (
+                  SELECT id FROM document_version WHERE document_id=?
+                )
+                """, documentId);
+        jdbc.update("""
+                UPDATE ai_run SET document_version_id=NULL
+                WHERE document_version_id IN (
+                  SELECT id FROM document_version WHERE document_id=?
+                )
+                """, documentId);
+        jdbc.update("""
+                DELETE FROM change_analysis
+                WHERE before_version_id IN (SELECT id FROM document_version WHERE document_id=?)
+                   OR after_version_id IN (SELECT id FROM document_version WHERE document_id=?)
+                """, documentId, documentId);
+        jdbc.update("""
+                DELETE FROM evidence
+                WHERE version_id IN (SELECT id FROM document_version WHERE document_id=?)
+                   OR chunk_id IN (
+                     SELECT c.id
+                     FROM document_chunk c
+                     JOIN document_version v ON v.id=c.version_id
+                     WHERE v.document_id=?
+                   )
+                """, documentId, documentId);
+        jdbc.update("UPDATE external_item SET imported_document_id=NULL WHERE imported_document_id=?", documentId);
+        if (jdbc.update("DELETE FROM document WHERE id=?", documentId) != 1) {
+            throw new IllegalArgumentException("삭제할 문서를 찾을 수 없습니다.");
+        }
     }
 
     private static final String ARCHIVED_CONTENT_PLACEHOLDER = "[보관 기간이 지나 본문이 정리되었습니다]";

@@ -30,9 +30,9 @@ public class TodoService {
         if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
         String assigneeText=null;
         if(assigneeId!=null){
-            if(!projects.isMember(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 활성 MEMBER여야 합니다.");
+            if(!projects.isMember(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트에 참여 중인 팀원이어야 합니다.");
             assigneeText=users.findById(assigneeId).filter(User::active).filter(u->!u.isAdmin()).map(User::displayName)
-                    .orElseThrow(()->new IllegalArgumentException("담당 MEMBER를 찾을 수 없습니다."));
+                    .orElseThrow(()->new IllegalArgumentException("담당 팀원을 찾을 수 없습니다."));
         }
         long id=todos.createConfirmed(projectId,versionId,title.trim(),assigneeId,assigneeText,dueDate,actor.id());
         timeline.append(projectId,"TODO_CREATED",title.trim(),null,LocalDateTime.now(),"TODO",id);
@@ -45,12 +45,12 @@ public class TodoService {
 
     @Transactional
     public void confirm(TodoItem before,Long assigneeId,LocalDate dueDate,User actor){
-        if(assigneeId==null)throw new IllegalArgumentException("업무 확정 전에 담당 MEMBER를 선택해 주세요.");
-        if(!projects.isMember(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 활성 MEMBER여야 합니다.");
+        if(assigneeId==null)throw new IllegalArgumentException("할 일을 확정하기 전에 담당 팀원을 선택해 주세요.");
+        if(!projects.isMember(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트에 참여 중인 팀원이어야 합니다.");
         String confirmedAssignee=users.findById(assigneeId).filter(User::active).filter(u->!u.isAdmin()).map(User::displayName)
-                .orElseThrow(()->new IllegalArgumentException("담당 MEMBER를 찾을 수 없습니다."));
+                .orElseThrow(()->new IllegalArgumentException("담당 팀원을 찾을 수 없습니다."));
         if(!todos.confirm(before.id(),actor.id(),assigneeId,confirmedAssignee,dueDate))
-            throw new StateConflictException("이미 확정/제외된 TODO는 다시 확정할 수 없습니다.");
+            throw new StateConflictException("이미 확정했거나 제외한 할 일은 다시 확정할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"CONFIRM",json.writeValueAsString(before),"{\"confirmed\":true}");}
         catch(Exception e){throw new IllegalStateException(e);}
         if(before.dueDateSuggestion()!=null&&!before.dueDateSuggestion().equals(dueDate))feedback.add(before.projectId(),"TODO",before.id(),"due_date",before.dueDateSuggestion().toString(),String.valueOf(dueDate),"DUE_DATE_CORRECTION",actor.id());
@@ -66,7 +66,7 @@ public class TodoService {
     public void editCandidate(TodoItem before,String title,String description,User actor){
         if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
         if(!todos.editCandidate(before.id(),title.trim(),description))
-            throw new StateConflictException("이미 확정/제외된 TODO는 수정할 수 없습니다.");
+            throw new StateConflictException("이미 확정했거나 제외한 할 일은 수정할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"CANDIDATE_EDIT",json.writeValueAsString(before),
                 json.writeValueAsString(java.util.Map.of("title",title.trim())));}
         catch(Exception e){throw new IllegalStateException(e);}
@@ -79,7 +79,7 @@ public class TodoService {
         for(Long id:todoIds){
             try{
                 TodoItem before=todos.find(id);
-                if(before.projectId()!=projectId)throw new IllegalArgumentException("다른 프로젝트의 TODO입니다.");
+                if(before.projectId()!=projectId)throw new IllegalArgumentException("다른 프로젝트의 할 일입니다.");
                 confirm(before,assigneeId,dueDate,actor);
                 results.put(id,"CONFIRMED");
             }catch(Exception e){
@@ -91,7 +91,7 @@ public class TodoService {
 
     @Transactional
     public void reject(TodoItem before,User actor){
-        if(!todos.reject(before.id(),actor.id()))throw new StateConflictException("이미 확정/제외된 TODO는 다시 제외할 수 없습니다.");
+        if(!todos.reject(before.id(),actor.id()))throw new StateConflictException("이미 확정했거나 제외한 할 일은 다시 제외할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"REJECT",json.writeValueAsString(before),"{\"rejected\":true}");}
         catch(Exception e){throw new IllegalStateException(e);}
     }
@@ -102,7 +102,7 @@ public class TodoService {
         Long targetId=candidate.possibleDuplicateOfId();
         if(targetId==null)throw new IllegalArgumentException("연결된 중복 후보 업무가 없습니다.");
         TodoItem target=todos.find(targetId);
-        if(target.projectId()!=candidate.projectId())throw new IllegalArgumentException("다른 프로젝트의 TODO에는 합칠 수 없습니다.");
+        if(target.projectId()!=candidate.projectId())throw new IllegalArgumentException("다른 프로젝트의 할 일에는 합칠 수 없습니다.");
         evidence.mergeTodoEvidence(candidate.id(),targetId);
         if(!todos.reject(candidate.id(),actor.id()))throw new StateConflictException("중복 후보 상태가 이미 변경되었습니다.");
         try{revisions.add(candidate.projectId(),"TODO",candidate.id(),actor.id(),"DUPLICATE_MERGE",json.writeValueAsString(candidate),
@@ -114,9 +114,9 @@ public class TodoService {
     @Transactional
     public void updateStatus(TodoItem before,String status,User actor){
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
-            throw new StateConflictException("담당자 재배정이 필요한 TODO입니다. ADMIN이 먼저 새 담당자를 지정해 주세요.");
+            throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
         if(status != null && status.equals(before.taskStatus())) return;
-        if(!todos.updateTaskStatus(before.id(),status))throw new StateConflictException("확정되고 정상 배정된 TODO만 상태를 변경할 수 있습니다.");
+        if(!todos.updateTaskStatus(before.id(),status))throw new StateConflictException("확정되어 담당자가 정상 배정된 할 일만 상태를 변경할 수 있습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"STATUS_CHANGE",json.writeValueAsString(before),"{\"taskStatus\":\""+status+"\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),status,LocalDateTime.now(),"TODO",before.id());
@@ -126,7 +126,7 @@ public class TodoService {
     @Transactional
     public void requestCompletion(TodoItem before,User actor){
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
-            throw new StateConflictException("담당자 재배정이 필요한 TODO입니다. ADMIN이 먼저 새 담당자를 지정해 주세요.");
+            throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
         if(!todos.requestCompletion(before.id()))
             throw new StateConflictException("완료 요청할 수 없는 상태입니다.");
         timeline.append(before.projectId(),"TODO_COMPLETION_REQUESTED",before.title(),null,LocalDateTime.now(),"TODO",before.id());
@@ -136,7 +136,7 @@ public class TodoService {
     @Transactional
     public void approveCompletion(TodoItem before,User actor){
         if(!todos.approveCompletion(before.id()))
-            throw new StateConflictException("승인 대기 중인 TODO가 아닙니다.");
+            throw new StateConflictException("완료 승인 대기 중인 할 일이 아닙니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"COMPLETION_APPROVED",json.writeValueAsString(before),"{\"taskStatus\":\"DONE\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),"DONE",LocalDateTime.now(),"TODO",before.id());
@@ -149,7 +149,7 @@ public class TodoService {
     @Transactional
     public void rejectCompletion(TodoItem before,String reason,User actor){
         if(!todos.rejectCompletion(before.id(),reason))
-            throw new StateConflictException("승인 대기 중인 TODO가 아닙니다.");
+            throw new StateConflictException("완료 승인 대기 중인 할 일이 아닙니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"COMPLETION_REJECTED",json.writeValueAsString(before),
                 json.writeValueAsString(java.util.Map.of("reason",reason==null?"":reason)));}
         catch(Exception e){throw new IllegalStateException(e);}
@@ -160,7 +160,7 @@ public class TodoService {
     public void requestHelp(TodoItem before,String note,User actor){
         if(note==null||note.isBlank())throw new IllegalArgumentException("어떤 도움이 필요한지 적어 주세요.");
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
-            throw new StateConflictException("담당자 재배정이 필요한 TODO입니다. ADMIN이 먼저 새 담당자를 지정해 주세요.");
+            throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
         if(!todos.requestHelp(before.id(),note.trim()))
             throw new StateConflictException("도움을 요청할 수 없는 상태입니다.");
         timeline.append(before.projectId(),"TODO_HELP_REQUESTED",before.title(),note.trim(),LocalDateTime.now(),"TODO",before.id());
@@ -169,7 +169,7 @@ public class TodoService {
     @Transactional
     public void resolveHelp(TodoItem before,User actor){
         if(!todos.resolveHelp(before.id()))
-            throw new StateConflictException("도움 요청 중인 TODO가 아닙니다.");
+            throw new StateConflictException("도움을 요청한 상태의 할 일이 아닙니다.");
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),"IN_PROGRESS",LocalDateTime.now(),"TODO",before.id());
     }
 }

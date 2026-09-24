@@ -29,7 +29,7 @@ public class MembershipService {
     @Transactional
     public void add(long projectId,long userId,User actor,String reason){
         User target=users.findById(userId).filter(User::active).filter(u->!u.isAdmin())
-                .orElseThrow(()->new IllegalArgumentException("활성 MEMBER만 프로젝트에 추가할 수 있습니다."));
+                .orElseThrow(()->new IllegalArgumentException("현재 사용 중인 일반 사용자만 프로젝트에 추가할 수 있습니다."));
         if(projects.addMember(projectId,userId)){
             projects.recordMemberJoin(projectId,userId,actor==null?null:actor.id(),reason);
             audit.add(actor==null?null:actor.id(),projectId,"PROJECT_MEMBER_JOIN","USER",userId,"{\"reason\":\""+safe(reason)+"\"}");

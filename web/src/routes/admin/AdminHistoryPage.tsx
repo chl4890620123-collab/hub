@@ -12,6 +12,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   DOCUMENT_IMPORTED: '자료 가져옴',
   DOCUMENT_UPDATED: '자료 새 내용 등록',
   DOCUMENT_ARCHIVE: '자료 보관',
+  DOCUMENT_DELETE: '자료 영구 삭제',
   DOCUMENT_CHANGED: '자료 변경 확인',
   MEETING_UPLOADED: '회의 녹음 등록',
   MEETING_TRANSCRIBED: '회의 음성을 글로 변환',
@@ -53,7 +54,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
 
 function eventTypeLabel(type: string | null): string {
   if (!type) return '기록';
-  return EVENT_TYPE_LABELS[type] ?? type.replaceAll('_', ' ').toLowerCase();
+  return EVENT_TYPE_LABELS[type] ?? '기타 활동';
 }
 
 function entityTypeLabel(type: string | null): string {

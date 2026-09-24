@@ -14,6 +14,50 @@ import { materialsApi } from '@/api/endpoints/materials';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { errorMessage } from '@/lib/errors';
 
+const TASK_STATUS_LABELS: Record<string, string> = {
+  TODO: '시작 전',
+  IN_PROGRESS: '진행 중',
+  DONE: '완료',
+  BLOCKED: '도움 필요',
+};
+
+const REVIEW_STATUS_LABELS: Record<string, string> = {
+  AI_GENERATED: 'AI 제안',
+  REVIEWING: '검토 중',
+  CONFIRMED: '확정',
+  REJECTED: '제외',
+};
+
+const CHANGE_CATEGORY_LABELS: Record<string, string> = {
+  SCHEDULE: '일정 변경',
+  BUDGET: '예산 변경',
+  ASSIGNEE: '담당자 변경',
+  FEATURE: '기능 변경',
+  CONTRACT: '계약 변경',
+  CONTENT: '내용 변경',
+};
+
+const changeReason = (reason: string) =>
+  reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
+
+const CONNECTOR_LABELS: Record<string, string> = {
+  GITHUB: 'GitHub',
+  GOOGLE_DRIVE: 'Google Drive',
+  SLACK: 'Slack',
+  NOTION: 'Notion',
+};
+
+function activityTitle(event: { eventType: string; title: string }): string {
+  if (event.eventType === 'DOCUMENT_CHANGED' && event.title === 'Document change analysis') return '문서 변경 내용 확인';
+  if (event.eventType === 'DECISION_CONFIRMED' && event.title === 'Decision confirmed') return '결정 사항 확정';
+  if (event.eventType === 'CONNECTOR_IMPORT') {
+    const upper = event.title.toUpperCase();
+    const connector = Object.entries(CONNECTOR_LABELS).find(([type]) => upper.startsWith(type));
+    return connector ? `${connector[1]} 자료 가져오기` : '연결 서비스 자료 가져오기';
+  }
+  return event.title;
+}
+
 export function ContextPage() {
   const { currentProject } = useCurrentProject();
   const [query, setQuery] = useState('');
@@ -28,7 +72,10 @@ export function ContextPage() {
 
   return (
     <div>
-      <PageHeader title="관련 업무 모아보기" description="키워드 하나로 관련 자료, 할 일, 결정, 변경 이력을 함께 확인합니다." />
+      <PageHeader
+        title="관련 업무 모아보기"
+        description="키워드 하나로 문서·회의록·첨부파일·GitHub·Google Drive·Slack·Notion 자료와 관련 할 일, 결정, 변경 이력을 함께 확인합니다."
+      />
 
       <form
         className="mb-5 flex gap-2"
@@ -37,9 +84,9 @@ export function ContextPage() {
           if (query.trim()) search.mutate(query.trim());
         }}
       >
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 결제 모듈 리팩터링" className="max-w-lg" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 결제 모듈, 신규 거래처, 9월 회의" className="max-w-lg" />
         <Button type="submit" disabled={search.isPending}>
-          <ListChecks size={14} /> 모아보기
+          <ListChecks size={14} /> 관련 업무 찾기
         </Button>
       </form>
 
@@ -78,7 +125,7 @@ export function ContextPage() {
                   {bundle.todos.map((todo) => (
                     <li key={todo.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                       <p className="font-medium text-ink-800">{todo.title}</p>
-                      <p className="text-xs text-ink-400">{formatDate(todo.dueDate)} · {todo.taskStatus}</p>
+                      <p className="text-xs text-ink-400">{formatDate(todo.dueDate)} · {TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</p>
                     </li>
                   ))}
                 </ul>
@@ -99,7 +146,7 @@ export function ContextPage() {
                     <li key={d.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                       <p className="text-ink-800">{d.statement}</p>
                       <Badge variant="outline" className="mt-1">
-                        {d.review_status}
+                        {REVIEW_STATUS_LABELS[d.review_status] ?? d.review_status}
                       </Badge>
                     </li>
                   ))}
@@ -119,8 +166,8 @@ export function ContextPage() {
                 <ul className="flex flex-col gap-2">
                   {bundle.changes.map((c) => (
                     <li key={c.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
-                      <p className="font-medium text-ink-800">{c.category}</p>
-                      <p className="text-xs text-ink-500">{c.reason}</p>
+                      <p className="font-medium text-ink-800">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
+                      <p className="text-xs text-ink-500">{changeReason(c.reason)}</p>
                     </li>
                   ))}
                 </ul>
@@ -130,7 +177,7 @@ export function ContextPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>관련 타임라인 ({bundle.timeline.length})</CardTitle>
+              <CardTitle>관련 활동 기록 ({bundle.timeline.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {bundle.timeline.length === 0 ? (
@@ -139,7 +186,7 @@ export function ContextPage() {
                 <ul className="flex flex-col gap-2">
                   {bundle.timeline.map((event) => (
                     <li key={event.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
-                      <p className="text-ink-800">{event.title}</p>
+                      <p className="text-ink-800">{activityTitle(event)}</p>
                       <p className="text-xs text-ink-400">{formatDateTime(event.happenedAt)}</p>
                     </li>
                   ))}
