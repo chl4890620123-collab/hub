@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Archive, Download, GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
@@ -180,6 +180,15 @@ export function DocumentsPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const permanentDelete = useMutation({
+    mutationFn: (documentId: number) => documentsApi.deletePermanently(documentId),
+    onSuccess: () => {
+      toast.success('문서를 영구 삭제했습니다.');
+      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const download = useMutation({
     mutationFn: async (doc: DocumentRow) => {
       const { blob, filename } = await documentsApi.download(doc.id);
@@ -238,8 +247,24 @@ export function DocumentsPage() {
             <GitCompare size={13} /> 버전 비교
           </Button>
           {isAdmin && !doc.archived && (
-            <Button variant="ghost" size="sm" onClick={() => archive.mutate(doc.id)}>
-              <Trash2 size={13} className="text-red-500" />
+            <Button variant="ghost" size="sm" disabled={archive.isPending} onClick={() => archive.mutate(doc.id)}>
+              <Archive size={13} /> 보관
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={permanentDelete.isPending}
+              className="text-red-600 hover:text-red-700"
+              onClick={() => {
+                const ok = window.confirm(
+                  `'${doc.original_name}' 문서를 영구 삭제할까요?\n\n원본 파일과 모든 버전, 이 문서에 연결된 근거가 삭제됩니다. 이미 확정된 할 일·결정은 남지만 이 문서와의 연결은 제거됩니다. 이 작업은 되돌릴 수 없습니다.`,
+                );
+                if (ok) permanentDelete.mutate(doc.id);
+              }}
+            >
+              <Trash2 size={13} /> 영구 삭제
             </Button>
           )}
         </div>
