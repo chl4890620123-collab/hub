@@ -14,6 +14,20 @@ import { materialsApi } from '@/api/endpoints/materials';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { errorMessage } from '@/lib/errors';
 
+const TASK_STATUS_LABELS: Record<string, string> = {
+  TODO: '시작 전',
+  IN_PROGRESS: '진행 중',
+  DONE: '완료',
+  BLOCKED: '도움 필요',
+};
+
+const REVIEW_STATUS_LABELS: Record<string, string> = {
+  AI_GENERATED: 'AI 제안',
+  REVIEWING: '검토 중',
+  CONFIRMED: '확정',
+  REJECTED: '제외',
+};
+
 export function ContextPage() {
   const { currentProject } = useCurrentProject();
   const [query, setQuery] = useState('');
@@ -37,9 +51,9 @@ export function ContextPage() {
           if (query.trim()) search.mutate(query.trim());
         }}
       >
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 결제 모듈 리팩터링" className="max-w-lg" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 결제 모듈, 신규 거래처, 9월 회의" className="max-w-lg" />
         <Button type="submit" disabled={search.isPending}>
-          <ListChecks size={14} /> 모아보기
+          <ListChecks size={14} /> 관련 업무 찾기
         </Button>
       </form>
 
@@ -78,7 +92,7 @@ export function ContextPage() {
                   {bundle.todos.map((todo) => (
                     <li key={todo.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                       <p className="font-medium text-ink-800">{todo.title}</p>
-                      <p className="text-xs text-ink-400">{formatDate(todo.dueDate)} · {todo.taskStatus}</p>
+                      <p className="text-xs text-ink-400">{formatDate(todo.dueDate)} · {TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</p>
                     </li>
                   ))}
                 </ul>
@@ -99,7 +113,7 @@ export function ContextPage() {
                     <li key={d.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
                       <p className="text-ink-800">{d.statement}</p>
                       <Badge variant="outline" className="mt-1">
-                        {d.review_status}
+                        {REVIEW_STATUS_LABELS[d.review_status] ?? d.review_status}
                       </Badge>
                     </li>
                   ))}
