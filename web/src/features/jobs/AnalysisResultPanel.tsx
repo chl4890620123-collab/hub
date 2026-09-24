@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useJobPolling } from '@/hooks/useJobPolling';
 import { useCanConfirm } from '@/hooks/useProjects';
 import { JobStatusPanel } from '@/components/feedback/JobStatusPanel';
+import { Badge } from '@/components/ui/badge';
 import { TodoCandidateCard } from '@/features/review/TodoCandidateCard';
 import { todosApi } from '@/api/endpoints/todos';
 import { projectsApi } from '@/api/endpoints/projects';
@@ -125,7 +126,7 @@ export function AnalysisResultPanel({
         </div>
       )}
       <div>
-        <p className="mb-1 text-xs font-semibold text-ink-500">AI 회의 요약</p>
+        <p className="mb-1 text-xs font-semibold text-ink-500">{context === 'meeting' ? 'AI 회의 요약' : 'AI 분석 요약'}</p>
         <p className="text-sm text-ink-700">{result.summary || '정리할 내용이 없습니다.'}</p>
       </div>
 
