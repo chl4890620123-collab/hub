@@ -51,10 +51,10 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
      */
     @Override
     public List<ExternalContent> fetch(String folderId, String token) {
-        if (token == null || token.isBlank()) throw new IllegalArgumentException("Google access token is required");
+        if (token == null || token.isBlank()) throw new IllegalArgumentException("Google Drive 계정을 먼저 연결해 주세요.");
         String safeFolder = normalizeFolderId(folderId);
         if (!DRIVE_ID.matcher(safeFolder).matches()) {
-            throw new IllegalArgumentException("Google Drive scope must be a folder id or folder URL");
+            throw new IllegalArgumentException("Google Drive 폴더 ID 또는 폴더 주소를 확인해 주세요.");
         }
 
         String rootName = folderName(safeFolder, token);
