@@ -272,7 +272,7 @@ export function DocumentsPage() {
               <RotateCcw size={13} /> 복원
             </Button>
           )}
-          {isAdmin && (
+          {isAdmin && doc.archived && (
             <Button
               variant="ghost"
               size="sm"
