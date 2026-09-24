@@ -53,7 +53,7 @@ export function AnalysisResultPanel({
     onSuccess: () => {
       toast.success('담당자를 저장하고 할 일에 등록했습니다.');
       invalidatePending();
-      queryClient.invalidateQueries({ queryKey: ['todos', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['todos-month', projectId] });
       queryClient.invalidateQueries({ queryKey: ['todos-undated', projectId] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -67,13 +67,21 @@ export function AnalysisResultPanel({
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
-  const reject = useMutation({ mutationFn: (id: number) => todosApi.reject(id), onSuccess: invalidatePending });
+  const reject = useMutation({
+    mutationFn: (id: number) => todosApi.reject(id),
+    onSuccess: () => {
+      toast.success('할 일 후보를 제외했습니다.');
+      invalidatePending();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
   const mergeDuplicate = useMutation({
     mutationFn: (id: number) => todosApi.mergeDuplicate(id),
     onSuccess: () => {
       toast.success('중복 항목을 병합했습니다.');
       invalidatePending();
     },
+    onError: (error) => toast.error(errorMessage(error)),
   });
 
   if (!jobId) return null;
@@ -88,7 +96,7 @@ export function AnalysisResultPanel({
               <Badge variant={job?.status === 'FAILED' ? 'danger' : 'warning'}>2 음성 변환 · AI 분석</Badge>
               <Badge variant="outline">3 할 일 후보 확인</Badge>
               <Badge variant="outline">4 담당자 · 기한 확정</Badge>
-              <Badge variant="outline">5 Todo 등록</Badge>
+              <Badge variant="outline">5 할 일 등록</Badge>
             </div>
           </div>
         )}
@@ -118,7 +126,7 @@ export function AnalysisResultPanel({
             <Badge variant="accent">2 음성 변환 · AI 분석 완료</Badge>
             <Badge variant={matchingTodos.length > 0 ? 'warning' : 'accent'}>3 할 일 후보 확인</Badge>
             <Badge variant={matchingTodos.length > 0 ? 'outline' : 'accent'}>4 담당자 · 기한 확정</Badge>
-            <Badge variant="outline">5 Todo 등록</Badge>
+            <Badge variant={matchingTodos.length > 0 ? 'outline' : 'accent'}>5 할 일 등록</Badge>
           </div>
           <p className="mt-2 text-xs text-ink-400">
             AI가 후보를 만들고, 아래에서 담당자와 기한을 확인한 뒤 확정하면 실제 할 일 목록에 등록됩니다.
@@ -143,7 +151,13 @@ export function AnalysisResultPanel({
                 onConfirm={(assigneeId, dueDate) => confirm.mutate({ id: todo.id, assigneeId, dueDate })}
                 onReject={() => reject.mutate(todo.id)}
                 onMergeDuplicate={() => mergeDuplicate.mutate(todo.id)}
-                onShowEvidence={async () => openEvidence(todo.title, await todosApi.evidence(todo.id))}
+                onShowEvidence={async () => {
+                  try {
+                    openEvidence(todo.title, await todosApi.evidence(todo.id));
+                  } catch (error) {
+                    toast.error(errorMessage(error));
+                  }
+                }}
                 busy={edit.isPending || confirm.isPending || reject.isPending || mergeDuplicate.isPending}
               />
             ))
