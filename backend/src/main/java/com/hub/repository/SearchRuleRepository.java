@@ -64,12 +64,12 @@ public class SearchRuleRepository {
         int changed = jdbc.update(
                 "UPDATE project_search_rule SET name=?,aliases_json=?,patterns_json=?,target_file=?,mode=?,priority=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE project_id=? AND id=?",
                 name, writeStrings(aliases), writeStrings(patterns), blankToNull(targetFile), mode, priority, active, projectId, id);
-        if (changed != 1) throw new IllegalArgumentException("Search rule not found");
+        if (changed != 1) throw new IllegalArgumentException("검색 도움 설정을 찾을 수 없습니다.");
     }
 
     public void delete(long projectId, long id) {
         if (jdbc.update("DELETE FROM project_search_rule WHERE project_id=? AND id=?", projectId, id) != 1) {
-            throw new IllegalArgumentException("Search rule not found");
+            throw new IllegalArgumentException("검색 도움 설정을 찾을 수 없습니다.");
         }
     }
 
