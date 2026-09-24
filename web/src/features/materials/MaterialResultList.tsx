@@ -28,7 +28,7 @@ function MaterialResultCard({ hit }: { hit: MaterialHit }) {
     <li className="rounded-lg border border-ink-200 p-4 transition-shadow hover:shadow-sm">
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <Badge variant="outline">{SOURCE_LABELS[hit.sourceType] ?? hit.sourceLabel}</Badge>
-        <span className="text-xs text-ink-400">{ITEM_TYPE_LABELS[hit.itemType] ?? hit.itemType}</span>
+        <span className="text-xs text-ink-400">{ITEM_TYPE_LABELS[hit.itemType] ?? '자료'}</span>
         {hit.recommendationReason && (
           <span className="text-xs text-accent-600">{hit.recommendationReason}</span>
         )}
