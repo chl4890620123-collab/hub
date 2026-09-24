@@ -62,7 +62,7 @@ public class MeetingService {
                         .orElseThrow(() -> new IllegalStateException("Duplicate meeting was detected but the existing record could not be resolved", duplicateRace));
                 return new UploadResult(existingId);
             }
-            timeline.append(projectId, "MEETING_UPLOADED", title.trim(), "웹 회의 음성 업로드 완료 · STT 대기",
+            timeline.append(projectId, "MEETING_UPLOADED", title.trim(), "회의 음성 업로드 완료 · 음성 변환 대기",
                     LocalDateTime.now(), "MEETING", meetingId);
             return new UploadResult(meetingId);
         } catch (Exception error) {
