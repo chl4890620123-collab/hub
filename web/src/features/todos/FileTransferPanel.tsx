@@ -46,17 +46,23 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
   };
 
   const send = useMutation({
-    mutationFn: async (files: File[]) => {
-      for (const file of files) await attachmentsApi.send(projectId, Number(recipientId), file);
-      return files.length;
+    mutationFn: async (items: SelectedFile[]) => {
+      let sent = 0;
+      for (const item of items) {
+        await attachmentsApi.send(projectId, Number(recipientId), item.file);
+        sent += 1;
+        setSelectedFiles((rows) => rows.filter((row) => row.id !== item.id));
+      }
+      return sent;
     },
     onSuccess: (count) => {
       toast.success(`${count}개 파일을 전송했습니다.`);
-      queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] });
-      setSelectedFiles([]);
       if (fileRef.current) fileRef.current.value = '';
     },
-    onError: (error) => toast.error(errorMessage(error)),
+    onError: (error) => {
+      toast.error(`전송하지 못한 파일은 선택 목록에 남겨뒀습니다. ${errorMessage(error)}`);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] }),
   });
 
   const download = useMutation({
@@ -71,7 +77,8 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
     },
   });
 
-  const checkedFiles = selectedFiles.filter((item) => item.checked).map((item) => item.file);
+  const checkedItems = selectedFiles.filter((item) => item.checked);
+  const checkedFiles = checkedItems.map((item) => item.file);
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
@@ -146,7 +153,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
           <Button
             size="sm"
             disabled={!recipientId || checkedFiles.length === 0 || send.isPending}
-            onClick={() => send.mutate(checkedFiles)}
+            onClick={() => send.mutate(checkedItems)}
           >
             <Send size={13} /> {send.isPending ? '전송 중...' : `선택한 ${checkedFiles.length}개 전송`}
           </Button>
