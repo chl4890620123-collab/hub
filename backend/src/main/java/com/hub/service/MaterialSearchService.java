@@ -282,7 +282,7 @@ public class MaterialSearchService {
             }
             for (ConnectorRepository.ExternalSearchRow row : connectors.searchByExactTitle(projectId, rule.targetFile(), 1)) {
                 MaterialHit material = externalHit(row, row.content(), query, terms);
-                Candidate current = out.computeIfAbsent("EXT:" + row.id(), ignored -> new Candidate(material, "EXT:" + row.id()));
+                Candidate current = out.computeIfAbsent("EXT:" + row.externalId(), ignored -> new Candidate(material, "EXT:" + row.externalId()));
                 current.attach(null, row);
                 current.ruleRank = Math.min(current.ruleRank, rank++);
                 current.ruleName = rule.name();
@@ -301,7 +301,7 @@ public class MaterialSearchService {
         }
         for (ConnectorRepository.ExternalSearchRow row : connectors.searchByTitlePatterns(projectId, rule.patterns(), props.searchMaxDocuments())) {
             MaterialHit material = externalHit(row, row.content(), query, terms);
-            Candidate current = out.computeIfAbsent("EXT:" + row.id(), ignored -> new Candidate(material, "EXT:" + row.id()));
+            Candidate current = out.computeIfAbsent("EXT:" + row.externalId(), ignored -> new Candidate(material, "EXT:" + row.externalId()));
             current.attach(null, row);
             current.ruleRank = Math.min(current.ruleRank, rank++);
             current.ruleName = rule.name();
@@ -321,8 +321,8 @@ public class MaterialSearchService {
                 if (isExternalSource(hit.sourceType())) {
                     connectors.findByExternalId(projectId, hit.sourceIdentifier()).ifPresent(row -> {
                         MaterialHit material = externalHit(row, hit.content(), query, terms);
-                        Candidate current = out.computeIfAbsent("EXT:" + row.id(),
-                                ignored -> new Candidate(material, "EXT:" + row.id()));
+                        Candidate current = out.computeIfAbsent("EXT:" + row.externalId(),
+                                ignored -> new Candidate(material, "EXT:" + row.externalId()));
                         current.attach(null, row);
                         current.templateRank = Math.min(current.templateRank, match.rank());
                         current.templateName = rule.name();
@@ -366,7 +366,7 @@ public class MaterialSearchService {
         for (ConnectorRepository.ExternalSearchRow row : connectors.searchByMetadata(projectId, plan.author(),
                 plan.fromInclusive(), plan.toExclusive(), plan.sourceTypes(), LEXICAL_CANDIDATES)) {
             MaterialHit material = externalHit(row, row.content(), query, terms);
-            mergeMetadata(out, "EXT:" + row.id(), "EXT:" + row.id(), material, null, row, rank++);
+            mergeMetadata(out, "EXT:" + row.externalId(), "EXT:" + row.externalId(), material, null, row, rank++);
         }
     }
 
@@ -395,7 +395,7 @@ public class MaterialSearchService {
                 if (isExternalSource(hit.sourceType())) {
                     connectors.findByExternalId(projectId, hit.sourceIdentifier()).ifPresent(row -> {
                         MaterialHit material = externalHit(row, hit.content(), query, terms);
-                        mergeSemantic(out, "EXT:" + row.id(), "EXT:" + row.id(), material, null, row, query, terms, currentRank);
+                        mergeSemantic(out, "EXT:" + row.externalId(), "EXT:" + row.externalId(), material, null, row, query, terms, currentRank);
                     });
                 } else {
                     MaterialHit material = nativeHit(hit, query, terms);
@@ -425,7 +425,7 @@ public class MaterialSearchService {
         int rank = 1;
         for (ConnectorRepository.ExternalSearchRow row : connectors.search(projectId, query, LEXICAL_CANDIDATES)) {
             MaterialHit material = externalHit(row, row.content(), query, terms);
-            mergeLexical(out, "EXT:" + row.id(), "EXT:" + row.id(), material, null, row, query, terms, rank++);
+            mergeLexical(out, "EXT:" + row.externalId(), "EXT:" + row.externalId(), material, null, row, query, terms, rank++);
         }
     }
 
