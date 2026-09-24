@@ -185,6 +185,7 @@ export function AnalysisResultPanel({
               {d.statement}
             </p>
           ))}
+          <p className="mt-1 text-xs text-ink-400">결정 후보는 AI 검토함의 ‘결정’ 탭에서 원문 근거를 확인한 뒤 확정하거나 제외할 수 있습니다.</p>
         </div>
       )}
 
