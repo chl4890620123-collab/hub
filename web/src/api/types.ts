@@ -263,8 +263,13 @@ export interface SignupApplication {
 
 export interface ReassignmentRequest {
   id: number;
+  todo_id?: number;
   project_id?: number;
-  old_assignee_id?: number;
+  former_assignee_id?: number | null;
+  former_assignee_name?: string | null;
+  title?: string;
+  task_status?: TaskStatus;
+  due_date?: string | null;
   reason?: string;
   created_at?: string;
   [key: string]: unknown;
