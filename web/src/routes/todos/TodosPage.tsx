@@ -27,6 +27,7 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
   const doing = rows.filter((t) => t.taskStatus === 'IN_PROGRESS').length;
   const waiting = rows.filter((t) => t.taskStatus === 'TODO').length;
   const blocked = rows.filter((t) => t.taskStatus === 'BLOCKED').length;
+  const reassign = rows.filter((t) => t.assignmentStatus === 'REASSIGNMENT_REQUIRED').length;
   const pct = total ? Math.round((done * 100) / total) : 0;
 
   return (
@@ -48,6 +49,11 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
         <span>
           <strong className="text-ink-800">{blocked}</strong> <span className="text-ink-400">도움 필요</span>
         </span>
+        {reassign > 0 && (
+          <span>
+            <strong className="text-ink-800">{reassign}</strong> <span className="text-ink-400">새 담당자 필요</span>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -151,7 +157,8 @@ export function TodosPage() {
 
   if (!currentProject || !user) return <NoProjectState />;
 
-  const isAssignee = (todo: TodoItem) => isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id);
+  const isAssignee = (todo: TodoItem) =>
+    todo.assignmentStatus === 'ACTIVE' && (isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id));
 
   const cardFor = (todo: TodoItem, compact?: boolean) => (
     <TodoCard
