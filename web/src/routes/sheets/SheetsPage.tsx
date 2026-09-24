@@ -77,7 +77,7 @@ function CreateSheetCard({ projects, defaultProjectId, onCreated }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>새 자료표 만들기</CardTitle>
+        <CardTitle>빈 표 새로 만들기</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <ProjectPicker value={projectId} onChange={setProjectId} projects={projects} />
@@ -223,7 +223,7 @@ export function SheetsPage() {
   if (!currentProject) {
     return (
       <div>
-        <PageHeader title="자료표" description="엑셀처럼 표로 정리하기" />
+        <PageHeader title="공유 자료표" description="프로젝트 팀원이 함께 보는 표입니다. 새 표를 만들거나 엑셀 파일을 가져와 편집할 수 있습니다." />
         <EmptyState title="소속된 프로젝트가 없습니다." description="관리자에게 프로젝트 배정을 요청해 주세요." />
       </div>
     );
@@ -232,7 +232,7 @@ export function SheetsPage() {
   if (opened) {
     return (
       <div>
-        <PageHeader title="자료표" description="엑셀처럼 표로 정리하기" />
+        <PageHeader title="공유 자료표" description="프로젝트 팀원이 함께 보는 표입니다. 새 표를 만들거나 엑셀 파일을 가져와 편집할 수 있습니다." />
         <SheetWorkspace
           file={opened.file}
           rows={opened.rows}
@@ -253,7 +253,7 @@ export function SheetsPage() {
 
   return (
     <div>
-      <PageHeader title="자료표" description="표를 만들어 팀과 함께 채우고, 필요하면 비밀번호로 잠급니다. 엑셀 파일을 그대로 가져오거나 내보낼 수 있습니다." />
+      <PageHeader title="공유 자료표" description="프로젝트 팀원이 함께 보는 표입니다. 새 표를 만들거나 엑셀 파일을 가져와 편집하고, 필요하면 비밀번호로 보호할 수 있습니다." />
 
       <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CreateSheetCard projects={projects ?? []} defaultProjectId={currentProject.id} onCreated={handleCreated} />
@@ -262,7 +262,7 @@ export function SheetsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>이 프로젝트의 자료표</CardTitle>
+          <CardTitle>이 프로젝트에서 공유 중인 표</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
