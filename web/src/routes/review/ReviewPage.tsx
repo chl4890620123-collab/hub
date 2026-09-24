@@ -158,7 +158,7 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
       <BulkSelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
         <Select value={bulkAssignee} onValueChange={setBulkAssignee}>
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="담당자" />
+            <SelectValue placeholder="최종 담당자" />
           </SelectTrigger>
           <SelectContent>
             {members && members.length === 0 ? (
@@ -263,8 +263,8 @@ function ChangeReviewTab({ projectId }: { projectId: number }) {
       {changes.map((c) => (
         <div key={c.id} className="rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
           <p className="mb-1 text-sm font-medium text-ink-900">{c.category}</p>
-          <p className="mb-1 text-xs text-ink-500">before: {c.before_text}</p>
-          <p className="mb-2 text-xs text-ink-500">after: {c.after_text}</p>
+          <p className="mb-1 text-xs text-ink-500">변경 전: {c.before_text || '내용 없음'}</p>
+          <p className="mb-2 text-xs text-ink-500">변경 후: {c.after_text || '내용 없음'}</p>
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => confirm.mutate(c.id)}>
               확정
@@ -285,7 +285,13 @@ export function ReviewPage() {
 
   return (
     <div>
-      <PageHeader title="AI 검토함" description="AI가 제안한 할 일, 결정, 변경 후보의 근거를 확인하고 확정합니다." />
+      <PageHeader
+        title="AI 검토함"
+        description="AI가 만든 후보를 사람이 확인하는 곳입니다. 확정하기 전에는 실제 할 일이나 결정으로 반영되지 않습니다."
+      />
+      <p className="mb-4 text-xs text-ink-500">
+        할 일에서는 담당자와 기한을 정해 확정하고, 결정·변경 이력은 원문 근거를 확인한 뒤 확정하거나 제외할 수 있습니다.
+      </p>
       <AddTeammateCard projectId={currentProject.id} />
       <Tabs defaultValue="todos">
         <TabsList>
