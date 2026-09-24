@@ -44,8 +44,7 @@ public class FileAttachmentService {
     public long sendToMember(long projectId, long recipientId, MultipartFile file, String note, User actor) {
         access.requireAccess(projectId, actor);
         boolean recipientOk = recipientId == actor.id()
-                || projects.isMember(projectId, recipientId)
-                || users.findById(recipientId).map(User::isAdmin).orElse(false);
+                || projects.isMember(projectId, recipientId);
         if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트의 팀원이어야 합니다.");
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,
