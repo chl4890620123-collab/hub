@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
+const CONFIDENCE_LABELS = {
+  HIGH: '신뢰 높음',
+  MEDIUM: '신뢰 보통',
+  LOW: '신뢰 낮음',
+} as const;
+
 export function TodoCandidateCard({
   todo,
   members,
@@ -32,7 +38,7 @@ export function TodoCandidateCard({
   busy?: boolean;
 }) {
   const [assigneeId, setAssigneeId] = useState(todo.assigneeSuggestionId ? String(todo.assigneeSuggestionId) : '');
-  const [dueDate, setDueDate] = useState(todo.dueDateSuggestion ?? new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(todo.dueDateSuggestion ?? '');
   const [title, setTitle] = useState(todo.title);
   const [description, setDescription] = useState(todo.description ?? '');
 
@@ -47,7 +53,7 @@ export function TodoCandidateCard({
             ) : (
               <p className="text-sm font-medium text-ink-900">{todo.title}</p>
             )}
-            <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{todo.confidence}</Badge>
+            <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{CONFIDENCE_LABELS[todo.confidence]}</Badge>
             {todo.possibleDuplicateOfId && <Badge variant="warning">중복 의심</Badge>}
           </div>
           {onEdit ? (
@@ -89,7 +95,7 @@ export function TodoCandidateCard({
           </Select>
         </div>
         <div>
-          <p className="mb-1 text-[11px] font-medium text-ink-400">최종 기한</p>
+          <p className="mb-1 text-[11px] font-medium text-ink-400">최종 기한 (선택)</p>
           <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-44 cursor-pointer [color-scheme:dark]" />
         </div>
         <Button
