@@ -299,6 +299,12 @@ public class DocumentRepository {
         jdbc.update("UPDATE document SET archived=TRUE,archived_at=CURRENT_TIMESTAMP WHERE id=?", documentId);
     }
 
+    public void restore(long documentId) {
+        if (jdbc.update("UPDATE document SET archived=FALSE,archived_at=NULL WHERE id=?", documentId) != 1) {
+            throw new IllegalArgumentException("복원할 문서를 찾을 수 없습니다.");
+        }
+    }
+
     /**
      * Permanently removes one document after detaching business records that are allowed to survive
      * without their source document. Evidence and version-comparison rows that directly depend on the
