@@ -17,16 +17,17 @@ import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 import { mockMode } from '@/api/mockApi';
 
-const PROVIDERS: { type: ConnectorType; label: string; icon: typeof Github; note?: string }[] = [
-  { type: 'GITHUB', label: 'GitHub', icon: Github },
+const PROVIDERS: { type: ConnectorType; label: string; targetNoun: string; icon: typeof Github; note?: string }[] = [
+  { type: 'GITHUB', label: 'GitHub', targetNoun: '저장소', icon: Github },
   {
     type: 'GOOGLE_DRIVE',
     label: 'Google Drive',
+    targetNoun: '폴더',
     icon: HardDrive,
     note: '같은 연결로 할 일에 기한을 정하면 내 구글 캘린더에도 자동으로 등록됩니다.',
   },
-  { type: 'SLACK', label: 'Slack', icon: MessageSquare },
-  { type: 'NOTION', label: 'Notion', icon: NotebookText },
+  { type: 'SLACK', label: 'Slack', targetNoun: '채널', icon: MessageSquare },
+  { type: 'NOTION', label: 'Notion', targetNoun: '페이지', icon: NotebookText },
 ];
 
 /** The OAuth callback lands back here with its outcome in the query string; without this the
@@ -101,7 +102,10 @@ export function ConnectorsPage() {
 
   return (
     <div>
-      <PageHeader title="연결 서비스" description="GitHub, Google Drive, Slack, Notion 계정을 연결해 자료를 가져옵니다." />
+      <PageHeader
+        title="연결 서비스"
+        description="GitHub 저장소, Google Drive 폴더, Slack 채널, Notion 페이지를 연결해 현재 프로젝트의 검색 자료로 가져옵니다."
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {PROVIDERS.filter((p) => policy?.[p.type] !== false).map((provider) => {
@@ -143,7 +147,7 @@ export function ConnectorsPage() {
                     </a>
                   )}
                   <Button size="sm" onClick={() => setBrowsing(provider.type)}>
-                    가져올 항목 보기
+                    {provider.label} {provider.targetNoun} 보기
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => disconnect.mutate(provider.type)}>
                     연결 해제
@@ -160,6 +164,8 @@ export function ConnectorsPage() {
         type={browsing}
         open={browsing != null}
         onOpenChange={(open) => !open && setBrowsing(null)}
+        providerLabel={PROVIDERS.find((p) => p.type === browsing)?.label ?? '연결 서비스'}
+        targetNoun={PROVIDERS.find((p) => p.type === browsing)?.targetNoun ?? '항목'}
       />
     </div>
   );
