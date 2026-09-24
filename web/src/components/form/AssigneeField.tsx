@@ -20,7 +20,7 @@ export function AssigneeField({
 
   return (
     <div className={className}>
-      <Label>담당자 (선택)</Label>
+      <Label>후속 할 일 담당자 (선택)</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="w-40">
           <SelectValue placeholder="지정 안 함" />
