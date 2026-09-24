@@ -44,9 +44,9 @@ export function StatusCycleButton({
         STYLES[status],
         disabled ? 'cursor-not-allowed opacity-60' : 'hover:opacity-80',
       )}
-      title={disabled ? '담당자 또는 관리자만 변경할 수 있습니다.' : '클릭하여 상태 변경'}
+      title={disabled ? '담당자 또는 관리자만 변경할 수 있습니다.' : `${LABELS[status]}에서 ${LABELS[nextStatus(status)]}(으)로 변경`}
     >
-      {LABELS[status]}
+      {LABELS[status]} → {LABELS[nextStatus(status)]}
     </button>
   );
 }
