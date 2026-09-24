@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, Download, GitCompare, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Archive, Download, GitCompare, RotateCcw, Sparkles, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
@@ -163,6 +163,7 @@ export function DocumentsPage() {
   const [revising, setRevising] = useState<DocumentRow | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [nameFilter, setNameFilter] = useState('');
+  const [archiveFilter, setArchiveFilter] = useState<'ACTIVE' | 'ARCHIVED' | 'ALL'>('ACTIVE');
   const [cursor, setCursor] = useState(() => new Date());
 
   const { data: documents, isLoading } = useQuery({
@@ -175,6 +176,15 @@ export function DocumentsPage() {
     mutationFn: (documentId: number) => documentsApi.archive(documentId),
     onSuccess: () => {
       toast.success('문서를 보관 처리했습니다.');
+      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const restore = useMutation({
+    mutationFn: (documentId: number) => documentsApi.restore(documentId),
+    onSuccess: () => {
+      toast.success('문서를 다시 사용 중으로 복원했습니다.');
       queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -203,8 +213,14 @@ export function DocumentsPage() {
   });
 
   const filtered = useMemo(
-    () => (documents ?? []).filter((doc) => doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())),
-    [documents, nameFilter],
+    () =>
+      (documents ?? []).filter((doc) => {
+        if (!doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())) return false;
+        if (archiveFilter === 'ACTIVE') return !doc.archived;
+        if (archiveFilter === 'ARCHIVED') return doc.archived;
+        return true;
+      }),
+    [documents, nameFilter, archiveFilter],
   );
   const pages = usePagination(filtered);
 
@@ -251,6 +267,11 @@ export function DocumentsPage() {
               <Archive size={13} /> 보관
             </Button>
           )}
+          {isAdmin && doc.archived && (
+            <Button variant="ghost" size="sm" disabled={restore.isPending} onClick={() => restore.mutate(doc.id)}>
+              <RotateCcw size={13} /> 복원
+            </Button>
+          )}
           {isAdmin && (
             <Button
               variant="ghost"
@@ -292,6 +313,25 @@ export function DocumentsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle>문서 목록</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1">
+                {([
+                  ['ACTIVE', '사용 중'],
+                  ['ARCHIVED', '보관함'],
+                  ['ALL', '전체'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setArchiveFilter(value)}
+                    className={
+                      'rounded-full px-2.5 py-1 text-xs font-medium ' +
+                      (archiveFilter === value ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <Input
                 value={nameFilter}
                 onChange={(e) => setNameFilter(e.target.value)}
