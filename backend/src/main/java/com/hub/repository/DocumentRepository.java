@@ -65,9 +65,11 @@ public class DocumentRepository {
                 SELECT v.id FROM document_version v
                 JOIN document d ON d.id=v.document_id
                 WHERE d.project_id=? AND d.source_type=? AND v.sha256=?
+                  AND d.archived=FALSE AND d.source_deleted=FALSE
+                  AND v.full_text<>?
                 ORDER BY v.id DESC LIMIT 1
                 """,
-                (rs,n)->rs.getLong(1), projectId, sourceType, sha256);
+                (rs,n)->rs.getLong(1), projectId, sourceType, sha256, ARCHIVED_CONTENT_PLACEHOLDER);
         return ids.stream().findFirst();
     }
 
@@ -245,7 +247,13 @@ public class DocumentRepository {
         return jdbc.queryForList(
                 """
                 SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,
-                       MAX(v.version_no) latest_version,(d.storage_path IS NOT NULL) has_original
+                       MAX(v.version_no) latest_version,(d.storage_path IS NOT NULL) has_original,
+                       EXISTS (
+                         SELECT 1 FROM document_version lv
+                         WHERE lv.document_id=d.id
+                           AND lv.version_no=(SELECT MAX(lv2.version_no) FROM document_version lv2 WHERE lv2.document_id=d.id)
+                           AND lv.full_text=?
+                       ) content_purged
                 FROM document d
                 LEFT JOIN document_version v ON v.document_id=d.id
                 WHERE d.project_id=?
@@ -253,7 +261,7 @@ public class DocumentRepository {
                 ORDER BY d.id DESC
                 LIMIT 500
                 """,
-                projectId
+                ARCHIVED_CONTENT_PLACEHOLDER, projectId
         );
     }
 
@@ -273,13 +281,14 @@ public class DocumentRepository {
         return jdbc.queryForObject("SELECT project_id FROM document WHERE id=?", Long.class, documentId);
     }
 
-    public record DocumentMeta(long id, long projectId, String sourceType, String originalName, boolean archived) {}
+    public record DocumentMeta(long id, long projectId, String sourceType, String originalName,
+                               boolean archived, boolean sourceDeleted) {}
 
     public Optional<DocumentMeta> findMeta(long documentId) {
         List<DocumentMeta> rows = jdbc.query(
-                "SELECT id,project_id,source_type,original_name,archived FROM document WHERE id=?",
+                "SELECT id,project_id,source_type,original_name,archived,source_deleted FROM document WHERE id=?",
                 (rs, n) -> new DocumentMeta(rs.getLong("id"), rs.getLong("project_id"), rs.getString("source_type"),
-                        rs.getString("original_name"), rs.getBoolean("archived")),
+                        rs.getString("original_name"), rs.getBoolean("archived"), rs.getBoolean("source_deleted")),
                 documentId);
         return rows.stream().findFirst();
     }
@@ -300,9 +309,20 @@ public class DocumentRepository {
     }
 
     public void restore(long documentId) {
+        var latest = latestVersion(documentId).orElseThrow(() -> new IllegalArgumentException("복원할 문서를 찾을 수 없습니다."));
+        if (isVersionContentPurged(latest.id())) {
+            throw new IllegalArgumentException("보관 기간이 지나 본문이 정리된 자료입니다. 원본 자료를 다시 등록해 주세요.");
+        }
         if (jdbc.update("UPDATE document SET archived=FALSE,archived_at=NULL WHERE id=?", documentId) != 1) {
             throw new IllegalArgumentException("복원할 문서를 찾을 수 없습니다.");
         }
+    }
+
+    public boolean isVersionContentPurged(long versionId) {
+        Boolean purged = jdbc.queryForObject(
+                "SELECT full_text=? FROM document_version WHERE id=?",
+                Boolean.class, ARCHIVED_CONTENT_PLACEHOLDER, versionId);
+        return Boolean.TRUE.equals(purged);
     }
 
     /**
