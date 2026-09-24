@@ -190,7 +190,12 @@ public class DocumentService {
         var existing = documents.findDocumentId(projectId, sourceType, sourceIdentifier);
         if (existing.isPresent()) {
             var latest = documents.latestVersion(existing.get());
-            if (latest.isPresent() && latest.get().sha256().equals(hash)) return latest.get().id();
+            var meta = documents.findMeta(existing.get());
+            boolean active = meta.isPresent() && !meta.get().archived() && !meta.get().sourceDeleted();
+            if (latest.isPresent() && latest.get().sha256().equals(hash)
+                    && active && !documents.isVersionContentPurged(latest.get().id())) {
+                return latest.get().id();
+            }
         }
 
         String text = extractText(safeName, contentType, bytes);
@@ -327,7 +332,8 @@ public class DocumentService {
             // Prevent two sync requests from allocating the same version number.
             documents.lockDocument(documentId);
             var latest = documents.latestVersion(documentId);
-            if (latest.isPresent() && latest.get().sha256().equals(hash)) {
+            if (latest.isPresent() && latest.get().sha256().equals(hash)
+                    && !documents.isVersionContentPurged(latest.get().id())) {
                 documents.updateSourceMetadata(documentId, normalizedTitle, storagePath);
                 return latest.get().id();
             }
