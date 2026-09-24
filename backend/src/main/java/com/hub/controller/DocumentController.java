@@ -48,6 +48,7 @@ public class DocumentController {
                                      @RequestParam(required = false) Long assigneeId,
                                      Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
+        validateFollowUp(dueDate, assigneeId);
         long versionId = documents.upload(projectId, file, user);
         long jobId = jobs.queueDocument(projectId, versionId, sourceDate);
         Map<String,Object> body = scheduleFollowUp(projectId, versionId, file.getOriginalFilename(), dueDate, assigneeId, user);
@@ -60,6 +61,7 @@ public class DocumentController {
     @PostMapping("/manual")
     public ResponseEntity<Map<String,Object>> manual(@PathVariable long projectId, @RequestBody ManualText request, Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
+        validateFollowUp(request.dueDate(), request.assigneeId());
         long versionId = documents.manualText(projectId, request.title(), request.text(), user);
         long jobId = jobs.queueDocument(projectId, versionId, request.sourceDate());
         Map<String,Object> body = scheduleFollowUp(projectId, versionId, request.title(), request.dueDate(), request.assigneeId(), user);
@@ -80,7 +82,13 @@ public class DocumentController {
         return ResponseEntity.accepted().body(Map.<String,Object>of("versionId", versionId, "jobId", jobId, "status", "PENDING"));
     }
 
-    /** dueDate is optional on both save paths; when set, this turns the save into a scheduled follow-up task too. */
+    private static void validateFollowUp(LocalDate dueDate, Long assigneeId) {
+        if ((dueDate == null) != (assigneeId == null)) {
+            throw new IllegalArgumentException("후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.");
+        }
+    }
+
+    /** dueDate and assigneeId are both optional; when both are set, save a scheduled follow-up task too. */
     private Map<String,Object> scheduleFollowUp(long projectId, long versionId, String title, LocalDate dueDate, Long assigneeId, User user) {
         Map<String,Object> body = new HashMap<>();
         if (dueDate != null) {
