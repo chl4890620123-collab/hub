@@ -108,8 +108,10 @@ public class DocumentQueryController {
         long projectId = documents.projectIdForDocument(documentId);
         projectAccess.requireAdmin(projectId, user);
         var file = documents.findFile(documentId).orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        // A permanent delete must not claim success if the original bytes are still on disk.
+        // Delete the trusted local file first; only then remove the DB/search records.
+        storage.deleteStrict(file.storagePath());
         documents.deletePermanently(documentId);
-        storage.deleteQuietly(file.storagePath());
         audit.add(user.id(), projectId, "DOCUMENT_DELETE", "DOCUMENT", documentId, "{}");
         return Map.of("status", "DELETED");
     }
