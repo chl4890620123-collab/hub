@@ -7,6 +7,7 @@ import type {
   DocumentRow,
   DocumentVersionRow,
   EvidenceView,
+  FileTransferRecipient,
   MaterialAskResponse,
   MaterialHit,
   ProcessingJob,
@@ -159,6 +160,15 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
     ] as RevisionRow[] as T);
   if (pathname.endsWith('/jobs')) return result([{ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) }] as ProcessingJob[] as T);
   if (pathname.match(/\/jobs\/\d+$/)) return result({ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) } as ProcessingJob as T);
+  if (pathname.endsWith('/file-transfer-recipients')) {
+    const recipients: FileTransferRecipient[] = users.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+      loginId: user.loginId,
+      admin: user.globalRole === 'ADMIN',
+    }));
+    return result(recipients as T);
+  }
   if (pathname.endsWith('/file-transfers')) return result([] as T);
   if (pathname.endsWith('/connector-policy')) return result({ GITHUB: true, GOOGLE_DRIVE: true, SLACK: true, NOTION: true } as T);
   if (pathname.endsWith('/check-login-id')) return result({ loginId: searchParams.get('loginId') ?? '', available: true, message: '사용할 수 있는 아이디입니다.' } as T);
