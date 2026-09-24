@@ -29,6 +29,10 @@ const TIMELINE_LABELS: Record<string, string> = {
 
 const CONNECTOR_LABELS: Record<string, string> = { GOOGLE_DRIVE: 'Google Drive', GITHUB: 'GitHub', SLACK: 'Slack', NOTION: 'Notion' };
 
+function timelineLabel(type: string): string {
+  return TIMELINE_LABELS[type] ?? '기타 활동';
+}
+
 function ConnectorSyncChips({ projectId }: { projectId: number }) {
   const { data: statuses } = useQuery({
     queryKey: ['connector-status', projectId],
@@ -45,7 +49,7 @@ function ConnectorSyncChips({ projectId }: { projectId: number }) {
           className="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-500 dark:bg-ink-100"
         >
           {CONNECTOR_LABELS[s.connectorType] ?? s.connectorType} · 가져오기 완료
-          {s.lastSyncedAt ? ` · 마지막 성공 ${formatDateTime(s.lastSyncedAt)}` : ''}
+          {s.lastSyncedAt ? ` · 마지막 가져오기 ${formatDateTime(s.lastSyncedAt)}` : ''}
         </span>
       ))}
     </div>
@@ -192,7 +196,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
               rows={4}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="회의 내용을 붙여넣으면 AI가 할 일/결정 사항을 자동으로 추출합니다."
+              placeholder="회의나 업무 메모를 붙여넣으면 AI가 할 일과 결정 사항 후보를 정리합니다."
             />
           </div>
           <div className="flex flex-wrap items-end gap-3">
@@ -211,7 +215,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
             <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
           </div>
           <Button type="submit" disabled={submit.isPending} className="self-start">
-            {submit.isPending ? '저장 중...' : '저장 및 분석 요청'}
+            {submit.isPending ? '저장 중...' : '저장하고 AI로 정리'}
           </Button>
         </form>
         {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={projectId} />}
@@ -241,7 +245,7 @@ function WorkflowTimeline({ projectId }: { projectId: number }) {
             {events.slice(0, 10).map((event) => (
               <li key={event.id} className="flex items-start gap-3 border-b border-ink-100 pb-2 last:border-0">
                 <Badge variant="outline" className="mt-0.5 shrink-0">
-                  {TIMELINE_LABELS[event.eventType] ?? event.eventType}
+                  {timelineLabel(event.eventType)}
                 </Badge>
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink-800">{event.title}</p>
