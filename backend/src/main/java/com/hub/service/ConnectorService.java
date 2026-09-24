@@ -58,7 +58,7 @@ public class ConnectorService {
     public java.util.Map<String,Object> targets(String type, User user) {
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
-        if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
+        if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
         if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         String token = resolveToken(normalizedType, user);
         if (token == null || token.isBlank())
@@ -157,8 +157,8 @@ public class ConnectorService {
         timeline.append(
                 projectId,
                 "CONNECTOR_IMPORT",
-                normalizedType + " import",
-                "Imported/synced " + imported + " items from " + cleanScope,
+                connectorName(normalizedType) + " 자료 가져오기",
+                imported + "건의 자료를 가져왔습니다.",
                 LocalDateTime.now(),
                 "CONNECTOR",
                 null
