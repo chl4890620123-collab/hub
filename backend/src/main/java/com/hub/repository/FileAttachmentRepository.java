@@ -60,6 +60,17 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
+    /** Project-scoped filename/note lookup used as an additive search source. */
+    public List<Attachment> search(long projectId, String query, int limit) {
+        String term = "%" + (query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT)) + "%";
+        int bounded = Math.max(1, Math.min(limit, 100));
+        return jdbc.query(selectColumns() + """
+                 FROM file_attachment
+                 WHERE project_id=? AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
+                 ORDER BY id DESC LIMIT ?
+                """, (rs, n) -> map(rs), projectId, term, term, bounded);
+    }
+
     public void markRead(long id) {
         jdbc.update("UPDATE file_attachment SET read_at=CURRENT_TIMESTAMP WHERE id=? AND read_at IS NULL", id);
     }

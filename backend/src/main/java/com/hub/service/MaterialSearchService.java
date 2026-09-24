@@ -9,6 +9,7 @@ import com.hub.model.MaterialHit;
 import com.hub.model.SearchHit;
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.DocumentRepository;
+import com.hub.repository.FileAttachmentRepository;
 import com.hub.util.SearchText;
 import com.hub.util.UnicodeText;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class MaterialSearchService {
 
     private final ConnectorRepository connectors;
     private final DocumentRepository documents;
+    private final FileAttachmentRepository attachments;
     private final LexicalSearchService lexicalSearch;
     private final AiClient ai;
     private final VectorIndexService vectors;
@@ -45,6 +47,7 @@ public class MaterialSearchService {
 
     public MaterialSearchService(ConnectorRepository connectors,
                                  DocumentRepository documents,
+                                 FileAttachmentRepository attachments,
                                  LexicalSearchService lexicalSearch,
                                  AiClient ai,
                                  VectorIndexService vectors,
@@ -56,6 +59,7 @@ public class MaterialSearchService {
                                  HubProperties props) {
         this.connectors = connectors;
         this.documents = documents;
+        this.attachments = attachments;
         this.lexicalSearch = lexicalSearch;
         this.ai = ai;
         this.vectors = vectors;
@@ -84,7 +88,31 @@ public class MaterialSearchService {
         String normalized = requiredQuery(query);
         SearchQueryPlan plan = queryRouter.route(normalized);
         SearchRuleService.RuleMatch rule = searchRules.match(projectId, normalized).orElse(null);
-        return recommendDocuments(rankCandidates(projectId, plan, rule), plan, Math.max(0, offset));
+        List<MaterialHit> primary = recommendDocuments(rankCandidates(projectId, plan, rule), plan, Math.max(0, offset));
+        if (offset > 0 || primary.size() >= MAX_RESULTS) return primary;
+        // Attachment metadata is deliberately additive: failures here must not break the proven document search path.
+        try {
+            List<MaterialHit> merged = new ArrayList<>(primary);
+            Set<String> seen = new LinkedHashSet<>();
+            primary.forEach(hit -> seen.add(hit.sourceType() + ":" + hit.evidenceId()));
+            int rank = merged.size() + 1;
+            for (FileAttachmentRepository.Attachment attachment : attachments.search(projectId, plan.searchText(), MAX_RESULTS)) {
+                String key = "ATTACHMENT:" + attachment.id();
+                if (!seen.add(key)) continue;
+                String note = blankTo(attachment.note(), "첨부파일 이름이 검색어와 일치합니다.");
+                merged.add(new MaterialHit(
+                        attachment.id(), "ATTACHMENT", "업무 첨부파일", "ATTACHMENT", attachment.fileName(),
+                        attachment.todoId() == null ? "프로젝트 파일 전송" : "할 일 #" + attachment.todoId() + " 첨부파일",
+                        excerpt(note, normalized, SearchText.terms(plan.searchText()), 620), "", "",
+                        attachment.createdAt().atOffset(java.time.ZoneOffset.UTC), rank++, "첨부파일 일치",
+                        "현재 프로젝트의 첨부파일 이름 또는 메모에서 찾았습니다."
+                ));
+                if (merged.size() >= MAX_RESULTS) break;
+            }
+            return merged;
+        } catch (RuntimeException ignored) {
+            return primary;
+        }
     }
 
     /**
