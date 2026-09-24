@@ -22,6 +22,7 @@ public class TodoService {
         this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;this.calendar=calendar;}
     public List<TodoItem> month(long projectId,int year,int month){LocalDate from=LocalDate.of(year,month,1);return todos.listMonth(projectId,from,from.plusMonths(1));}
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
+    public List<TodoItem> dueThrough(long projectId,LocalDate through){return todos.listDueThrough(projectId,through);}
     public List<TodoItem> pending(long projectId){return todos.pending(projectId);}
 
     /** Registering a document with a due date can create its follow-up task in the same step. */
