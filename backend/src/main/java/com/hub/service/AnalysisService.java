@@ -350,7 +350,7 @@ public class AnalysisService {
         try {
             return json.writeValueAsString(response);
         } catch (Exception error) {
-            throw new IllegalStateException("Failed to serialize analysis result", error);
+            throw new IllegalStateException("AI 분석 결과를 저장 형식으로 변환하지 못했습니다.", error);
         }
     }
 

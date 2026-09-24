@@ -88,7 +88,7 @@ public class SearchRuleService {
     }
 
     public SearchRule update(long projectId, long id, RuleInput input) {
-        if (repository.find(projectId, id).isEmpty()) throw new IllegalArgumentException("Search rule not found");
+        if (repository.find(projectId, id).isEmpty()) throw new IllegalArgumentException("검색 도움 설정을 찾을 수 없습니다.");
         NormalizedRule n = normalize(input, id, projectId);
         repository.update(projectId, id, n.name(), n.aliases(), n.patterns(), n.targetFile(), n.mode(), n.priority(), n.active());
         return repository.find(projectId, id).map(this::managedRule).orElseThrow();
@@ -102,7 +102,7 @@ public class SearchRuleService {
         if (input == null) throw new IllegalArgumentException("Search rule is required");
         String name = text(input.name());
         if (name.isBlank()) throw new IllegalArgumentException("검색 규칙 이름을 입력해 주세요.");
-        if (name.length() > 200) throw new IllegalArgumentException("Search rule name is too long");
+        if (name.length() > 200) throw new IllegalArgumentException("검색 도움 설정 이름은 200자 이하로 입력해 주세요.");
         List<String> patterns = normalizeList(input.patterns(), 20, 500);
         String targetFile = text(input.targetFile());
         if (targetFile.length() > 500) throw new IllegalArgumentException("Target filename is too long");

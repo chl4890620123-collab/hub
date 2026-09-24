@@ -73,7 +73,7 @@ public class FileAttachmentService {
         access.requireAccess(projectId, actor);
         boolean recipientOk = recipientId == actor.id()
                 || projects.isMember(projectId, recipientId)
-                || users.findById(recipientId).map(User::isAdmin).orElse(false);
+                || users.findById(recipientId).filter(User::active).map(User::isAdmin).orElse(false);
         if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트 팀원 또는 관리자여야 합니다.");
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,

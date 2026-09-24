@@ -29,6 +29,7 @@ public class TodoService {
     @Transactional
     public long createManual(long projectId,Long versionId,String title,Long assigneeId,LocalDate dueDate,User actor){
         if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
+        if(assigneeId==null||dueDate==null)throw new IllegalArgumentException("후속 할 일에는 담당자와 기한이 모두 필요합니다.");
         String assigneeText=null;
         if(assigneeId!=null){
             if(!projects.isMember(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트에 참여 중인 팀원이어야 합니다.");

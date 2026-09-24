@@ -160,6 +160,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
   const [assigneeId, setAssigneeId] = useState('');
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
 
   const submit = useMutation({
     mutationFn: () =>
@@ -225,7 +226,12 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
             </div>
             <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
           </div>
-          <Button type="submit" disabled={submit.isPending} className="self-start">
+          <p className={followUpIncomplete ? 'text-xs text-red-600' : 'text-xs text-ink-400'}>
+            {followUpIncomplete
+              ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
+              : '담당자와 기한을 함께 선택하면 메모 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
+          </p>
+          <Button type="submit" disabled={submit.isPending || followUpIncomplete} className="self-start">
             {submit.isPending ? '저장 중...' : '저장하고 AI로 정리'}
           </Button>
         </form>

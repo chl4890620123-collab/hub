@@ -30,7 +30,7 @@ public class PostgresVectorIndexService implements VectorIndexService {
                     json.writeValueAsString(vector), value, chunkId
             );
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to store pgvector embedding", e);
+            throw new IllegalStateException("검색용 의미 벡터를 저장하지 못했습니다.", e);
         }
     }
 

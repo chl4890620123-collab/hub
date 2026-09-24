@@ -45,6 +45,28 @@ class FileAttachmentServiceDeleteTest {
     }
 
     @Test
+    void inactiveAdminCannotReceiveDirectFile() {
+        FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
+        TodoRepository todos = mock(TodoRepository.class);
+        ProjectRepository projects = mock(ProjectRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        ProjectAccessService access = mock(ProjectAccessService.class);
+        FileStorageService storage = mock(FileStorageService.class);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+
+        User sender = member(11L);
+        User inactiveAdmin = new User(99L, "admin99", "admin99@example.test", "Inactive Admin",
+                "Hub", null, null, null, "ADMIN", "SUSPENDED", false, "APPROVED");
+        when(projects.isMember(9L, 99L)).thenReturn(false);
+        when(users.findById(99L)).thenReturn(Optional.of(inactiveAdmin));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.sendToMember(9L, 99L, mock(org.springframework.web.multipart.MultipartFile.class), null, sender));
+
+        verify(storage, never()).save(anyLong(), anyString(), org.mockito.ArgumentMatchers.any(byte[].class));
+    }
+
+    @Test
     void authorizedSenderDeletesPhysicalFileBeforeMetadata() {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);

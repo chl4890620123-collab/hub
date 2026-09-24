@@ -41,6 +41,7 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
   const [assigneeId, setAssigneeId] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
+  const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
 
   const upload = useMutation({
     mutationFn: (file: File) =>
@@ -87,8 +88,13 @@ function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStar
           <Input id="doc-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" />
         </div>
         <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
+        <p className={followUpIncomplete ? 'w-full text-xs text-red-600' : 'w-full text-xs text-ink-400'}>
+          {followUpIncomplete
+            ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
+            : '담당자와 기한을 함께 선택하면 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
+        </p>
         <Button
-          disabled={!selectedFile || upload.isPending}
+          disabled={!selectedFile || upload.isPending || followUpIncomplete}
           onClick={() => {
             if (!selectedFile) {
               toast.error('업로드할 파일을 먼저 선택해주세요.');
@@ -110,6 +116,7 @@ function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJo
   const [dueDate, setDueDate] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const queryClient = useQueryClient();
+  const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
 
   const submit = useMutation({
     mutationFn: () =>
@@ -146,7 +153,12 @@ function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJo
           </div>
           <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
         </div>
-        <Button disabled={!title.trim() || !text.trim() || submit.isPending} onClick={() => submit.mutate()} className="self-start">
+        <p className={followUpIncomplete ? 'text-xs text-red-600' : 'text-xs text-ink-400'}>
+          {followUpIncomplete
+            ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
+            : '담당자와 기한을 함께 선택하면 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
+        </p>
+        <Button disabled={!title.trim() || !text.trim() || submit.isPending || followUpIncomplete} onClick={() => submit.mutate()} className="self-start">
           저장 및 분석 요청
         </Button>
       </CardContent>

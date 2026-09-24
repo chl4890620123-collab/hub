@@ -39,7 +39,7 @@ public class AdminController {
         this.accounts=accounts;this.reassignments=reassignments;this.sensitiveTerms=sensitiveTerms;
     }
 
-    private User requireAdmin(Authentication authentication){User user=current.requireOperational(authentication);if(!user.isAdmin())throw new AccessDeniedException("Admin only");return user;}
+    private User requireAdmin(Authentication authentication){User user=current.requireOperational(authentication);if(!user.isAdmin())throw new AccessDeniedException("관리자 권한이 필요합니다.");return user;}
 
     @GetMapping("/users") public List<User> listUsers(Authentication authentication){requireAdmin(authentication);return users.list();}
     @GetMapping("/signup-applications") public List<UserRepository.SignupApplication> signupApplications(Authentication authentication){requireAdmin(authentication);return users.listPendingApplications();}
