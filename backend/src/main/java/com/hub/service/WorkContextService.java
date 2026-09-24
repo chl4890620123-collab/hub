@@ -53,7 +53,7 @@ public class WorkContextService {
                 .toList();
         MaterialAskResponse ask;
         try {
-            ask = materials.ask(projectId, q);
+            ask = materials.ask(projectId, q, actor);
         } catch (RuntimeException unavailableAi) {
             String fallback = sources.isEmpty()
                     ? "관련 자료에서 해당 업무 맥락을 확인하지 못했습니다."
