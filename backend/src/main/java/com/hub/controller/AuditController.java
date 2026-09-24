@@ -22,7 +22,7 @@ public class AuditController {
     @GetMapping
     public List<Map<String,Object>> list(Authentication auth) {
         User user=current.requireOperational(auth);
-        if(!user.isAdmin()) throw new AccessDeniedException("Admin only");
+        if(!user.isAdmin()) throw new AccessDeniedException("관리자 권한이 필요합니다.");
         return audit.list(300);
     }
 }
