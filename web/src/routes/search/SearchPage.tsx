@@ -96,11 +96,11 @@ export function SearchPage() {
     <div>
       <PageHeader
         title="자료 찾기"
-        description="현재 프로젝트의 문서·회의록·첨부파일과 GitHub, Google Drive, Slack, Notion 자료를 한 번에 검색합니다."
+        description="현재 프로젝트의 문서·회의록, 첨부파일 이름·메모와 GitHub, Google Drive, Slack, Notion 자료를 한 번에 검색합니다."
       />
 
       <p className="mb-3 text-xs text-ink-500">
-        검색 범위: 현재 프로젝트에서 볼 수 있는 문서, 회의록, 업무 첨부파일과 연결 서비스 자료입니다.
+        검색 범위: 현재 프로젝트에서 볼 수 있는 문서·회의록, 업무 첨부파일의 이름·메모와 연결 서비스 자료입니다.
       </p>
 
       <form
