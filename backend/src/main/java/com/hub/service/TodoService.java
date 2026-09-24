@@ -66,7 +66,7 @@ public class TodoService {
     public void editCandidate(TodoItem before,String title,String description,User actor){
         if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
         if(!todos.editCandidate(before.id(),title.trim(),description))
-            throw new StateConflictException("이미 확정/제외된 TODO는 수정할 수 없습니다.");
+            throw new StateConflictException("이미 확정했거나 제외한 할 일은 수정할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"CANDIDATE_EDIT",json.writeValueAsString(before),
                 json.writeValueAsString(java.util.Map.of("title",title.trim())));}
         catch(Exception e){throw new IllegalStateException(e);}
@@ -91,7 +91,7 @@ public class TodoService {
 
     @Transactional
     public void reject(TodoItem before,User actor){
-        if(!todos.reject(before.id(),actor.id()))throw new StateConflictException("이미 확정/제외된 TODO는 다시 제외할 수 없습니다.");
+        if(!todos.reject(before.id(),actor.id()))throw new StateConflictException("이미 확정했거나 제외한 할 일은 다시 제외할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"REJECT",json.writeValueAsString(before),"{\"rejected\":true}");}
         catch(Exception e){throw new IllegalStateException(e);}
     }
@@ -102,7 +102,7 @@ public class TodoService {
         Long targetId=candidate.possibleDuplicateOfId();
         if(targetId==null)throw new IllegalArgumentException("연결된 중복 후보 업무가 없습니다.");
         TodoItem target=todos.find(targetId);
-        if(target.projectId()!=candidate.projectId())throw new IllegalArgumentException("다른 프로젝트의 TODO에는 합칠 수 없습니다.");
+        if(target.projectId()!=candidate.projectId())throw new IllegalArgumentException("다른 프로젝트의 할 일에는 합칠 수 없습니다.");
         evidence.mergeTodoEvidence(candidate.id(),targetId);
         if(!todos.reject(candidate.id(),actor.id()))throw new StateConflictException("중복 후보 상태가 이미 변경되었습니다.");
         try{revisions.add(candidate.projectId(),"TODO",candidate.id(),actor.id(),"DUPLICATE_MERGE",json.writeValueAsString(candidate),
