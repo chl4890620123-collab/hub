@@ -48,7 +48,7 @@ Added: {added[:80]}"""
                     category=category,
                     before=before_line,
                     after=after_line,
-                    reason="Detected in the text diff",
+                    reason="문서의 변경된 부분에서 확인했습니다.",
                 )
             )
         return ChangeResponse(changes=changes[:30])
