@@ -106,7 +106,7 @@ public class DocumentController {
     public ResponseEntity<Map<String,Object>> analyze(@PathVariable long projectId, @PathVariable long versionId,
                                                        @RequestParam(required = false) LocalDate sourceDate, Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
-        if (repository.projectIdForVersion(versionId) != projectId) throw new IllegalArgumentException("Version does not belong to project");
+        if (repository.projectIdForVersion(versionId) != projectId) throw new IllegalArgumentException("현재 프로젝트의 문서 버전이 아닙니다.");
         long jobId = jobs.queueDocument(projectId, versionId, sourceDate);
         return ResponseEntity.accepted().body(Map.<String,Object>of("versionId", versionId, "jobId", jobId, "status", "PENDING"));
     }
