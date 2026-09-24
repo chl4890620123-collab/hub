@@ -64,7 +64,7 @@ function CreateSheetCard({ projects, defaultProjectId, onCreated }: {
       return sheetsApi.create(projectId, { name, columns: columnList, password: password || null, hint: hint || null });
     },
     onSuccess: (result) => {
-      toast.success('자료표를 만들었습니다.');
+      toast.success('표를 만들었습니다.');
       setName('');
       setColumns('');
       setPassword('');
@@ -268,7 +268,7 @@ export function SheetsPage() {
           {isLoading ? (
             <LoadingBlock />
           ) : !sheets || sheets.length === 0 ? (
-            <EmptyState title="아직 만든 자료표가 없습니다." description="위에서 새로 만들거나 엑셀 파일을 가져와 보세요." />
+            <EmptyState title="아직 공유 중인 표가 없습니다." description="위에서 새로 만들거나 엑셀 파일을 가져와 보세요." />
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {sheets.map((s) => (
