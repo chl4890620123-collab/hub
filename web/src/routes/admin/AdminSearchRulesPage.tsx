@@ -26,6 +26,16 @@ const PRIORITY_OPTIONS = [
 
 const EMPTY_FORM = { name: '', targetFile: '', aliases: '', patterns: '', mode: 'SMART' as RuleInput['mode'], priority: 100, active: true };
 
+function statusNumber(status: Record<string, unknown> | undefined, ...keys: string[]): number {
+  if (!status) return 0;
+  for (const key of keys) {
+    const value = status[key];
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string' && value.trim() && !Number.isNaN(Number(value))) return Number(value);
+  }
+  return 0;
+}
+
 function RuleForm({
   projectId,
   editingRule,
@@ -86,7 +96,7 @@ function RuleForm({
           <Input id="rule-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         </div>
         <div>
-          <Label htmlFor="rule-target-file">대표 파일 선택</Label>
+          <Label htmlFor="rule-target-file">기준이 될 파일 이름</Label>
           <Input
             id="rule-target-file"
             placeholder="예: 주간업무보고_양식.xlsx"
@@ -181,11 +191,16 @@ export function AdminSearchRulesPage() {
   });
   const retryEmbedding = useMutation({
     mutationFn: () => adminSearchRuleApi.embeddingRetry(currentProject!.id),
-    onSuccess: (result) => toast.success(`${result.reindexed}건을 재색인했습니다.`),
+    onSuccess: (result) => {
+      toast.success(`${result.reindexed}건의 검색 데이터를 다시 만들었습니다.`);
+      queryClient.invalidateQueries({ queryKey: ['embedding-status', currentProject?.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
   });
   const deleteRule = useMutation({
     mutationFn: (ruleId: number) => adminSearchRuleApi.delete(currentProject!.id, ruleId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-search-rules', currentProject?.id] }),
+    onError: (error) => toast.error(errorMessage(error)),
   });
   const [editingRule, setEditingRule] = useState<SearchRule | null>(null);
 
@@ -195,12 +210,17 @@ export function AdminSearchRulesPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-search-rules', currentProject.id] });
     setEditingRule(null);
   };
+  const totalVersions = statusNumber(embeddingStatus, 'total_versions', 'TOTAL_VERSIONS', 'indexed');
+  const readyVersions = statusNumber(embeddingStatus, 'ready_versions', 'READY_VERSIONS', 'indexed');
+  const failedVersions = statusNumber(embeddingStatus, 'failed_versions', 'FAILED_VERSIONS');
+  const pendingVersions = statusNumber(embeddingStatus, 'pending_versions', 'PENDING_VERSIONS', 'pending');
 
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>대표 문서 등록</CardTitle>
+          <p className="text-xs text-ink-400">자주 쓰는 기준 파일과 다른 이름을 등록하면 파일명이 조금 달라도 관련 자료를 더 쉽게 찾습니다.</p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <RuleForm
@@ -220,7 +240,7 @@ export function AdminSearchRulesPage() {
                   <div>
                     <p className="font-medium text-ink-800">{rule.name}</p>
                     {rule.targetFile && <p className="text-xs text-ink-400">기준 원본 · {rule.targetFile}</p>}
-                    <p className="text-xs text-ink-400">동의어: {rule.aliases.join(', ') || '-'}</p>
+                    <p className="text-xs text-ink-400">다른 이름: {rule.aliases.join(', ') || '등록 없음'}</p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       <Badge variant={rule.active ? 'accent' : 'neutral'}>{rule.active ? '사용 중' : '사용 안 함'}</Badge>
                       <Badge variant="outline">{MODE_OPTIONS.find((m) => m.value === rule.mode)?.label ?? rule.mode}</Badge>
@@ -244,15 +264,30 @@ export function AdminSearchRulesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>임베딩 상태</CardTitle>
+          <CardTitle>검색 준비 상태</CardTitle>
+          <p className="text-xs text-ink-400">등록된 문서가 내용 검색에 사용할 수 있도록 준비됐는지 확인합니다.</p>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <pre className="overflow-x-auto rounded-md bg-ink-50 p-3 text-xs text-ink-600">
-            {JSON.stringify(embeddingStatus ?? {}, null, 2)}
-          </pre>
+        <CardContent className="flex flex-col gap-3">
+          {totalVersions === 0 ? (
+            <p className="text-sm text-ink-500">아직 검색용으로 준비할 문서가 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant={failedVersions > 0 ? 'warning' : pendingVersions > 0 ? 'neutral' : 'accent'}>
+                {readyVersions}/{totalVersions}개 준비 완료
+              </Badge>
+              {pendingVersions > 0 && <span className="text-ink-500">준비 중 {pendingVersions}개</span>}
+              {failedVersions > 0 && <span className="text-amber-700">다시 처리 필요 {failedVersions}개</span>}
+            </div>
+          )}
           <Button size="sm" disabled={retryEmbedding.isPending} onClick={() => retryEmbedding.mutate()} className="self-start">
-            재색인 재시도
+            {retryEmbedding.isPending ? '검색 데이터 다시 만드는 중...' : '검색 데이터 다시 만들기'}
           </Button>
+          <details className="text-xs text-ink-400">
+            <summary className="cursor-pointer">기술 정보 보기</summary>
+            <pre className="mt-2 overflow-x-auto rounded-md bg-ink-50 p-3 text-ink-600">
+              {JSON.stringify(embeddingStatus ?? {}, null, 2)}
+            </pre>
+          </details>
         </CardContent>
       </Card>
 
@@ -270,7 +305,7 @@ export function AdminSearchRulesPage() {
           {testResult.data && (
             <div>
               {testResult.data.matchedRule && (
-                <p className="mb-2 text-xs text-accent-600">매칭된 규칙: {testResult.data.matchedRule.name}</p>
+                <p className="mb-2 text-xs text-accent-600">적용된 대표 문서 설정: {testResult.data.matchedRule.name}</p>
               )}
               <MaterialResultList hits={testResult.data.results} />
             </div>
