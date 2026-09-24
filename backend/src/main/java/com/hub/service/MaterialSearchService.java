@@ -131,6 +131,10 @@ public class MaterialSearchService {
      * aliases such as "기획서" can activate an original-form reference without hard-coding filenames in Java.
      */
     public MaterialAskResponse ask(long projectId, String question) {
+        return ask(projectId, question, null);
+    }
+
+    public MaterialAskResponse ask(long projectId, String question, User actor) {
         String normalized = requiredQuery(question);
         SearchQueryPlan plan = queryRouter.route(normalized);
         List<String> terms = SearchText.terms(plan.searchText());
@@ -164,6 +168,38 @@ public class MaterialSearchService {
                     : "관련 문서를 먼저 선택하고 일치 구간의 앞뒤 문맥까지 확장해 읽었습니다.";
             sourceByEvidence.put(item.hit().chunkId(), recommend(base, displayRank++, type, reason));
             usedChars += text.length() + 2;
+        }
+
+        // Attachments are not parsed as full documents, but their filename and user-entered note are
+        // meaningful work context. Include only metadata the current actor is allowed to see, using the
+        // exact same visibility rule as attachment search/download.
+        if (actor != null && chunks.size() < props.ragMaxChunks() && usedChars < props.ragMaxContextChars()) {
+            try {
+                for (FileAttachmentRepository.Attachment attachment :
+                        attachments.searchVisible(projectId, actor.id(), actor.isAdmin(), plan.searchText(), ATTACHMENT_RESULTS)) {
+                    if (chunks.size() >= props.ragMaxChunks() || usedChars >= props.ragMaxContextChars()) break;
+                    String note = blankTo(attachment.note(), "메모 없음");
+                    String attachmentText = "첨부파일 이름: " + attachment.fileName() + "\n메모: " + note;
+                    int remaining = props.ragMaxContextChars() - usedChars;
+                    String text = attachmentText.length() > remaining ? attachmentText.substring(0, remaining) : attachmentText;
+                    long evidenceId = Long.MIN_VALUE + attachment.id();
+                    chunks.add(new AiDtos.RagChunk(evidenceId, text,
+                            attachment.todoId() == null ? "프로젝트 파일 전송" : "할 일 #" + attachment.todoId() + " 첨부파일"));
+                    sourceByEvidence.put(evidenceId, new MaterialHit(
+                            attachment.id(), "ATTACHMENT", "업무 첨부파일", "ATTACHMENT", attachment.fileName(),
+                            attachment.todoId() == null ? "프로젝트 파일 전송" : "할 일 #" + attachment.todoId() + " 첨부파일",
+                            excerpt(note, normalized, terms, 620), "",
+                            "/api/attachments/" + attachment.id() + "/download",
+                            attachment.createdAt().atOffset(java.time.ZoneOffset.UTC), displayRank++,
+                            "첨부파일 이름·메모 일치",
+                            "현재 사용자가 볼 수 있는 첨부파일의 이름과 메모를 AI 답변 근거로 사용했습니다."
+                    ));
+                    usedChars += text.length() + 2;
+                }
+            } catch (RuntimeException ignored) {
+                // Attachment metadata is supplemental. A transient attachment lookup failure must not
+                // make otherwise-valid document/connector RAG unavailable.
+            }
         }
 
         // Connector snapshots are already document-level records. Use more than the short UI snippet,
