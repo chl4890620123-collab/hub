@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -41,12 +43,38 @@ public class FileAttachmentService {
                 safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
     }
 
+    public record Recipient(long id, String displayName, String loginId, boolean admin) {}
+
+    public List<Recipient> recipients(long projectId, User actor) {
+        access.requireAccess(projectId, actor);
+        LinkedHashMap<Long, Recipient> result = new LinkedHashMap<>();
+        for (var row : projects.listMembers(projectId)) {
+            Number id = (Number) row.get("user_id");
+            if (id == null) continue;
+            result.put(id.longValue(), new Recipient(
+                    id.longValue(),
+                    String.valueOf(row.getOrDefault("display_name", "")),
+                    String.valueOf(row.getOrDefault("login_id", "")),
+                    false
+            ));
+        }
+        for (User admin : users.list()) {
+            if (!admin.isAdmin() || !admin.active()) continue;
+            result.put(admin.id(), new Recipient(admin.id(), admin.displayName(), admin.loginId(), true));
+        }
+        return result.values().stream()
+                .sorted(Comparator.comparing(Recipient::admin).reversed()
+                        .thenComparing(Recipient::displayName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparingLong(Recipient::id))
+                .toList();
+    }
+
     public long sendToMember(long projectId, long recipientId, MultipartFile file, String note, User actor) {
         access.requireAccess(projectId, actor);
         boolean recipientOk = recipientId == actor.id()
                 || projects.isMember(projectId, recipientId)
                 || users.findById(recipientId).map(User::isAdmin).orElse(false);
-        if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트의 팀원이어야 합니다.");
+        if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트 팀원 또는 관리자여야 합니다.");
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,
                 safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
