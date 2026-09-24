@@ -23,11 +23,11 @@ public class FileStorageService {
             Files.createDirectories(project);
             String safeName = Path.of(originalName == null ? "upload.bin" : originalName).getFileName().toString();
             Path target = project.resolve(UUID.randomUUID() + "-" + safeName).normalize();
-            if (!target.startsWith(project)) throw new IllegalArgumentException("Invalid file path");
+            if (!target.startsWith(project)) throw new IllegalArgumentException("안전하지 않은 파일 경로입니다.");
             Files.write(target, data);
             return target.toString();
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to store file", e);
+            throw new IllegalStateException("파일을 저장하지 못했습니다.", e);
         }
     }
 
@@ -36,7 +36,7 @@ public class FileStorageService {
             Path candidate = trustedPath(storagePath);
             return Files.readAllBytes(candidate);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to read stored file", e);
+            throw new IllegalStateException("저장된 파일을 읽지 못했습니다.", e);
         }
     }
 
@@ -60,15 +60,15 @@ public class FileStorageService {
     }
 
     private Path trustedPath(String storagePath) {
-        if (storagePath == null || storagePath.isBlank()) throw new IllegalArgumentException("Storage path is required");
+        if (storagePath == null || storagePath.isBlank()) throw new IllegalArgumentException("저장 파일 경로가 없습니다.");
         Path candidate = Path.of(storagePath).toAbsolutePath().normalize();
-        if (!candidate.startsWith(root)) throw new IllegalArgumentException("Storage path is outside HUB_STORAGE_ROOT");
+        if (!candidate.startsWith(root)) throw new IllegalArgumentException("허용되지 않은 저장 파일 경로입니다.");
         return candidate;
     }
 
     private Path projectDirectory(long projectId) {
         Path project = root.resolve("project-" + projectId).normalize();
-        if (!project.startsWith(root)) throw new IllegalArgumentException("Invalid project storage path");
+        if (!project.startsWith(root)) throw new IllegalArgumentException("허용되지 않은 프로젝트 저장 경로입니다.");
         return project;
     }
 }
