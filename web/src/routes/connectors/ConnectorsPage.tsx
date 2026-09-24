@@ -58,7 +58,7 @@ function useConnectorCallbackToast(projectId: number | undefined) {
       }
     } else if (reason === 'access_denied') toast.error(`${label} 연결을 취소했습니다.`);
     else if (reason === 'not_configured') toast.error(`${label} 개인 연결은 아직 설정되지 않았습니다. 관리자가 앱 정보를 등록해야 합니다.`);
-    else toast.error(`${label} 연결에 실패했습니다${reason ? ` (${reason})` : ''}. 관리자 설정을 확인한 뒤 다시 시도해 주세요.`);
+    else toast.error(`${label} 연결에 실패했습니다. 관리자 설정을 확인한 뒤 다시 시도해 주세요.`);
     window.history.replaceState(null, '', location.pathname);
   }, [projectId, queryClient]);
 }
@@ -69,9 +69,9 @@ function LinkedAccountBadge({ projectId, type }: { projectId: number; type: Conn
     queryFn: () => connectorsApi.targets(projectId, type),
   });
   if (!data) return <Badge variant="neutral">상태 확인 중</Badge>;
-  if (data.linkedByUser) return <Badge variant="accent">연동됨 · {data.account || '내 계정'}</Badge>;
+  if (data.linkedByUser) return <Badge variant="accent">연결됨 · {data.account || '내 계정'}</Badge>;
   if (data.connected) return <Badge variant="accent">공용 연결 사용 중</Badge>;
-  return <Badge variant="neutral">연동 안 됨</Badge>;
+  return <Badge variant="neutral">연결 안 됨</Badge>;
 }
 
 export function ConnectorsPage() {
@@ -98,7 +98,7 @@ export function ConnectorsPage() {
   const connect = useMutation({
     mutationFn: (type: ConnectorType) => connectorsApi.connect(currentProject!.id, type),
     onSuccess: () => {
-      toast.success('개발용 계정 연결을 완료했습니다.');
+      toast.success('연결을 완료했습니다.');
       queryClient.invalidateQueries({ queryKey: ['connector-status', currentProject?.id] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -134,7 +134,7 @@ export function ConnectorsPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 <p className="text-xs text-ink-400">
-                  {state?.lastSyncedAt ? `마지막 동기화: ${formatDateTime(state.lastSyncedAt)}` : '아직 가져온 자료가 없습니다.'}
+                  {state?.lastSyncedAt ? `마지막 가져오기: ${formatDateTime(state.lastSyncedAt)}` : '아직 가져온 자료가 없습니다.'}
                 </p>
                 {provider.note && <p className="text-xs text-ink-400">{provider.note}</p>}
                 <div className="flex gap-2">
