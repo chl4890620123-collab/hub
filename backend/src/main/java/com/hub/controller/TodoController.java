@@ -63,6 +63,15 @@ public class TodoController {
         return todoService.undated(projectId);
     }
 
+    @GetMapping("/api/projects/{projectId}/todos/due-through")
+    public List<TodoItem> dueThrough(@PathVariable long projectId,
+                                     @RequestParam LocalDate date,
+                                     Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAccess(projectId, user);
+        return todoService.dueThrough(projectId, date);
+    }
+
     @GetMapping("/api/projects/{projectId}/review/todos")
     public List<TodoItem> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
@@ -149,7 +158,7 @@ public class TodoController {
 
         String status = request.status() == null ? "" : request.status().trim().toUpperCase(Locale.ROOT);
         if (!TASK_STATUSES.contains(status)) {
-            throw new IllegalArgumentException("Invalid task status");
+            throw new IllegalArgumentException("변경할 수 없는 할 일 상태입니다.");
         }
         todoService.updateStatus(todo, status, user);
         return Map.of("status", status);
@@ -160,7 +169,7 @@ public class TodoController {
         projectAccess.requireAccess(todo.projectId(), user);
         if (projectAccess.isAdmin(todo.projectId(), user)) return;
         if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
-            throw new AccessDeniedException("Only the assignee or ADMIN can update this TODO");
+            throw new AccessDeniedException("담당자 또는 관리자만 이 할 일의 상태를 변경할 수 있습니다.");
         }
     }
 

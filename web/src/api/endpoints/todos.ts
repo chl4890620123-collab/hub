@@ -5,6 +5,8 @@ export const todosApi = {
   month: (projectId: number, year: number, month: number) =>
     apiGet<TodoItem[]>(`/api/projects/${projectId}/todos?year=${year}&month=${month}`),
   undated: (projectId: number) => apiGet<TodoItem[]>(`/api/projects/${projectId}/todos/undated`),
+  dueThrough: (projectId: number, date: string) =>
+    apiGet<TodoItem[]>(`/api/projects/${projectId}/todos/due-through?date=${encodeURIComponent(date)}`),
   pendingReview: (projectId: number) => apiGet<TodoItem[]>(`/api/projects/${projectId}/review/todos`),
   evidence: (todoId: number) => apiGet<EvidenceView[]>(`/api/todos/${todoId}/evidence`),
 

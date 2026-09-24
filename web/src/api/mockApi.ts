@@ -120,6 +120,12 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname.endsWith('/review/todos')) return result(projectTodos(projectId).filter((todo) => todo.reviewStatus === 'AI_GENERATED') as T);
   if (pathname.endsWith('/review/decisions')) return result(reviewDecisions as T);
   if (pathname.endsWith('/changes/review')) return result(reviewChanges as T);
+  if (pathname.includes('/todos/due-through')) {
+    const through = searchParams.get('date') ?? '9999-12-31';
+    return result(projectTodos(projectId).filter(
+      (todo) => todo.reviewStatus === 'CONFIRMED' && todo.taskStatus !== 'DONE' && !!todo.dueDate && todo.dueDate <= through,
+    ) as T);
+  }
   if (pathname.includes('/todos/undated')) return result(projectTodos(projectId).filter((todo) => !todo.dueDate) as T);
   if (pathname.match(/\/todos$/) && method === 'GET') return result(projectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
   if (pathname.endsWith('/changes')) return result(reviewChanges as T);
@@ -175,6 +181,26 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
 
   if (method !== 'GET') {
     const body = jsonBody(opts);
+    const documentMatch = pathname.match(/^\/api\/documents\/(\d+)(?:\/(restore|permanent))?$/);
+    if (documentMatch) {
+      const documentId = Number(documentMatch[1]);
+      const action = documentMatch[2];
+      const index = documents.findIndex((doc) => doc.id === documentId);
+      if (index >= 0) {
+        if (action === 'permanent' && method === 'DELETE') {
+          documents.splice(index, 1);
+          return result({ status: 'DELETED' } as T);
+        }
+        if (action === 'restore' && method === 'POST') {
+          documents[index] = { ...documents[index], archived: false };
+          return result({ status: 'ACTIVE' } as T);
+        }
+        if (!action && method === 'DELETE') {
+          documents[index] = { ...documents[index], archived: true };
+          return result({ status: 'ARCHIVED' } as T);
+        }
+      }
+    }
     if (pathname.includes('/connectors/') && pathname.endsWith('/link')) {
       const connectorType = pathname.split('/').at(-2)?.toUpperCase() ?? '';
       const linked = JSON.parse(localStorage.getItem('hub.mock.connectors') ?? '[]') as string[];

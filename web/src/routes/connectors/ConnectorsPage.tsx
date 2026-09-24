@@ -90,8 +90,9 @@ export function ConnectorsPage() {
   const disconnect = useMutation({
     mutationFn: (type: ConnectorType) => connectorsApi.disconnect(currentProject!.id, type),
     onSuccess: () => {
-      toast.success('연결을 해제했습니다.');
+      toast.success('내 계정 연결을 해제했습니다. 회사 공용 연결이 허용된 경우 공용 연결로 전환될 수 있습니다.');
       queryClient.invalidateQueries({ queryKey: ['connector-status', currentProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['connector-targets', currentProject?.id] });
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

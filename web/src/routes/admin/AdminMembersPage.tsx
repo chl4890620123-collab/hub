@@ -97,7 +97,17 @@ function ProjectMembersPanel() {
                   <Button size="sm" variant="outline" onClick={() => setMoveTargetUserId(m.id)}>
                     다른 프로젝트로 옮기기
                   </Button>
-                  <Button size="sm" variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate(m.id)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      const ok = window.confirm(
+                        `${m.displayName}님을 이 프로젝트에서 제외할까요?\n\n진행 중인 담당 업무가 있으면 관리자 재배정 목록으로 이동합니다.`,
+                      );
+                      if (ok) remove.mutate(m.id);
+                    }}
+                  >
                     이 프로젝트에서 빼기
                   </Button>
                 </div>

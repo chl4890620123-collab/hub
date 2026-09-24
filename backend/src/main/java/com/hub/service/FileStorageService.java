@@ -42,7 +42,21 @@ public class FileStorageService {
 
     public void deleteQuietly(String storagePath) {
         if (storagePath == null || storagePath.isBlank()) return;
-        try { Files.deleteIfExists(trustedPath(storagePath)); } catch (Exception ignored) { /* original error wins */ }
+        try { Files.deleteIfExists(trustedPath(storagePath)); } catch (Exception ignored) { /* best-effort cleanup only */ }
+    }
+
+    /**
+     * Permanent-delete paths must not report success while the original file still exists.
+     * Missing files are already deleted and therefore count as success; any real filesystem failure
+     * is surfaced to the caller instead of being silently ignored.
+     */
+    public void deleteStrict(String storagePath) {
+        if (storagePath == null || storagePath.isBlank()) return;
+        try {
+            Files.deleteIfExists(trustedPath(storagePath));
+        } catch (IOException e) {
+            throw new IllegalStateException("원본 파일을 영구 삭제하지 못했습니다. 저장소 권한과 파일 사용 상태를 확인해 주세요.", e);
+        }
     }
 
     private Path trustedPath(String storagePath) {

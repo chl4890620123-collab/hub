@@ -102,12 +102,12 @@ function AdminOverviewCards({ projectId }: { projectId: number }) {
 function DashboardTodos({ projectId, userId }: { projectId: number; userId: number }) {
   const navigate = useNavigate();
   const now = new Date();
+  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const { data: todos, isLoading } = useQuery({
-    queryKey: ['todos-month', projectId, now.getFullYear(), now.getMonth() + 1],
-    queryFn: () => todosApi.month(projectId, now.getFullYear(), now.getMonth() + 1),
+    queryKey: ['todos-due-through', projectId, todayKey],
+    queryFn: () => todosApi.dueThrough(projectId, todayKey),
   });
 
-  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const myTop5 = useMemo(() => {
     return (todos ?? [])
       .filter((t) => t.assigneeId === userId && t.taskStatus !== 'DONE' && t.dueDate != null && t.dueDate <= todayKey)

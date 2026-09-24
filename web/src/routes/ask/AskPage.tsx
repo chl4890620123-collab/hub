@@ -24,7 +24,7 @@ export function AskPage() {
 
   return (
     <div>
-      <PageHeader title="AI에게 묻기" description="현재 프로젝트의 문서·회의록과 GitHub·Google Drive·Slack·Notion 자료를 바탕으로 답하고, 사용한 근거 자료를 함께 보여줍니다." />
+      <PageHeader title="AI에게 묻기" description="현재 프로젝트의 문서·회의록, 볼 수 있는 첨부파일의 이름·메모, GitHub·Google Drive·Slack·Notion 자료를 바탕으로 답하고 사용한 근거를 함께 보여줍니다." />
 
       <form
         className="mb-5 flex flex-col gap-2"

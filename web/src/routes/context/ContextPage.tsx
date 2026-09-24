@@ -74,7 +74,7 @@ export function ContextPage() {
     <div>
       <PageHeader
         title="관련 업무 모아보기"
-        description="키워드 하나로 문서·회의록·첨부파일·GitHub·Google Drive·Slack·Notion 자료와 관련 할 일, 결정, 변경 이력을 함께 확인합니다."
+        description="키워드 하나로 문서·회의록·첨부파일 이름·메모·GitHub·Google Drive·Slack·Notion 자료와 관련 할 일, 결정, 변경 이력을 함께 확인합니다."
       />
 
       <form

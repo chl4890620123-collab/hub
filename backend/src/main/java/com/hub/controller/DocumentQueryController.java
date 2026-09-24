@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
@@ -102,14 +103,26 @@ public class DocumentQueryController {
         return Map.of("status", "ARCHIVED");
     }
 
+    @PostMapping("/api/documents/{documentId}/restore")
+    public Map<String, Object> restore(@PathVariable long documentId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        long projectId = documents.projectIdForDocument(documentId);
+        projectAccess.requireAdmin(projectId, user);
+        documents.restore(documentId);
+        audit.add(user.id(), projectId, "DOCUMENT_RESTORE", "DOCUMENT", documentId, "{}");
+        return Map.of("status", "ACTIVE");
+    }
+
     @DeleteMapping("/api/documents/{documentId}/permanent")
     public Map<String, Object> deletePermanently(@PathVariable long documentId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         long projectId = documents.projectIdForDocument(documentId);
         projectAccess.requireAdmin(projectId, user);
         var file = documents.findFile(documentId).orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
+        // A permanent delete must not claim success if the original bytes are still on disk.
+        // Delete the trusted local file first; only then remove the DB/search records.
+        storage.deleteStrict(file.storagePath());
         documents.deletePermanently(documentId);
-        storage.deleteQuietly(file.storagePath());
         audit.add(user.id(), projectId, "DOCUMENT_DELETE", "DOCUMENT", documentId, "{}");
         return Map.of("status", "DELETED");
     }

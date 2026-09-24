@@ -12,6 +12,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   DOCUMENT_IMPORTED: '자료 가져옴',
   DOCUMENT_UPDATED: '자료 새 내용 등록',
   DOCUMENT_ARCHIVE: '자료 보관',
+  DOCUMENT_RESTORE: '자료 복원',
   DOCUMENT_DELETE: '자료 영구 삭제',
   DOCUMENT_CHANGED: '자료 변경 확인',
   MEETING_UPLOADED: '회의 녹음 등록',

@@ -90,6 +90,17 @@ public class TodoRepository {
                 (rs,n)->map(rs),projectId);
     }
 
+    /** All unfinished work due on or before a date, including items overdue from earlier months. */
+    public List<TodoItem> listDueThrough(long projectId, LocalDate through){
+        return jdbc.query(selectColumns()+"""
+                FROM todo
+                WHERE project_id=? AND review_status='CONFIRMED'
+                  AND task_status<>'DONE' AND due_date IS NOT NULL AND due_date<=?
+                ORDER BY due_date,id
+                LIMIT 500
+                """,(rs,n)->map(rs),projectId,Date.valueOf(through));
+    }
+
     public List<TodoItem> listRecentConfirmed(long projectId,int limit){
         return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status='CONFIRMED' ORDER BY id DESC LIMIT ?",
                 (rs,n)->map(rs),projectId,Math.max(1,Math.min(limit,500)));

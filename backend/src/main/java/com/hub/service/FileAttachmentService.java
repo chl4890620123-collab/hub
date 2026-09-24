@@ -103,11 +103,14 @@ public class FileAttachmentService {
 
     public void delete(long id, User actor) {
         var attachment = attachments.find(id).orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
+        // Sender ownership alone is not enough after the sender leaves the project. Download already
+        // enforces current project access; deletion must use the same boundary.
+        access.requireAccess(attachment.projectId(), actor);
         boolean owner = attachment.senderId() == actor.id();
         if (!owner && !access.isAdmin(attachment.projectId(), actor))
             throw new AccessDeniedException("보낸 사람이나 관리자만 지울 수 있습니다.");
-        attachments.delete(id);
-        storage.deleteQuietly(attachment.storagePath());
+        storage.deleteStrict(attachment.storagePath());
+        if (!attachments.delete(id)) throw new IllegalArgumentException("삭제할 파일을 찾을 수 없습니다.");
     }
 
     private void requireCanSee(FileAttachmentRepository.Attachment attachment, User actor) {
