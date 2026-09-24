@@ -76,7 +76,7 @@ public class DecisionController {
         timeline.append(
                 projectId,
                 "DECISION_CONFIRMED",
-                "Decision confirmed",
+                "결정 사항 확정",
                 null,
                 LocalDateTime.now(),
                 "DECISION",
