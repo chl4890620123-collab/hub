@@ -4,7 +4,6 @@ import com.hub.model.User;
 import com.hub.repository.FileAttachmentRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.TodoRepository;
-import com.hub.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,7 +22,6 @@ public class FileAttachmentService {
     private final FileAttachmentRepository attachments;
     private final TodoRepository todos;
     private final ProjectRepository projects;
-    private final UserRepository users;
     private final ProjectAccessService access;
     private final FileStorageService storage;
 
