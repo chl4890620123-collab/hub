@@ -139,14 +139,17 @@ export function MeetingsPage() {
 
   return (
     <div>
-      <PageHeader title="회의 녹음" description="음성을 녹음하거나 업로드하면 자동으로 텍스트 변환 및 요약이 진행됩니다." />
+      <PageHeader
+        title="회의 녹음"
+        description="녹음이나 오디오 파일을 올리면 음성을 텍스트로 바꾸고, 할 일·담당자·기한 후보를 정리합니다. 확인 후 확정하면 실제 Todo에 등록됩니다."
+      />
 
       <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RecordingPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
         <AudioUploadPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
       </div>
 
-      {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} />}
+      {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} context="meeting" />}
     </div>
   );
 }
