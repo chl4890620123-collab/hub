@@ -20,7 +20,7 @@ const MAX_RECENT = 8;
 const SEARCH_PAGE_SIZE = 30;
 const SOURCE_FILTERS = [
   { value: 'ALL', label: '전체 자료' },
-  { value: 'HUB', label: 'Hub 문서·회의록' },
+  { value: 'HUB', label: 'Hub 문서·회의록·첨부파일' },
   { value: 'EXTERNAL', label: '연결 서비스' },
 ] as const;
 
@@ -77,8 +77,8 @@ export function SearchPage() {
 
   const filteredHits = (hits ?? []).filter((hit) => {
     if (sourceFilter === 'ALL') return true;
-    if (sourceFilter === 'HUB') return hit.sourceType === 'HUB';
-    return hit.sourceType !== 'HUB';
+    if (sourceFilter === 'HUB') return hit.sourceType === 'HUB' || hit.sourceType === 'ATTACHMENT';
+    return hit.sourceType !== 'HUB' && hit.sourceType !== 'ATTACHMENT';
   });
 
   if (!currentProject) return <NoProjectState />;
@@ -95,7 +95,7 @@ export function SearchPage() {
       <PageHeader title="자료 찾기" description="내 문서·회의록과 권한이 있는 Slack, Notion, Drive 자료를 한 번에 검색합니다." />
 
       <p className="mb-3 text-xs text-ink-500">
-        검색 범위: 현재 프로젝트에서 접근 권한이 있는 전체 자료 · 회의록만 검색되는 것이 아니라 문서 원문과 연결 서비스 자료도 포함됩니다.
+        검색 범위: 현재 프로젝트에서 볼 수 있는 문서, 회의록, 업무 첨부파일과 연결 서비스 자료입니다.
       </p>
 
       <form
@@ -108,7 +108,7 @@ export function SearchPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="검색어를 입력하세요"
+          placeholder="예: 주간회의, 계약서, 전달받은 파일 이름"
           className="max-w-lg"
         />
         <Button type="submit">
