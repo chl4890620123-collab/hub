@@ -11,6 +11,9 @@ import type { User } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
+const ROLE_LABELS = { ADMIN: '관리자', MEMBER: '일반 사용자' } as const;
+const ACCOUNT_STATUS_LABELS = { ACTIVE: '사용 중', SUSPENDED: '사용 정지', WITHDRAWN: '탈퇴' } as const;
+
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { data: users, isLoading } = useQuery({ queryKey: ['admin-users'], queryFn: adminUsersApi.list });
@@ -25,7 +28,9 @@ export function AdminUsersPage() {
     mutationFn: ({ userId, status, reason }: { userId: number; status: 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN'; reason?: string }) =>
       adminUsersApi.setStatus(userId, status, reason),
     onSuccess: (result) => {
-      toast.success(`상태를 변경했습니다. (재배정 필요 ${result.reassignmentCount}건)`);
+      toast.success(result.reassignmentCount > 0
+        ? `사용 상태를 변경했습니다. 담당자를 다시 정해야 할 업무가 ${result.reassignmentCount}건 있습니다.`
+        : '사용 상태를 변경했습니다.');
       setSuspendTarget(null);
       setSuspendReason('');
       invalidate();
@@ -88,10 +93,10 @@ export function AdminUsersPage() {
                       {u.email} · {u.jobTitle || '직급 미입력'}
                     </td>
                     <td className="py-2 pr-3">
-                      <Badge variant={u.globalRole === 'ADMIN' ? 'accent' : 'neutral'}>{u.globalRole}</Badge>
+                      <Badge variant={u.globalRole === 'ADMIN' ? 'accent' : 'neutral'}>{ROLE_LABELS[u.globalRole]}</Badge>
                     </td>
                     <td className="py-2 pr-3">
-                      <Badge variant={u.accountStatus === 'ACTIVE' ? 'accent' : 'danger'}>{u.accountStatus}</Badge>
+                      <Badge variant={u.accountStatus === 'ACTIVE' ? 'accent' : 'danger'}>{ACCOUNT_STATUS_LABELS[u.accountStatus]}</Badge>
                     </td>
                     <td className="flex flex-wrap gap-1.5 py-2">
                       <Button
@@ -109,7 +114,7 @@ export function AdminUsersPage() {
                         variant="outline"
                         onClick={() => setRole.mutate({ userId: u.id, role: u.globalRole === 'ADMIN' ? 'MEMBER' : 'ADMIN' })}
                       >
-                        {u.globalRole === 'ADMIN' ? '권한 내리기' : '관리자로 지정'}
+                        {u.globalRole === 'ADMIN' ? '일반 사용자로 변경' : '관리자로 변경'}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setResetTarget(u)}>
                         비밀번호 초기화
