@@ -33,6 +33,17 @@ function timelineLabel(type: string): string {
   return TIMELINE_LABELS[type] ?? '기타 활동';
 }
 
+function activityTitle(event: { eventType: string; title: string }): string {
+  if (event.eventType === 'DOCUMENT_CHANGED' && event.title === 'Document change analysis') return '문서 변경 내용 확인';
+  if (event.eventType === 'DECISION_CONFIRMED' && event.title === 'Decision confirmed') return '결정 사항 확정';
+  if (event.eventType === 'CONNECTOR_IMPORT') {
+    const upper = event.title.toUpperCase();
+    const connector = Object.entries(CONNECTOR_LABELS).find(([type]) => upper.startsWith(type));
+    return connector ? `${connector[1]} 자료 가져오기` : '연결 서비스 자료 가져오기';
+  }
+  return event.title;
+}
+
 function ConnectorSyncChips({ projectId }: { projectId: number }) {
   const { data: statuses } = useQuery({
     queryKey: ['connector-status', projectId],
@@ -160,7 +171,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
         assigneeId: assigneeId ? Number(assigneeId) : undefined,
       }),
     onSuccess: (result) => {
-      toast.success('회의 노트가 저장되었습니다. AI 분석이 진행됩니다.');
+      toast.success('업무 메모를 저장했습니다. AI가 내용을 정리하고 있습니다.');
       setActiveJobId(result.jobId);
       setTitle('');
       setText('');
@@ -174,7 +185,7 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>빠른 회의 노트</CardTitle>
+        <CardTitle>빠른 업무 메모</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -248,7 +259,7 @@ function WorkflowTimeline({ projectId }: { projectId: number }) {
                   {timelineLabel(event.eventType)}
                 </Badge>
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-ink-800">{event.title}</p>
+                  <p className="truncate text-sm text-ink-800">{activityTitle(event)}</p>
                   <p className="text-xs text-ink-400">{formatDateTime(event.happenedAt)}</p>
                 </div>
               </li>
