@@ -15,6 +15,7 @@ export const documentsApi = {
   version: (versionId: number) => apiGet<Record<string, unknown>>(`/api/versions/${versionId}`),
   chunk: (chunkId: number) => apiGet<Record<string, unknown>>(`/api/chunks/${chunkId}`),
   archive: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}`),
+  restore: (documentId: number) => apiPost<{ status: string }>(`/api/documents/${documentId}/restore`),
   deletePermanently: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}/permanent`),
   download: (documentId: number) => apiDownload(`/api/documents/${documentId}/download`),
 
