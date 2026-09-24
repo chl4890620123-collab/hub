@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
@@ -100,6 +101,16 @@ public class DocumentQueryController {
         documents.archive(documentId);
         audit.add(user.id(), projectId, "DOCUMENT_ARCHIVE", "DOCUMENT", documentId, "{}");
         return Map.of("status", "ARCHIVED");
+    }
+
+    @PostMapping("/api/documents/{documentId}/restore")
+    public Map<String, Object> restore(@PathVariable long documentId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        long projectId = documents.projectIdForDocument(documentId);
+        projectAccess.requireAdmin(projectId, user);
+        documents.restore(documentId);
+        audit.add(user.id(), projectId, "DOCUMENT_RESTORE", "DOCUMENT", documentId, "{}");
+        return Map.of("status", "ACTIVE");
     }
 
     @DeleteMapping("/api/documents/{documentId}/permanent")
