@@ -28,6 +28,9 @@ const CHANGE_CATEGORY_LABELS: Record<string, string> = {
   CONTENT: '내용 변경',
 };
 
+const changeReason = (reason: string) =>
+  reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
+
 function AddTeammateCard({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
@@ -271,7 +274,7 @@ function ChangeReviewTab({ projectId }: { projectId: number }) {
           <p className="mb-1 text-sm font-medium text-ink-900">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
           <p className="mb-1 text-xs text-ink-500">변경 전: {c.before_text || '내용 없음'}</p>
           <p className="mb-1 text-xs text-ink-500">변경 후: {c.after_text || '내용 없음'}</p>
-          {c.reason && <p className="mb-2 text-xs text-ink-400">변경 이유: {c.reason}</p>}
+          {c.reason && <p className="mb-2 text-xs text-ink-400">변경 이유: {changeReason(c.reason)}</p>}
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => confirm.mutate(c.id)}>
               확정
