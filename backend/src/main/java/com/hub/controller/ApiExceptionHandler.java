@@ -35,7 +35,7 @@ public class ApiExceptionHandler {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(field -> field.getField() + ": " + field.getDefaultMessage())
-                .orElse("Request validation failed");
+                .orElse("입력값을 확인해 주세요.");
         return error("VALIDATION_FAILED", message);
     }
 
