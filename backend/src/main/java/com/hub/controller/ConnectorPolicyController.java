@@ -38,7 +38,7 @@ public class ConnectorPolicyController {
     @PutMapping("/{type}")
     public Map<String, Object> update(@PathVariable String type, @RequestBody PolicyChange request, Authentication authentication) {
         User admin = currentUser.requireOperational(authentication);
-        if (!admin.isAdmin()) throw new AccessDeniedException("Admin only");
+        if (!admin.isAdmin()) throw new AccessDeniedException("관리자 권한이 필요합니다.");
         String normalized = type.trim().toUpperCase(Locale.ROOT);
         policy.setEnabled(normalized, request.enabled());
         audit.add(admin.id(), null, "CONNECTOR_POLICY_CHANGE", "CONNECTOR", null,
