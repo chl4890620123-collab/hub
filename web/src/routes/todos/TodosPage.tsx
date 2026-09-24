@@ -21,7 +21,7 @@ import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
 function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string }) {
-  const rows = todos.filter((t) => t.reviewStatus === 'CONFIRMED' && (!t.dueDate || t.dueDate.startsWith(month)));
+  const rows = todos.filter((t) => t.reviewStatus === 'CONFIRMED' && !!t.dueDate && t.dueDate.startsWith(month));
   const total = rows.length;
   const done = rows.filter((t) => t.taskStatus === 'DONE').length;
   const activeRows = rows.filter((t) => t.assignmentStatus === 'ACTIVE');
@@ -184,7 +184,7 @@ export function TodosPage() {
     <div>
       <PageHeader
         title="할 일·일정"
-        description="확정된 할 일을 월별로 확인하고 상태를 관리합니다."
+        description="확정된 할 일을 확인하고 진행 상태를 관리합니다. 담당자가 완료를 요청하면 의사결정권자 또는 관리자가 승인해야 완료됩니다."
         action={<ViewModeToggle value={viewMode} onChange={setViewMode} />}
       />
 
@@ -223,7 +223,7 @@ export function TodosPage() {
                 (statusFilter === s ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
               }
             >
-              {s === 'ALL' ? '전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '도움 필요'}
+              {s === 'ALL' ? '미완료 전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '도움 필요'}
             </button>
           ))}
         </div>
