@@ -339,7 +339,22 @@ public class DocumentRepository {
                      WHERE v.document_id=?
                    )
                 """, documentId, documentId);
-        jdbc.update("UPDATE external_item SET imported_document_id=NULL WHERE imported_document_id=?", documentId);
+        // Connector imports have two searchable copies: the normalized document and the
+        // provider snapshot in external_item. Removing only the document lets the supposedly deleted
+        // content reappear through connector lexical/RAG search, so remove every snapshot for the same
+        // project + namespaced source identifier as part of the same DB transaction.
+        jdbc.update("""
+                DELETE FROM external_item
+                WHERE imported_document_id=?
+                   OR (
+                     project_id=(SELECT project_id FROM document WHERE id=?)
+                     AND external_id=(SELECT source_identifier FROM document WHERE id=?)
+                     AND EXISTS (
+                       SELECT 1 FROM document
+                       WHERE id=? AND source_type IN ('GITHUB','GOOGLE_DRIVE','SLACK','NOTION')
+                     )
+                   )
+                """, documentId, documentId, documentId, documentId);
         if (jdbc.update("DELETE FROM document WHERE id=?", documentId) != 1) {
             throw new IllegalArgumentException("삭제할 문서를 찾을 수 없습니다.");
         }
