@@ -44,7 +44,13 @@ public class WorkContextService {
      */
     public WorkContextBundle build(long projectId, String query, User actor) {
         String q = required(query);
-        List<MaterialHit> sources = materials.search(projectId, q, 0, actor).stream().limit(12).toList();
+        List<MaterialHit> allSources = materials.search(projectId, q, 0, actor);
+        List<MaterialHit> sources = java.util.stream.Stream.concat(
+                        allSources.stream().filter(hit -> "ATTACHMENT".equalsIgnoreCase(hit.sourceType())).limit(3),
+                        allSources.stream().filter(hit -> !"ATTACHMENT".equalsIgnoreCase(hit.sourceType()))
+                )
+                .limit(12)
+                .toList();
         MaterialAskResponse ask;
         try {
             ask = materials.ask(projectId, q);
