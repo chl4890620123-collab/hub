@@ -40,6 +40,24 @@ const CHANGE_CATEGORY_LABELS: Record<string, string> = {
 const changeReason = (reason: string) =>
   reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
 
+const CONNECTOR_LABELS: Record<string, string> = {
+  GITHUB: 'GitHub',
+  GOOGLE_DRIVE: 'Google Drive',
+  SLACK: 'Slack',
+  NOTION: 'Notion',
+};
+
+function activityTitle(event: { eventType: string; title: string }): string {
+  if (event.eventType === 'DOCUMENT_CHANGED' && event.title === 'Document change analysis') return '문서 변경 내용 확인';
+  if (event.eventType === 'DECISION_CONFIRMED' && event.title === 'Decision confirmed') return '결정 사항 확정';
+  if (event.eventType === 'CONNECTOR_IMPORT') {
+    const upper = event.title.toUpperCase();
+    const connector = Object.entries(CONNECTOR_LABELS).find(([type]) => upper.startsWith(type));
+    return connector ? `${connector[1]} 자료 가져오기` : '연결 서비스 자료 가져오기';
+  }
+  return event.title;
+}
+
 export function ContextPage() {
   const { currentProject } = useCurrentProject();
   const [query, setQuery] = useState('');
@@ -168,7 +186,7 @@ export function ContextPage() {
                 <ul className="flex flex-col gap-2">
                   {bundle.timeline.map((event) => (
                     <li key={event.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
-                      <p className="text-ink-800">{event.title}</p>
+                      <p className="text-ink-800">{activityTitle(event)}</p>
                       <p className="text-xs text-ink-400">{formatDateTime(event.happenedAt)}</p>
                     </li>
                   ))}
