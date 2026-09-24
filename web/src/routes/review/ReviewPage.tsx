@@ -99,11 +99,6 @@ function AddTeammateCard({ projectId }: { projectId: number }) {
   );
 }
 
-const today = () => {
-  const date = new Date();
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
-};
-
 function TodoReviewTab({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const openEvidence = useEvidenceStore((s) => s.open);
@@ -184,7 +179,7 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
             )}
           </SelectContent>
         </Select>
-        <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" />
+        <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" aria-label="선택한 할 일의 최종 기한 (선택)" />
         <Button size="sm" disabled={!bulkAssignee || bulkConfirm.isPending} onClick={() => bulkConfirm.mutate()}>
           일괄 확정
         </Button>
