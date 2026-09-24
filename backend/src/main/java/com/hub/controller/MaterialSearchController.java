@@ -58,6 +58,6 @@ public class MaterialSearchController {
         projectAccess.requireAccess(projectId, user);
         String question = request == null ? "" : request.question();
         searchLogs.log(projectId, user.id(), question == null ? "" : question.trim());
-        return materials.ask(projectId, question);
+        return materials.ask(projectId, question, user);
     }
 }
