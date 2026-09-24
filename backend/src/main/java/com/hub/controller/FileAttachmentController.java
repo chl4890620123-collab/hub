@@ -58,6 +58,12 @@ public class FileAttachmentController {
         return Map.of("id", id, "status", "SENT");
     }
 
+    @GetMapping("/api/projects/{projectId}/file-transfer-recipients")
+    public List<FileAttachmentService.Recipient> recipients(@PathVariable long projectId, Authentication auth) {
+        User user = currentUser.requireOperational(auth);
+        return service.recipients(projectId, user);
+    }
+
     @GetMapping("/api/projects/{projectId}/file-transfers")
     public List<AttachmentView> inbox(@PathVariable long projectId, Authentication auth) {
         User user = currentUser.requireOperational(auth);
