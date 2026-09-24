@@ -1,12 +1,15 @@
 # with bounded retries for transient 429/5xx responses and no API key in the URL.
 import asyncio
 import json
+import logging
 import re
 
 import httpx
 
 from app import config
 from app.providers.http_client_pool import LazyAsyncClient
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiProvider:
@@ -66,16 +69,14 @@ class GeminiProvider:
     async def json_generate(self, prompt: str) -> dict:
         if not self.enabled:
             raise RuntimeError("Gemini provider is not enabled")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent"
         headers = {"x-goog-api-key": config.GEMINI_API_KEY, "Content-Type": "application/json"}
         client = await self._pool.get()
-        response: httpx.Response | None = None
-        for attempt in range(config.GEMINI_RETRIES + 1):
-            response = await client.post(url, headers=headers, json=self.request_body(prompt))
-            if response.status_code not in {429, 500, 502, 503, 504} or attempt >= config.GEMINI_RETRIES:
-                break
-            await asyncio.sleep(self._retry_delay(response, attempt))
-        assert response is not None
+        response = await self._generate_with_retries(client, config.GEMINI_MODEL, headers, prompt)
+        if (response.status_code == 429 and config.GEMINI_FALLBACK_MODEL
+                and config.GEMINI_FALLBACK_MODEL != config.GEMINI_MODEL):
+            logger.warning("Gemini model %s exhausted quota; retrying with %s",
+                           config.GEMINI_MODEL, config.GEMINI_FALLBACK_MODEL)
+            response = await self._generate_with_retries(client, config.GEMINI_FALLBACK_MODEL, headers, prompt)
         response.raise_for_status()
         data = response.json()
         try:
@@ -90,3 +91,13 @@ class GeminiProvider:
         if not isinstance(value, dict):
             raise RuntimeError("Gemini JSON response must be an object")
         return value
+
+    async def _generate_with_retries(self, client: httpx.AsyncClient, model: str,
+                                     headers: dict[str, str], prompt: str) -> httpx.Response:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        for attempt in range(config.GEMINI_RETRIES + 1):
+            response = await client.post(url, headers=headers, json=self.request_body(prompt))
+            if response.status_code not in {429, 500, 502, 503, 504} or attempt >= config.GEMINI_RETRIES:
+                return response
+            await asyncio.sleep(self._retry_delay(response, attempt))
+        raise AssertionError("unreachable")

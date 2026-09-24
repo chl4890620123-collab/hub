@@ -45,6 +45,9 @@ def env_bool(name: str, default: bool) -> bool:
 AI_MODE = env("HUB_AI_MODE", "mock").lower()
 GEMINI_API_KEY = env("GEMINI_API_KEY")
 GEMINI_MODEL = env("GEMINI_MODEL", "gemini-2.5-flash")
+# Quotas are per model. After the primary model exhausts its retries, try this
+# independently provisioned model once for text/JSON generation only.
+GEMINI_FALLBACK_MODEL = env("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash")
 GEMINI_TRANSCRIBE_MODEL = env("GEMINI_TRANSCRIBE_MODEL", "gemini-2.5-flash")
 GEMINI_CONNECT_TIMEOUT_SECONDS = env_int("HUB_GEMINI_CONNECT_TIMEOUT_SECONDS", 5, 1, 30)
 GEMINI_READ_TIMEOUT_SECONDS = env_int("HUB_GEMINI_READ_TIMEOUT_SECONDS", 60, 5, 300)
