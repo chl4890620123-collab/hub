@@ -131,7 +131,7 @@ public class SignupService {
                 .filter(u -> "PENDING".equals(u.approvalStatus()))
                 .orElseThrow(() -> new StateConflictException("이미 처리되었거나 대기 중인 가입 신청이 아닙니다."));
         if ("ADMIN".equals(pending.requestedRole()) && projectId != null)
-            throw new IllegalArgumentException("ADMIN은 모든 프로젝트에 접근하므로 프로젝트 MEMBER로 중복 배정하지 않습니다.");
+            throw new IllegalArgumentException("관리자는 모든 프로젝트에 접근할 수 있어 일반 팀원으로 중복 배정하지 않습니다.");
         if (projectId != null) projectAccess.requireAdmin(projectId, admin);
         if (!users.approveSignup(userId, admin.id()))
             throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
