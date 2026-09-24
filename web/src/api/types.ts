@@ -182,6 +182,7 @@ export interface DocumentRow {
   created_at: string;
   latest_version: number;
   has_original: boolean;
+  content_purged?: boolean;
   [key: string]: unknown;
 }
 

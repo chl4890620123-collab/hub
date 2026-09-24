@@ -261,6 +261,7 @@ export function DocumentsPage() {
       {!compact && (
         <div className="flex shrink-0 items-center gap-2">
           {doc.archived && <Badge variant="outline">보관됨</Badge>}
+          {doc.content_purged && <Badge variant="warning">본문 보존기간 만료</Badge>}
           {doc.has_original && (
             <Button variant="ghost" size="sm" disabled={download.isPending} onClick={() => download.mutate(doc)}>
               <Download size={13} /> 원본 다운로드
@@ -279,10 +280,15 @@ export function DocumentsPage() {
               <Archive size={13} /> 보관
             </Button>
           )}
-          {isAdmin && doc.archived && (
+          {isAdmin && doc.archived && !doc.content_purged && (
             <Button variant="ghost" size="sm" disabled={restore.isPending} onClick={() => restore.mutate(doc.id)}>
               <RotateCcw size={13} /> 복원
             </Button>
+          )}
+          {isAdmin && doc.archived && doc.content_purged && (
+            <span className="max-w-44 text-xs text-amber-700">
+              본문 보존기간이 지나 바로 복원할 수 없습니다. 원본 자료를 다시 등록해 주세요.
+            </span>
           )}
           {isAdmin && doc.archived && (
             <Button
