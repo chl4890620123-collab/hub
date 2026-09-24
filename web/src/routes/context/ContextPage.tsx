@@ -28,6 +28,15 @@ const REVIEW_STATUS_LABELS: Record<string, string> = {
   REJECTED: '제외',
 };
 
+const CHANGE_CATEGORY_LABELS: Record<string, string> = {
+  SCHEDULE: '일정 변경',
+  BUDGET: '예산 변경',
+  ASSIGNEE: '담당자 변경',
+  FEATURE: '기능 변경',
+  CONTRACT: '계약 변경',
+  CONTENT: '내용 변경',
+};
+
 export function ContextPage() {
   const { currentProject } = useCurrentProject();
   const [query, setQuery] = useState('');
@@ -44,7 +53,7 @@ export function ContextPage() {
     <div>
       <PageHeader
         title="관련 업무 모아보기"
-        description="키워드 하나로 문서·회의록·첨부파일·GitHub·Drive·Slack·Notion 자료와 관련 할 일, 결정, 변경 이력을 함께 확인합니다."
+        description="키워드 하나로 문서·회의록·첨부파일·GitHub·Google Drive·Slack·Notion 자료와 관련 할 일, 결정, 변경 이력을 함께 확인합니다."
       />
 
       <form
@@ -136,7 +145,7 @@ export function ContextPage() {
                 <ul className="flex flex-col gap-2">
                   {bundle.changes.map((c) => (
                     <li key={c.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
-                      <p className="font-medium text-ink-800">{c.category}</p>
+                      <p className="font-medium text-ink-800">{CHANGE_CATEGORY_LABELS[c.category] ?? '변경 사항'}</p>
                       <p className="text-xs text-ink-500">{c.reason}</p>
                     </li>
                   ))}
@@ -147,7 +156,7 @@ export function ContextPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>관련 타임라인 ({bundle.timeline.length})</CardTitle>
+              <CardTitle>관련 활동 기록 ({bundle.timeline.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {bundle.timeline.length === 0 ? (
