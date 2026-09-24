@@ -223,6 +223,13 @@ export interface ChangeEvidenceView {
   pageNo: number | null;
 }
 
+export interface FileTransferRecipient {
+  id: number;
+  displayName: string;
+  loginId: string;
+  admin: boolean;
+}
+
 export interface AttachmentView {
   id: number;
   todoId: number | null;
