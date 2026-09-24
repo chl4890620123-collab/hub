@@ -331,7 +331,6 @@ export function ReviewPage() {
       <p className="mb-4 text-xs text-ink-500">
         할 일에서는 담당자와 기한을 정해 확정하고, 결정·변경 이력은 원문 근거를 확인한 뒤 확정하거나 제외할 수 있습니다.
       </p>
-      <AddTeammateCard projectId={currentProject.id} />
       <Tabs defaultValue="todos">
         <TabsList>
           <TabsTrigger value="todos">할 일</TabsTrigger>
@@ -348,6 +347,9 @@ export function ReviewPage() {
           <ChangeReviewTab projectId={currentProject.id} />
         </TabsContent>
       </Tabs>
+      <div className="mt-6">
+        <AddTeammateCard projectId={currentProject.id} />
+      </div>
     </div>
   );
 }
