@@ -28,9 +28,9 @@ public class FileAttachmentService {
     private final FileStorageService storage;
 
     public FileAttachmentService(FileAttachmentRepository attachments, TodoRepository todos, ProjectRepository projects,
-                                 UserRepository users, ProjectAccessService access, FileStorageService storage) {
+                                 ProjectAccessService access, FileStorageService storage) {
         this.attachments = attachments; this.todos = todos; this.projects = projects;
-        this.users = users; this.access = access; this.storage = storage;
+        this.access = access; this.storage = storage;
     }
 
     public long attachToTodo(long todoId, MultipartFile file, String note, User actor) {
