@@ -56,7 +56,7 @@ public class FileAttachmentRepository {
     /** Sent or received within the project - a small personal inbox, newest first. */
     public List<Attachment> listForUser(long projectId, long userId) {
         return jdbc.query(selectColumns() + """
-                 FROM file_attachment WHERE project_id=? AND (sender_id=? OR recipient_id=?) ORDER BY id DESC LIMIT 300
+                 FROM file_attachment WHERE project_id=? AND todo_id IS NULL AND (sender_id=? OR recipient_id=?) ORDER BY id DESC LIMIT 300
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
