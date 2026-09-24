@@ -40,14 +40,17 @@ export function TodoCard({
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
-  const canCycle = isAssignee && !todo.pendingApproval && (todo.taskStatus === 'TODO' || todo.taskStatus === 'IN_PROGRESS');
+  const needsReassignment = todo.assignmentStatus === 'REASSIGNMENT_REQUIRED';
+  const canCycle = !needsReassignment && isAssignee && !todo.pendingApproval && (todo.taskStatus === 'TODO' || todo.taskStatus === 'IN_PROGRESS');
 
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
       <div className="mb-1.5 flex items-start justify-between gap-2">
         <p className={cn('font-medium text-ink-900', compact ? 'truncate text-xs' : 'text-sm')}>{todo.title}</p>
-        {todo.pendingApproval ? (
-          <Badge variant="warning">승인 대기 중</Badge>
+        {needsReassignment ? (
+          <Badge variant="warning">새 담당자 필요</Badge>
+        ) : todo.pendingApproval ? (
+          <Badge variant="warning">완료 승인 대기</Badge>
         ) : canCycle ? (
           <StatusCycleButton status={todo.taskStatus} disabled={false} onCycle={onStatusChange} />
         ) : (
@@ -57,6 +60,11 @@ export function TodoCard({
         )}
       </div>
       {!compact && todo.description && <p className="mb-2 line-clamp-2 text-xs text-ink-500">{todo.description}</p>}
+      {!compact && needsReassignment && (
+        <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
+          기존 담당자가 프로젝트에서 빠져 새 담당자를 정해야 합니다. 관리자가 재배정하면 다시 진행할 수 있습니다.
+        </p>
+      )}
       {todo.taskStatus === 'BLOCKED' && todo.statusNote && (
         <p className="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">도움 요청: {todo.statusNote}</p>
       )}
@@ -81,7 +89,7 @@ export function TodoCard({
         </span>
       </div>
 
-      {!compact && (isAssignee || canConfirm) && todo.taskStatus !== 'DONE' && (
+      {!compact && !needsReassignment && (isAssignee || canConfirm) && todo.taskStatus !== 'DONE' && (
         <div className="mt-2 flex flex-wrap gap-2 border-t border-ink-100 pt-2">
           {isAssignee && !todo.pendingApproval && todo.taskStatus === 'BLOCKED' && (
             <button onClick={onResolveHelp} className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200">
