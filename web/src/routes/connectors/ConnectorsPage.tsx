@@ -17,6 +17,13 @@ import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 import { mockMode } from '@/api/mockApi';
 
+const CONNECTOR_STATUS_LABELS: Record<string, string> = {
+  SUCCESS: '가져오기 완료',
+  FAILED: '가져오기 실패',
+  PENDING: '대기 중',
+  RUNNING: '가져오는 중',
+};
+
 const PROVIDERS: { type: ConnectorType; label: string; targetNoun: string; icon: typeof Github; note?: string }[] = [
   { type: 'GITHUB', label: 'GitHub', targetNoun: '저장소', icon: Github },
   {
@@ -63,7 +70,7 @@ function LinkedAccountBadge({ projectId, type }: { projectId: number; type: Conn
   });
   if (!data) return <Badge variant="neutral">상태 확인 중</Badge>;
   if (data.linkedByUser) return <Badge variant="accent">연동됨 · {data.account || '내 계정'}</Badge>;
-  if (data.connected) return <Badge variant="accent">서버 계정 사용 중</Badge>;
+  if (data.connected) return <Badge variant="accent">공용 연결 사용 중</Badge>;
   return <Badge variant="neutral">연동 안 됨</Badge>;
 }
 
@@ -119,7 +126,9 @@ export function ConnectorsPage() {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <LinkedAccountBadge projectId={currentProject.id} type={provider.type} />
                   {state?.lastStatus && (
-                    <Badge variant={state.lastStatus === 'SUCCESS' ? 'accent' : 'danger'}>{state.lastStatus}</Badge>
+                    <Badge variant={state.lastStatus === 'FAILED' ? 'danger' : state.lastStatus === 'SUCCESS' ? 'accent' : 'neutral'}>
+                      {CONNECTOR_STATUS_LABELS[state.lastStatus] ?? state.lastStatus}
+                    </Badge>
                   )}
                 </div>
               </CardHeader>
