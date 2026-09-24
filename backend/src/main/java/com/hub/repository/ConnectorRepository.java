@@ -14,6 +14,21 @@ import java.util.Optional;
 
 @Repository
 public class ConnectorRepository {
+    /**
+     * A connector snapshot mirrors the normalized document row created from the same namespaced
+     * external_id. If that document is archived/deleted, the snapshot must disappear from every
+     * search/RAG path too; otherwise "보관" would only hide one of the two copies.
+     */
+    private static final String VISIBLE_SNAPSHOT_CLAUSE = """
+             AND NOT EXISTS (
+               SELECT 1 FROM document d
+               WHERE d.project_id=external_item.project_id
+                 AND d.source_identifier=external_item.external_id
+                 AND d.source_type IN ('GITHUB','GOOGLE_DRIVE','SLACK','NOTION')
+                 AND (d.archived=TRUE OR d.source_deleted=TRUE)
+             )
+            """;
+
     private final JdbcTemplate jdbc;
 
     public ConnectorRepository(JdbcTemplate jdbc) {
@@ -125,7 +140,7 @@ public class ConnectorRepository {
         args.add(Math.max(1, Math.min(limit, 200)));
 
         String sql = "SELECT id,external_id,item_type,title,content,author,source_url,source_created_at,raw_metadata " +
-                "FROM external_item WHERE project_id=? AND (" + where + ") " +
+                "FROM external_item WHERE project_id=? AND (" + where + ") " + VISIBLE_SNAPSHOT_CLAUSE +
                 "ORDER BY source_created_at DESC, id DESC LIMIT ?";
 
         return jdbc.query(
@@ -140,7 +155,8 @@ public class ConnectorRepository {
         if (title == null || title.isBlank()) return List.of();
         return jdbc.query(
                 "SELECT id,external_id,item_type,title,content,author,source_url,source_created_at,raw_metadata " +
-                        "FROM external_item WHERE project_id=? AND lower(COALESCE(title,''))=lower(?) ORDER BY source_created_at DESC,id DESC LIMIT ?",
+                        "FROM external_item WHERE project_id=? AND lower(COALESCE(title,''))=lower(?) " + VISIBLE_SNAPSHOT_CLAUSE +
+                        "ORDER BY source_created_at DESC,id DESC LIMIT ?",
                 (rs, n) -> mapExternalRow(rs), projectId, title.trim(), Math.max(1, Math.min(limit, 50)));
     }
 
@@ -159,7 +175,8 @@ public class ConnectorRepository {
         args.add(Math.max(1, Math.min(limit, 100)));
         return jdbc.query(
                 "SELECT id,external_id,item_type,title,content,author,source_url,source_created_at,raw_metadata " +
-                        "FROM external_item WHERE project_id=? AND (" + where + ") ORDER BY source_created_at DESC,id DESC LIMIT ?",
+                        "FROM external_item WHERE project_id=? AND (" + where + ") " + VISIBLE_SNAPSHOT_CLAUSE +
+                        "ORDER BY source_created_at DESC,id DESC LIMIT ?",
                 (rs, n) -> mapExternalRow(rs), args.toArray());
     }
 
@@ -200,7 +217,7 @@ public class ConnectorRepository {
         }
         args.add(Math.max(1, Math.min(limit, 200)));
         String sql = "SELECT id,external_id,item_type,title,content,author,source_url,source_created_at,raw_metadata " +
-                "FROM external_item WHERE project_id=?" + where + " ORDER BY source_created_at DESC,id DESC LIMIT ?";
+                "FROM external_item WHERE project_id=?" + VISIBLE_SNAPSHOT_CLAUSE + where + " ORDER BY source_created_at DESC,id DESC LIMIT ?";
         return jdbc.query(sql, (rs, n) -> mapExternalRow(rs), args.toArray());
     }
 
@@ -208,7 +225,7 @@ public class ConnectorRepository {
         if (externalId == null || externalId.isBlank()) return Optional.empty();
         List<ExternalSearchRow> rows = jdbc.query(
                 "SELECT id,external_id,item_type,title,content,author,source_url,source_created_at,raw_metadata " +
-                        "FROM external_item WHERE project_id=? AND external_id=? LIMIT 1",
+                        "FROM external_item WHERE project_id=? AND external_id=? " + VISIBLE_SNAPSHOT_CLAUSE + " LIMIT 1",
                 (rs, n) -> mapExternalRow(rs),
                 projectId, externalId
         );
