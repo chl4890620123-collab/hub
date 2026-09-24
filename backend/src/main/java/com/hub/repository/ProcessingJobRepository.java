@@ -97,7 +97,7 @@ public class ProcessingJobRepository {
 
     public ProcessingJob find(long id) {
         return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE id=?", id)
-                .stream().findFirst().orElseThrow(() -> new IllegalArgumentException("Processing job not found"));
+                .stream().findFirst().orElseThrow(() -> new IllegalArgumentException("처리 작업을 찾을 수 없습니다."));
     }
     public List<ProcessingJob> recent(long projectId) {
         return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE project_id=? ORDER BY updated_at DESC,id DESC LIMIT 20", projectId);
