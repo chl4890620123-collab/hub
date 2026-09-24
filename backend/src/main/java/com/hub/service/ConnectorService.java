@@ -102,7 +102,7 @@ public class ConnectorService {
     public int importItems(long projectId, String type, String scope, User user) {
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
-        if (adapter == null) throw new IllegalArgumentException("Unsupported connector: " + type);
+        if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
         if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         if (scope == null || scope.isBlank()) throw new IllegalArgumentException("가져올 범위를 입력해 주세요.");
 
@@ -174,7 +174,7 @@ public class ConnectorService {
 
     private static String safeMessage(RuntimeException ex, String token) {
         String msg=ex.getMessage();
-        if(msg==null||msg.isBlank()) return ex.getClass().getSimpleName();
+        if(msg==null||msg.isBlank()) return "연결 서비스 처리 중 오류가 발생했습니다.";
         if(token!=null&&!token.isBlank()) msg=msg.replace(token,"[REDACTED]");
         return msg.length()>500?msg.substring(0,500):msg;
     }
