@@ -41,11 +41,11 @@ function MaterialResultCard({ hit }: { hit: MaterialHit }) {
         {hit.sourceUrl && (
           <a
             href={hit.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
+            target={hit.sourceType === 'ATTACHMENT' ? undefined : '_blank'}
+            rel={hit.sourceType === 'ATTACHMENT' ? undefined : 'noreferrer'}
             className="flex items-center gap-1 text-accent-600 hover:underline"
           >
-            원문 열기 <ExternalLink size={12} />
+            {hit.sourceType === 'ATTACHMENT' ? '파일 다운로드' : '원문 열기'} <ExternalLink size={12} />
           </a>
         )}
       </div>
