@@ -1,5 +1,5 @@
 import { apiDelete, apiDownload, apiGet, apiUpload } from '@/api/client';
-import type { AttachmentView } from '@/api/types';
+import type { AttachmentView, FileTransferRecipient } from '@/api/types';
 
 export const attachmentsApi = {
   listForTodo: (todoId: number) => apiGet<AttachmentView[]>(`/api/todos/${todoId}/attachments`),
@@ -12,6 +12,7 @@ export const attachmentsApi = {
     );
   },
 
+  recipients: (projectId: number) => apiGet<FileTransferRecipient[]>(`/api/projects/${projectId}/file-transfer-recipients`),
   inbox: (projectId: number) => apiGet<AttachmentView[]>(`/api/projects/${projectId}/file-transfers`),
   send: (projectId: number, recipientId: number, file: File, note?: string) => {
     const form = new FormData();
