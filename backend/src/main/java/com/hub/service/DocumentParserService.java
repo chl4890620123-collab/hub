@@ -30,7 +30,7 @@ public class DocumentParserService {
             String text = tika.parseToString(new ByteArrayInputStream(bytes));
             return UnicodeText.nfc(text == null ? "" : text).strip();
         } catch (Exception e) {
-            throw new IllegalArgumentException("Document parsing failed: " + filename, e);
+            throw new IllegalArgumentException("파일 내용을 읽지 못했습니다: " + filename, e);
         }
     }
 
