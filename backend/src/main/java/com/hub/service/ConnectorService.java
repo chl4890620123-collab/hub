@@ -38,7 +38,7 @@ public class ConnectorService {
                             ObjectMapper json,
                             HubProperties props,
                             GoogleAccessTokenProvider googleTokens, ExternalOAuthService externalOAuth,
-                            ConnectorPolicyRepository policy) {
+                            ConnectorPolicyRepository policy, ProjectAccessService projectAccess) {
         adapters.forEach(adapter -> this.adapters.put(adapter.type(), adapter));
         this.repository = repository;
         this.documents = documents;
