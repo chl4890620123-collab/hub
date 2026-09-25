@@ -89,7 +89,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
     <Card>
       <CardHeader>
         <CardTitle>업무 파일 보내기</CardTitle>
-        <p className="text-xs text-ink-400">받는 사람과 보낼 파일만 선택하세요. 파일 전송과 업무 상태 관리는 할 일·일정 화면에서 함께 확인할 수 있습니다.</p>
+        <p className="text-xs text-ink-400">받는 사람과 보낼 파일만 선택하세요. 전송한 파일은 보낸 사람과 선택한 받는 사람만 볼 수 있으며 다른 팀원에게는 표시되지 않습니다.</p>
       </CardHeader>
       <CardContent>
         <div className="mb-3 max-w-xs">

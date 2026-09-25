@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * Attaching a file to a todo, or sending one straight to a teammate. Both share the same storage and
- * metadata table; only who can see the row differs (todo project members vs. sender/recipient).
+ * metadata table. Files addressed to a todo assignee or teammate are private to sender/recipient.
  */
 @Service
 public class FileAttachmentService {
@@ -38,8 +38,11 @@ public class FileAttachmentService {
     public long attachToTodo(long todoId, MultipartFile file, String note, User actor) {
         var todo = todos.find(todoId);
         access.requireAccess(todo.projectId(), actor);
+        if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null) {
+            throw new IllegalArgumentException("담당자가 지정된 확정 할 일에만 파일을 보낼 수 있습니다.");
+        }
         String path = save(todo.projectId(), file);
-        return attachments.create(todo.projectId(), todoId, actor.id(), null,
+        return attachments.create(todo.projectId(), todoId, actor.id(), todo.assigneeId(),
                 safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
     }
 
@@ -83,7 +86,7 @@ public class FileAttachmentService {
     public List<FileAttachmentRepository.Attachment> listForTodo(long todoId, User actor) {
         var todo = todos.find(todoId);
         access.requireAccess(todo.projectId(), actor);
-        return attachments.listForTodo(todoId);
+        return attachments.listForTodoVisible(todoId, actor.id());
     }
 
     public List<FileAttachmentRepository.Attachment> inbox(long projectId, User actor) {
@@ -117,9 +120,7 @@ public class FileAttachmentService {
         access.requireAccess(attachment.projectId(), actor);
         boolean direct = attachment.senderId() == actor.id()
                 || (attachment.recipientId() != null && attachment.recipientId() == actor.id());
-        boolean todoAttachment = attachment.todoId() != null;
-        if (!direct && !todoAttachment && !actor.isAdmin())
-            throw new AccessDeniedException("이 파일을 볼 수 있는 권한이 없습니다.");
+        if (!direct) throw new AccessDeniedException("이 파일은 보낸 사람과 받는 담당자만 볼 수 있습니다.");
     }
 
     private String save(long projectId, MultipartFile file) {
