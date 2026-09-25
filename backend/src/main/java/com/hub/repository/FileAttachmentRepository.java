@@ -49,6 +49,15 @@ public class FileAttachmentRepository {
                 .stream().findFirst();
     }
 
+    /** Internal lifecycle lookup used before permanent todo deletion; never exposed directly to clients. */
+    public List<Attachment> listForTodoAll(long todoId) {
+        return jdbc.query(selectColumns() + " " + """
+                FROM file_attachment
+                WHERE todo_id=?
+                ORDER BY id
+                """, (rs, n) -> map(rs), todoId);
+    }
+
     /** Todo attachments are private to the sender and the assignee captured as recipient_id. */
     public List<Attachment> listForTodoVisible(long todoId, long userId) {
         return jdbc.query(selectColumns() + " " + """
