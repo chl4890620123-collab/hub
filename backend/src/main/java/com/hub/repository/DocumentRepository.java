@@ -296,13 +296,13 @@ public class DocumentRepository {
     }
 
     public record DocumentMeta(long id, long projectId, String sourceType, String originalName,
-                               boolean archived, boolean sourceDeleted) {}
+                               long createdBy, boolean archived, boolean sourceDeleted) {}
 
     public Optional<DocumentMeta> findMeta(long documentId) {
         List<DocumentMeta> rows = jdbc.query(
-                "SELECT id,project_id,source_type,original_name,archived,source_deleted FROM document WHERE id=?",
+                "SELECT id,project_id,source_type,original_name,created_by,archived,source_deleted FROM document WHERE id=?",
                 (rs, n) -> new DocumentMeta(rs.getLong("id"), rs.getLong("project_id"), rs.getString("source_type"),
-                        rs.getString("original_name"), rs.getBoolean("archived"), rs.getBoolean("source_deleted")),
+                        rs.getString("original_name"), rs.getLong("created_by"), rs.getBoolean("archived"), rs.getBoolean("source_deleted")),
                 documentId);
         return rows.stream().findFirst();
     }
