@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '@/api/client';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/api/client';
 import type { EvidenceView, TaskStatus, TodoItem } from '@/api/types';
 
 export const todosApi = {
@@ -23,6 +23,7 @@ export const todosApi = {
   mergeDuplicate: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/merge-duplicate`),
   softDelete: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/delete`),
   restore: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/restore`),
+  permanentDelete: (todoId: number) => apiDelete<{ status: string }>(`/api/todos/${todoId}/permanent`),
   editCandidate: (todoId: number, title: string, description: string) =>
     apiPatch<{ status: string }>(`/api/todos/${todoId}`, { title, description }),
   updateStatus: (todoId: number, status: TaskStatus) =>
