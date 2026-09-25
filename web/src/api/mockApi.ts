@@ -104,7 +104,7 @@ const applications: SignupApplication[] = [{ id: 10001, loginId: 'minji', email:
 
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
-const activeProjectTodos = (projectId: number) => activeProjectTodos(projectId).filter((todo) => !todo.deletedAt);
+const activeProjectTodos = (projectId: number) => projectTodos(projectId).filter((todo) => !todo.deletedAt);
 const jsonBody = (opts: RequestInit) => typeof opts.body === 'string' ? JSON.parse(opts.body) as Record<string, unknown> : {};
 const result = <T>(value: T) => Promise.resolve(value);
 
