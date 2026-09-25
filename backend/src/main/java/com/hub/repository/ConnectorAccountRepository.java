@@ -79,4 +79,9 @@ public class ConnectorAccountRepository {
     public void disconnect(long userId, String type) {
         jdbc.update("DELETE FROM connector_account WHERE user_id=? AND connector_type=?", userId, type);
     }
+
+    /** Withdrawal is irreversible, so retained third-party OAuth credentials serve no future purpose. */
+    public int disconnectAllForUser(long userId) {
+        return jdbc.update("DELETE FROM connector_account WHERE user_id=?", userId);
+    }
 }
