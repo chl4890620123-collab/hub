@@ -10,13 +10,13 @@ jobs:
   web-and-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Verify one-config repository structure
@@ -40,8 +40,8 @@ jobs:
   ai:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: AI compile and tests using network-free providers
@@ -56,8 +56,8 @@ jobs:
   web-app:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -73,18 +73,18 @@ jobs:
     needs: [web-and-config, web-app, ai]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.14.3'
       - name: Spring unit tests and stable JAR build
         working-directory: backend
         run: gradle --no-daemon clean test bootJar
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hub-backend-jar
           path: backend/build/libs/hub-backend.jar
