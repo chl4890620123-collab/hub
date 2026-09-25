@@ -16,10 +16,12 @@ import java.util.List;
 public class TodoService {
     private final TodoRepository todos;private final FeedbackRepository feedback;private final RevisionRepository revisions;
     private final TimelineRepository timeline;private final ProjectRepository projects;private final UserRepository users;private final EvidenceRepository evidence;private final ObjectMapper json;
-    private final GoogleCalendarService calendar;
+    private final GoogleCalendarService calendar;private final FileAttachmentRepository attachments;private final FileStorageService storage;
     public TodoService(TodoRepository todos,FeedbackRepository feedback,RevisionRepository revisions,TimelineRepository timeline,
-                       ProjectRepository projects,UserRepository users,EvidenceRepository evidence,ObjectMapper json,GoogleCalendarService calendar){
-        this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;this.calendar=calendar;}
+                       ProjectRepository projects,UserRepository users,EvidenceRepository evidence,ObjectMapper json,GoogleCalendarService calendar,
+                       FileAttachmentRepository attachments,FileStorageService storage){
+        this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;this.calendar=calendar;
+        this.attachments=attachments;this.storage=storage;}
     public List<TodoItem> month(long projectId,int year,int month){LocalDate from=LocalDate.of(year,month,1);return todos.listMonth(projectId,from,from.plusMonths(1));}
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
     public List<TodoItem> dueThrough(long projectId,LocalDate through){return todos.listDueThrough(projectId,through);}
@@ -146,6 +148,16 @@ public class TodoService {
         if(before.deletedAt()==null)throw new StateConflictException("먼저 할 일을 휴지통으로 이동해 주세요.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"PERMANENT_DELETE",json.writeValueAsString(before),"{\"permanentDeleted\":true}");}
         catch(Exception e){throw new IllegalStateException(e);}
+
+        // todo_id used to become NULL via FK and silently turn todo attachments into direct transfers.
+        // Remove both stored bytes and metadata before deleting the todo so no deleted-work file can
+        // reappear in the recipient's personal file-transfer inbox.
+        for(FileAttachmentRepository.Attachment attachment:attachments.listForTodoAll(before.id())){
+            storage.deleteStrict(attachment.storagePath());
+            if(!attachments.delete(attachment.id()))
+                throw new StateConflictException("할 일 첨부파일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+        }
+
         if(!todos.permanentDelete(before.id()))throw new StateConflictException("할 일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
         timeline.append(before.projectId(),"TODO_PERMANENTLY_DELETED",before.title(),"영구 삭제",LocalDateTime.now(),"TODO",before.id());
     }
