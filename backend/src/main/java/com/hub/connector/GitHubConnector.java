@@ -52,7 +52,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                 JsonNode commit = commitNode.path("commit");
                 String author = commit.path("author").path("name").asText("");
                 String date = commit.path("author").path("date").asText("");
-                String message = commit.path("message").asText("Commit");
+                String message = commit.path("message").asText("커밋");
                 out.add(new ExternalContent(
                         sha,
                         "GIT_COMMIT",
@@ -63,7 +63,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                         author,
                         commitNode.path("html_url").asText(""),
                         ConnectorSupport.date(date),
-                        Map.of("sha", sha, "repository", scope, "location", scope + " / Commits / " + sha.substring(0, Math.min(7, sha.length())))
+                        Map.of("sha", sha, "repository", scope, "location", scope + " / 커밋 / " + sha.substring(0, Math.min(7, sha.length())))
                 ));
             }
         }
@@ -83,7 +83,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                         issue.path("user").path("login").asText(""),
                         issue.path("html_url").asText(""),
                         ConnectorSupport.date(issue.path("created_at").asText("")),
-                        Map.of("state", issue.path("state").asText(""), "repository", scope, "number", id, "location", scope + ("GIT_PR".equals(kind) ? " / Pull requests #" : " / Issues #") + id)
+                        Map.of("state", issue.path("state").asText(""), "repository", scope, "number", id, "location", scope + ("GIT_PR".equals(kind) ? " / PR #" : " / 이슈 #") + id)
                 ));
             }
         }
