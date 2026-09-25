@@ -63,20 +63,16 @@ public class ConnectorAccountRepository {
 
     public boolean connected(long userId, String type) { return find(userId, type).isPresent(); }
 
-    /** Most recently active linked account for this project+connector - who the auto-sync job replays a scope as. */
-    public Optional<Long> anyConnectedUserId(long projectId, String type) {
-        return jdbc.query("""
-                SELECT user_id FROM connector_account
-                WHERE project_id=? AND connector_type=? AND status='CONNECTED'
-                ORDER BY updated_at DESC LIMIT 1
-                """, (rs, n) -> rs.getLong("user_id"), projectId, type).stream().findFirst();
-    }
-
     public String accountLabel(long userId, String type) {
         return find(userId, type).map(Credential::accountLabel).orElse(null);
     }
 
     public void disconnect(long userId, String type) {
         jdbc.update("DELETE FROM connector_account WHERE user_id=? AND connector_type=?", userId, type);
+    }
+
+    /** Withdrawal is irreversible, so retained third-party OAuth credentials serve no future purpose. */
+    public int disconnectAllForUser(long userId) {
+        return jdbc.update("DELETE FROM connector_account WHERE user_id=?", userId);
     }
 }

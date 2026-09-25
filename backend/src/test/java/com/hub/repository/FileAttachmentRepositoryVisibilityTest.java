@@ -22,6 +22,8 @@ class FileAttachmentRepositoryVisibilityTest {
         jdbc = new JdbcTemplate(dataSource);
         repository = new FileAttachmentRepository(jdbc);
 
+        jdbc.execute("CREATE TABLE todo(id BIGINT PRIMARY KEY, deleted_at TIMESTAMP)");
+        jdbc.update("INSERT INTO todo(id,deleted_at) VALUES(77,NULL)");
         jdbc.execute("""
                 CREATE TABLE file_attachment(
                   id BIGINT PRIMARY KEY,
@@ -60,6 +62,16 @@ class FileAttachmentRepositoryVisibilityTest {
                 .map(FileAttachmentRepository.Attachment::id).toList());
         assertEquals(List.of(1L), repository.listForTodoVisible(77L, 11L).stream()
                 .map(FileAttachmentRepository.Attachment::id).toList());
+    }
+
+    @Test
+    void trashedTodoAttachmentStaysInTrashButDisappearsFromActiveSearch() {
+        insert(1L, 9L, 77L, 11L, 22L, "private-plan.txt", "secret plan");
+        jdbc.update("UPDATE todo SET deleted_at=CURRENT_TIMESTAMP WHERE id=77");
+
+        assertEquals(List.of(1L), repository.listForTodoVisible(77L, 22L).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
+        assertTrue(repository.searchVisible(9L, 22L, "secret", 20).isEmpty());
     }
 
     @Test

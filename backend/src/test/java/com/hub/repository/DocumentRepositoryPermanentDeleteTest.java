@@ -38,7 +38,8 @@ class DocumentRepositoryPermanentDeleteTest {
         jdbc.execute("CREATE TABLE document_chunk(id BIGINT PRIMARY KEY, version_id BIGINT NOT NULL)");
         jdbc.execute("CREATE TABLE todo(id BIGINT PRIMARY KEY, source_document_version_id BIGINT)");
         jdbc.execute("CREATE TABLE decision_candidate(id BIGINT PRIMARY KEY, source_document_version_id BIGINT)");
-        jdbc.execute("CREATE TABLE ai_run(id BIGINT PRIMARY KEY, document_version_id BIGINT)");
+        jdbc.execute("CREATE TABLE ai_run(id BIGINT PRIMARY KEY, document_version_id BIGINT, raw_json VARCHAR(4000))");
+        jdbc.execute("CREATE TABLE processing_job(id BIGINT PRIMARY KEY, target_type VARCHAR(50), target_id BIGINT, result_json VARCHAR(4000), error_message VARCHAR(1000))");
         jdbc.execute("CREATE TABLE change_analysis(id BIGINT PRIMARY KEY, before_version_id BIGINT, after_version_id BIGINT)");
         jdbc.execute("CREATE TABLE evidence(id BIGINT PRIMARY KEY, version_id BIGINT, chunk_id BIGINT)");
         jdbc.execute("CREATE TABLE external_item(id BIGINT PRIMARY KEY, project_id BIGINT, external_id VARCHAR(1000), imported_document_id BIGINT)");
@@ -54,7 +55,8 @@ class DocumentRepositoryPermanentDeleteTest {
         jdbc.update("INSERT INTO document_chunk(id,version_id) VALUES(201,101)");
         jdbc.update("INSERT INTO todo(id,source_document_version_id) VALUES(301,101)");
         jdbc.update("INSERT INTO decision_candidate(id,source_document_version_id) VALUES(401,101)");
-        jdbc.update("INSERT INTO ai_run(id,document_version_id) VALUES(501,101)");
+        jdbc.update("INSERT INTO ai_run(id,document_version_id,raw_json) VALUES(501,101,'{\"summary\":\"secret analysis\"}')");
+        jdbc.update("INSERT INTO processing_job(id,target_type,target_id,result_json,error_message) VALUES(901,'DOCUMENT_VERSION',101,'{\"todos\":[\"secret\"]}','secret parser detail')");
         jdbc.update("INSERT INTO change_analysis(id,before_version_id,after_version_id) VALUES(601,101,101)");
         jdbc.update("INSERT INTO evidence(id,version_id,chunk_id) VALUES(701,101,201)");
 
@@ -74,6 +76,9 @@ class DocumentRepositoryPermanentDeleteTest {
         assertNull(jdbc.queryForObject("SELECT source_document_version_id FROM todo WHERE id=301", Long.class));
         assertNull(jdbc.queryForObject("SELECT source_document_version_id FROM decision_candidate WHERE id=401", Long.class));
         assertNull(jdbc.queryForObject("SELECT document_version_id FROM ai_run WHERE id=501", Long.class));
+        assertNull(jdbc.queryForObject("SELECT raw_json FROM ai_run WHERE id=501", String.class));
+        assertNull(jdbc.queryForObject("SELECT result_json FROM processing_job WHERE id=901", String.class));
+        assertNull(jdbc.queryForObject("SELECT error_message FROM processing_job WHERE id=901", String.class));
         assertEquals(0, count("change_analysis"));
         assertEquals(0, count("evidence"));
     }

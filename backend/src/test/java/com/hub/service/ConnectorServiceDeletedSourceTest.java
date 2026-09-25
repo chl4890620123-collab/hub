@@ -36,6 +36,9 @@ class ConnectorServiceDeletedSourceTest {
         GoogleAccessTokenProvider googleTokens = mock(GoogleAccessTokenProvider.class);
         ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
         ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
+        ProjectAccessService projectAccess = mock(ProjectAccessService.class);
+        SensitiveDataMaskingService piiMasking = mock(SensitiveDataMaskingService.class);
+        when(piiMasking.mask(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         when(adapter.type()).thenReturn("GITHUB");
         when(adapter.fetch("repo", "token")).thenReturn(List.of(new ExternalContent(
@@ -49,7 +52,7 @@ class ConnectorServiceDeletedSourceTest {
 
         ConnectorService service = new ConnectorService(
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
-                googleTokens, externalOAuth, policy
+                googleTokens, externalOAuth, policy, projectAccess, piiMasking
         );
         User user = new User(7L, "member7", "member7@example.test", "Member 7",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
@@ -64,7 +67,7 @@ class ConnectorServiceDeletedSourceTest {
                 anyLong(), anyString(), anyString(), anyString(), anyString(), any(User.class)
         );
         verify(repository).saveSyncState(
-                eq(10L), eq("GITHUB"), eq("repo"), eq("SUCCESS"),
+                eq(10L), eq("GITHUB"), eq("repo"), eq(7L), eq("SUCCESS"),
                 contains("보관 중인 자료 1건"), eq(0)
         );
     }
@@ -79,6 +82,9 @@ class ConnectorServiceDeletedSourceTest {
         GoogleAccessTokenProvider googleTokens = mock(GoogleAccessTokenProvider.class);
         ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
         ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
+        ProjectAccessService projectAccess = mock(ProjectAccessService.class);
+        SensitiveDataMaskingService piiMasking = mock(SensitiveDataMaskingService.class);
+        when(piiMasking.mask(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         when(adapter.type()).thenReturn("GITHUB");
         when(adapter.fetch("repo", "token")).thenReturn(List.of(new ExternalContent(
@@ -92,7 +98,7 @@ class ConnectorServiceDeletedSourceTest {
 
         ConnectorService service = new ConnectorService(
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
-                googleTokens, externalOAuth, policy
+                googleTokens, externalOAuth, policy, projectAccess, piiMasking
         );
         User user = new User(7L, "member7", "member7@example.test", "Member 7",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
@@ -107,7 +113,7 @@ class ConnectorServiceDeletedSourceTest {
                 anyLong(), anyString(), anyString(), anyString(), anyString(), any(User.class)
         );
         verify(repository).saveSyncState(
-                eq(10L), eq("GITHUB"), eq("repo"), eq("SUCCESS"),
+                eq(10L), eq("GITHUB"), eq("repo"), eq(7L), eq("SUCCESS"),
                 contains("영구 삭제한 자료 1건"), eq(0)
         );
     }

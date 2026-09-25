@@ -166,20 +166,17 @@ public class TodoRepository {
 
 
     /**
-     * Retention cleanup only: removes long-finished todos (never anything still open) so the table does
-     * not grow forever. Storage/documents/evidence content is never touched by this - only the todo row
-     * and its own review-workflow links (todo_evidence, reassignment_queue) go, via ON DELETE CASCADE.
-     * possible_duplicate_of_id is a self-reference with no cascade, so it is detached first.
+     * Retention cleanup never physically deletes user work. Old completed todos are moved to the same
+     * restorable trash used by the UI, with deleted_by left NULL to mark a system retention action.
+     * Permanent deletion remains an explicit user/admin action from the trash.
      */
-    public int purgeCompletedOlderThan(LocalDate cutoff){
-        jdbc.update("""
-                UPDATE todo SET possible_duplicate_of_id=NULL WHERE possible_duplicate_of_id IN (
-                  SELECT id FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND deleted_at IS NULL AND due_date<?
-                )
+    public int moveCompletedToTrashOlderThan(LocalDate cutoff){
+        return jdbc.update("""
+                UPDATE todo
+                SET deleted_at=CURRENT_TIMESTAMP,deleted_by=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE task_status='DONE' AND review_status='CONFIRMED'
+                  AND deleted_at IS NULL AND due_date<?
                 """, Date.valueOf(cutoff));
-        return jdbc.update(
-                "DELETE FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND deleted_at IS NULL AND due_date<?",
-                Date.valueOf(cutoff));
     }
 
     public List<TitleRow> recentOpenTitles(long projectId,int limit){
