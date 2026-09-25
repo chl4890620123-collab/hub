@@ -83,9 +83,9 @@ public class NotionConnector implements ReadOnlyConnector {
         } catch (HttpClientErrorException.Unauthorized e) {
             throw new IllegalStateException("Notion 연결이 만료되었거나 토큰이 유효하지 않습니다. 다시 연결해 주세요.", e);
         } catch (HttpClientErrorException.Forbidden e) {
-            throw new IllegalStateException("Notion Integration에 해당 페이지 접근 권한이 없습니다. 페이지의 Connections에서 Integration을 공유해 주세요.", e);
+            throw new IllegalStateException("Notion 연결 앱에 해당 페이지 접근 권한이 없습니다. 페이지의 연결 설정에서 Hub 연결 앱을 공유해 주세요.", e);
         } catch (HttpClientErrorException.NotFound e) {
-            throw new IllegalStateException("Notion 페이지를 찾을 수 없거나 Integration에 공유되지 않았습니다.", e);
+            throw new IllegalStateException("Notion 페이지를 찾을 수 없거나 Hub 연결 앱에 공유되지 않았습니다.", e);
         } catch (RestClientException e) {
             throw new IllegalStateException("Notion 자료를 가져오지 못했습니다.", e);
         }
