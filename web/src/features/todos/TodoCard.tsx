@@ -23,6 +23,8 @@ export function TodoCard({
   isDeleted,
   onDelete,
   onRestore,
+  canPermanentDelete,
+  onPermanentDelete,
   compact,
 }: {
   todo: TodoItem;
@@ -42,6 +44,8 @@ export function TodoCard({
   isDeleted?: boolean;
   onDelete: () => void;
   onRestore: () => void;
+  canPermanentDelete: boolean;
+  onPermanentDelete: () => void;
   compact?: boolean;
 }) {
   const [showAttachments, setShowAttachments] = useState(false);
@@ -138,11 +142,18 @@ export function TodoCard({
       {!compact && (
         <div className="mt-2 flex justify-end border-t border-ink-100 pt-2">
           {isDeleted ? (
-            canDelete && (
-              <button onClick={onRestore} className="flex items-center gap-1 rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
-                <RotateCcw size={12} /> 복원
-              </button>
-            )
+            <div className="flex flex-wrap gap-2">
+              {canDelete && (
+                <button onClick={onRestore} className="flex items-center gap-1 rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
+                  <RotateCcw size={12} /> 복원
+                </button>
+              )}
+              {canPermanentDelete && (
+                <button onClick={onPermanentDelete} className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800 hover:bg-red-200">
+                  <Trash2 size={12} /> 영구 삭제
+                </button>
+              )}
+            </div>
           ) : (
             canDelete && (
               <button onClick={onDelete} className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100">
