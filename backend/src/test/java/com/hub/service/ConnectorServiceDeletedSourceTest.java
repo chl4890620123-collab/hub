@@ -37,6 +37,8 @@ class ConnectorServiceDeletedSourceTest {
         ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
         ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
         ProjectAccessService projectAccess = mock(ProjectAccessService.class);
+        SensitiveDataMaskingService piiMasking = mock(SensitiveDataMaskingService.class);
+        when(piiMasking.mask(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         when(adapter.type()).thenReturn("GITHUB");
         when(adapter.fetch("repo", "token")).thenReturn(List.of(new ExternalContent(
@@ -50,7 +52,7 @@ class ConnectorServiceDeletedSourceTest {
 
         ConnectorService service = new ConnectorService(
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
-                googleTokens, externalOAuth, policy, projectAccess
+                googleTokens, externalOAuth, policy, projectAccess, piiMasking
         );
         User user = new User(7L, "member7", "member7@example.test", "Member 7",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
@@ -81,6 +83,8 @@ class ConnectorServiceDeletedSourceTest {
         ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
         ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
         ProjectAccessService projectAccess = mock(ProjectAccessService.class);
+        SensitiveDataMaskingService piiMasking = mock(SensitiveDataMaskingService.class);
+        when(piiMasking.mask(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         when(adapter.type()).thenReturn("GITHUB");
         when(adapter.fetch("repo", "token")).thenReturn(List.of(new ExternalContent(
@@ -94,7 +98,7 @@ class ConnectorServiceDeletedSourceTest {
 
         ConnectorService service = new ConnectorService(
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
-                googleTokens, externalOAuth, policy, projectAccess
+                googleTokens, externalOAuth, policy, projectAccess, piiMasking
         );
         User user = new User(7L, "member7", "member7@example.test", "Member 7",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
