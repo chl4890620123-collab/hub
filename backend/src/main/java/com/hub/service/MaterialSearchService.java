@@ -46,6 +46,7 @@ public class MaterialSearchService {
     private final TemplateSimilarityService templateSimilarity;
     private final SearchQueryRouter queryRouter;
     private final HubProperties props;
+    private final SensitiveDataMaskingService piiMasking;
 
     public MaterialSearchService(ConnectorRepository connectors,
                                  DocumentRepository documents,
@@ -58,7 +59,8 @@ public class MaterialSearchService {
                                  DocumentContextService documentContext,
                                  TemplateSimilarityService templateSimilarity,
                                  SearchQueryRouter queryRouter,
-                                 HubProperties props) {
+                                 HubProperties props,
+                                 SensitiveDataMaskingService piiMasking) {
         this.connectors = connectors;
         this.documents = documents;
         this.attachments = attachments;
@@ -71,6 +73,7 @@ public class MaterialSearchService {
         this.templateSimilarity = templateSimilarity;
         this.queryRouter = queryRouter;
         this.props = props;
+        this.piiMasking = piiMasking;
     }
 
     /**
@@ -508,7 +511,7 @@ public class MaterialSearchService {
         String connectorType = connectorType(row.externalId());
         JsonNode metadata = metadata(row.rawMetadata());
         String location = metadata.path("location").asText("");
-        return location.isBlank() ? fallbackLocation(connectorType, row.title()) : location;
+        return piiMasking.mask(location.isBlank() ? fallbackLocation(connectorType, row.title()) : location);
     }
 
     private MaterialHit withRecommendation(Candidate candidate, int rank, SearchQueryPlan plan) {
