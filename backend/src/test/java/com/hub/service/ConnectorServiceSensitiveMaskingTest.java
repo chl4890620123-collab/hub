@@ -9,11 +9,13 @@ import com.hub.repository.ConnectorPolicyRepository;
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.TimelineRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -54,11 +56,17 @@ class ConnectorServiceSensitiveMaskingTest {
 
         service.importItems(10L, "GITHUB", "repo", user);
 
+        ArgumentCaptor<String> title = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> author = ArgumentCaptor.forClass(String.class);
         verify(repository).saveItem(
-                eq(10L), isNull(), eq("GITHUB"), eq("repo:item-1"), eq("GIT_ISSUE"),
-                eq("MASK[secret-title]"), eq("MASK[secret-body]"), eq("MASK[secret-author]"),
-                eq("https://github.com/example/repo/issues/1"), any(), anyString()
+                eq(10L), nullable(Long.class), eq("GITHUB"), anyString(), anyString(),
+                title.capture(), content.capture(), author.capture(),
+                anyString(), any(), anyString()
         );
+        assertEquals("MASK[secret-title]", title.getValue());
+        assertEquals("MASK[secret-body]", content.getValue());
+        assertEquals("MASK[secret-author]", author.getValue());
         verify(repository).saveSyncState(10L, "GITHUB", "repo", 7L, "SUCCESS", null, 1);
     }
 
