@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -39,7 +39,7 @@ class DocumentServiceConnectorArchiveTest {
         when(chunker.chunk("새 외부 내용")).thenReturn(List.of("새 외부 내용"));
         when(ai.embed(any(), anyString())).thenThrow(new IllegalStateException("embedding unavailable"));
         when(documents.createVersion(anyLong(), anyString(), anyString(), anyString())).thenReturn(60L);
-        when(documents.createChunk(anyLong(), any(Integer.class), anyString(), anyString())).thenReturn(70L);
+        when(documents.createChunk(anyLong(), anyInt(), anyString(), anyString())).thenReturn(70L);
 
         DocumentService service = new DocumentService(
                 documents, parser, chunker, storage, ai, timeline, vectors, transactionManager, piiMasking);
