@@ -8,7 +8,9 @@ import com.hub.repository.TimelineRepository;
 import com.hub.util.Hashing;
 import com.hub.util.UnicodeText;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -55,7 +57,6 @@ public class MeetingService {
             try {
                 meetingId = meetings.create(projectId, title.trim(), storedPath, filename, contentType, audioHash, meetingAt, sourceDate, user.id());
             } catch (DuplicateKeyException duplicateRace) {
-                // Two browser retries can pass the pre-check at the same time. The DB hash index is the final guard.
                 storage.deleteQuietly(storedPath);
                 storedPath = null;
                 long existingId = meetings.findByAudioHash(projectId, audioHash)
@@ -88,12 +89,10 @@ public class MeetingService {
         if (result == null || result.text() == null || result.text().isBlank()) {
             throw new IllegalStateException("회의 음성에서 내용을 확인하지 못했습니다. 녹음 상태를 확인해 다시 시도해 주세요.");
         }
-        // Masked immediately after STT returns: the resident-number/card/phone/email plaintext
-        // never reaches transcript storage, search indexing, or the AI analysis call below.
         String transcript = piiMasking.mask(UnicodeText.nfc(result.text()).strip());
 
         progress.accept(55);
-        meetings.deleteSegments(meetingId); // retry-safe: never duplicate transcript segments.
+        meetings.deleteSegments(meetingId);
         if (result.segments() == null || result.segments().isEmpty()) {
             meetings.createSegment(meetingId, 0, null, null, "화자 미확인", transcript);
         } else {
@@ -108,14 +107,24 @@ public class MeetingService {
         timeline.append(input.projectId(), "MEETING_TRANSCRIBED", input.title(),
                 transcript.substring(0, Math.min(300, transcript.length())), LocalDateTime.now(), "MEETING", meetingId);
 
-        // Put the transcript into the same searchable document index used by file imports.
-        // Analysis remains meeting-grounded, so TODO/decision candidates are not duplicated.
         long transcriptVersion = documents.importMeetingTranscript(
                 input.projectId(), meetingId, input.title(), transcript, input.createdBy());
         progress.accept(75);
         AiDtos.AnalyzeResponse analyzed = analysis.analyzeMeeting(input.projectId(), meetingId, input.sourceDate());
         documents.updateSummary(transcriptVersion, analyzed.summary());
         return new MeetingResult(meetingId, analyzed);
+    }
+
+    @Transactional
+    public void deleteCompleted(long projectId, long meetingId, User user) {
+        MeetingRepository.DeleteInput input = meetings.deleteInput(meetingId);
+        if (input.projectId() != projectId) throw new IllegalArgumentException("현재 프로젝트의 회의록이 아닙니다.");
+        if (!"READY".equals(input.status())) throw new IllegalArgumentException("처리가 완료된 회의록만 삭제할 수 있습니다.");
+        if (input.createdBy() != user.id() && !user.isAdmin()) {
+            throw new AccessDeniedException("회의록을 만든 사람 또는 관리자만 삭제할 수 있습니다.");
+        }
+        meetings.deleteCompleted(projectId, meetingId);
+        if (input.audioPath() != null && !input.audioPath().isBlank()) storage.deleteQuietly(input.audioPath());
     }
 
     public void markFailed(long meetingId) { meetings.fail(meetingId); }

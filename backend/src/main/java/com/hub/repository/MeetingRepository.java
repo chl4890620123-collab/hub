@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 public class MeetingRepository {
     public record ProcessingInput(long projectId, String title, String audioPath, String audioFileName,
                                   String audioContentType, LocalDate sourceDate, String status, long createdBy) {}
+    public record DeleteInput(long projectId, String audioPath, String status, long createdBy) {}
 
     private final JdbcTemplate jdbc;
     public MeetingRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
@@ -48,6 +49,29 @@ public class MeetingRepository {
                         rs.getString("audio_file_name"), rs.getString("audio_content_type"), rs.getObject("source_date", LocalDate.class), rs.getString("stt_status"), rs.getLong("created_by")), meetingId);
     }
 
+    public DeleteInput deleteInput(long meetingId) {
+        return jdbc.queryForObject("SELECT project_id,audio_path,stt_status,created_by FROM meeting WHERE id=?",
+                (rs, n) -> new DeleteInput(rs.getLong("project_id"), rs.getString("audio_path"), rs.getString("stt_status"), rs.getLong("created_by")), meetingId);
+    }
+
+    /**
+     * Removes a completed meeting while preserving already-confirmed work items. Confirmed/unconfirmed todos and
+     * decisions keep their own text, but their source pointer is detached. Evidence grounded only in transcript
+     * segments is removed before the meeting row so foreign keys remain valid. The searchable transcript document
+     * created for this meeting is removed as part of the same transaction.
+     */
+    public void deleteCompleted(long projectId, long meetingId) {
+        jdbc.update("DELETE FROM evidence WHERE transcript_segment_id IN (SELECT id FROM transcript_segment WHERE meeting_id=?)", meetingId);
+        jdbc.update("UPDATE todo SET source_meeting_id=NULL WHERE source_meeting_id=?", meetingId);
+        jdbc.update("UPDATE decision_candidate SET source_meeting_id=NULL WHERE source_meeting_id=?", meetingId);
+        jdbc.update("DELETE FROM ai_run WHERE meeting_id=?", meetingId);
+        jdbc.update("DELETE FROM processing_job WHERE project_id=? AND target_type='MEETING' AND target_id=?", projectId, meetingId);
+        jdbc.update("DELETE FROM timeline_event WHERE project_id=? AND source_type='MEETING' AND source_id=?", projectId, meetingId);
+        jdbc.update("DELETE FROM document WHERE project_id=? AND source_type='MEETING_TRANSCRIPT' AND source_identifier=?", projectId, "meeting:" + meetingId);
+        int deleted = jdbc.update("DELETE FROM meeting WHERE id=? AND project_id=?", meetingId, projectId);
+        if (deleted != 1) throw new IllegalArgumentException("삭제할 회의록을 찾을 수 없습니다.");
+    }
+
     public void markProcessing(long meetingId) { jdbc.update("UPDATE meeting SET stt_status='PROCESSING' WHERE id=?", meetingId); }
     public void deleteSegments(long meetingId) { jdbc.update("DELETE FROM transcript_segment WHERE meeting_id=?", meetingId); }
 
@@ -77,13 +101,6 @@ public class MeetingRepository {
 
     private static final String STT_RETENTION_PLACEHOLDER = "[보관 기간이 지나 원문 음성 인식 결과가 정리되었습니다]";
 
-    /**
-     * The raw STT transcript/segments are only ever read as an AI analysis input and as the grounding
-     * source at evidence-creation time - every already-confirmed evidence quote keeps its own separate
-     * copy in evidence.evidence_text, so clearing old transcript text here never breaks "근거 보기".
-     * Meeting/transcript_segment rows stay (evidence.transcript_segment_id still resolves), only the
-     * text itself is cleared. Idempotent: already-cleared rows are skipped on later runs.
-     */
     public int purgeTranscriptsOlderThan(LocalDate cutoff) {
         java.sql.Date cutoffDate = java.sql.Date.valueOf(cutoff);
         jdbc.update("""

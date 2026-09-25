@@ -1,5 +1,4 @@
-// Browser file upload is the single document-ingestion endpoint.
-// All document/manual uploads queue one deduplicated AI job; the web client never needs a second analyze click.
+// Browser file upload stores the document first. AI analysis starts only after explicit confirmation.
 package com.hub.controller;
 
 import com.hub.model.User;
@@ -8,7 +7,6 @@ import com.hub.service.CurrentUserService;
 import com.hub.service.DocumentService;
 import com.hub.service.ProcessingJobService;
 import com.hub.service.ProjectAccessService;
-import com.hub.service.TodoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -33,75 +30,35 @@ public class DocumentController {
     private final DocumentService documents;
     private final ProcessingJobService jobs;
     private final DocumentRepository repository;
-    private final TodoService todos;
 
     public DocumentController(CurrentUserService current, ProjectAccessService access, DocumentService documents,
-                              ProcessingJobService jobs, DocumentRepository repository, TodoService todos) {
+                              ProcessingJobService jobs, DocumentRepository repository) {
         this.current = current; this.access = access; this.documents = documents; this.jobs = jobs;
-        this.repository = repository; this.todos = todos;
+        this.repository = repository;
     }
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
-    public ResponseEntity<Map<String,Object>> upload(@PathVariable long projectId, @RequestPart("file") MultipartFile file,
-                                     @RequestParam(required = false) LocalDate sourceDate,
-                                     @RequestParam(required = false) LocalDate dueDate,
-                                     @RequestParam(required = false) Long assigneeId,
+    public Map<String,Object> upload(@PathVariable long projectId, @RequestPart("file") MultipartFile file,
                                      Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
-        validateFollowUp(dueDate, assigneeId);
         long versionId = documents.upload(projectId, file, user);
-        long jobId = jobs.queueDocument(projectId, versionId, sourceDate);
-        Map<String,Object> body = scheduleFollowUp(projectId, versionId, file.getOriginalFilename(), dueDate, assigneeId, user);
-        body.put("versionId", versionId); body.put("jobId", jobId); body.put("status", "PENDING");
-        return ResponseEntity.accepted().body(body);
+        long documentId = repository.documentIdForVersion(versionId);
+        return Map.of("versionId", versionId, "documentId", documentId, "status", "UPLOADED");
     }
 
-    public record ManualText(String title, String text, LocalDate sourceDate, LocalDate dueDate, Long assigneeId) {}
+    public record DocumentEdit(String title, String text) {}
 
-    @PostMapping("/manual")
-    public ResponseEntity<Map<String,Object>> manual(@PathVariable long projectId, @RequestBody ManualText request, Authentication auth) {
-        User user = current.requireOperational(auth); access.requireAccess(projectId, user);
-        validateFollowUp(request.dueDate(), request.assigneeId());
-        long versionId = documents.manualText(projectId, request.title(), request.text(), user);
-        long jobId = jobs.queueDocument(projectId, versionId, request.sourceDate());
-        Map<String,Object> body = scheduleFollowUp(projectId, versionId, request.title(), request.dueDate(), request.assigneeId(), user);
-        body.put("versionId", versionId); body.put("jobId", jobId); body.put("status", "PENDING");
-        body.put("documentId", repository.documentIdForVersion(versionId));
-        return ResponseEntity.accepted().body(body);
-    }
-
-    public record ManualEdit(String title, String text) {}
-
-    /** Only a document this account entered by hand (MANUAL_TEXT) can be edited this way. */
     @PutMapping("/{documentId}")
-    public ResponseEntity<Map<String,Object>> editManual(@PathVariable long projectId, @PathVariable long documentId,
-                                                          @RequestBody ManualEdit request, Authentication auth) {
+    public ResponseEntity<Map<String,Object>> edit(@PathVariable long projectId, @PathVariable long documentId,
+                                                    @RequestBody DocumentEdit request, Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
         long versionId = documents.manualEdit(projectId, documentId, request.title(), request.text(), user);
         long jobId = jobs.queueDocument(projectId, versionId, null);
         return ResponseEntity.accepted().body(Map.<String,Object>of("versionId", versionId, "jobId", jobId, "status", "PENDING"));
     }
 
-    private static void validateFollowUp(LocalDate dueDate, Long assigneeId) {
-        if ((dueDate == null) != (assigneeId == null)) {
-            throw new IllegalArgumentException("후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.");
-        }
-    }
-
-    /** dueDate and assigneeId are both optional; when both are set, save a scheduled follow-up task too. */
-    private Map<String,Object> scheduleFollowUp(long projectId, long versionId, String title, LocalDate dueDate, Long assigneeId, User user) {
-        Map<String,Object> body = new HashMap<>();
-        if (dueDate != null) {
-            long todoId = todos.createManual(projectId, versionId, title, assigneeId, dueDate, user);
-            body.put("todoId", todoId);
-        }
-        return body;
-    }
-
     public record ReviseDraftRequest(Long meetingDocumentId) {}
 
-    /** Read-only: proposes a revision but saves nothing. The caller edits the draft and saves it via
-     * PUT /{documentId} (editManual) like any other manual edit. */
     @PostMapping("/{documentId}/revise-draft")
     public Map<String,Object> reviseDraft(@PathVariable long projectId, @PathVariable long documentId,
                                           @RequestBody ReviseDraftRequest request, Authentication auth) {
