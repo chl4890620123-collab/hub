@@ -297,8 +297,12 @@ export function DocumentsPage() {
               disabled={permanentDelete.isPending}
               className="text-red-600 hover:text-red-700"
               onClick={() => {
+                const fromConnector = ['GITHUB', 'GOOGLE_DRIVE', 'SLACK', 'NOTION'].includes(doc.source_type);
+                const connectorNotice = fromConnector
+                  ? '\n\n연결 서비스에서 가져온 자료이므로 이후 동기화에서도 같은 원본을 다시 가져오지 않습니다.'
+                  : '';
                 const ok = window.confirm(
-                  `'${doc.original_name}' 문서를 영구 삭제할까요?\n\n원본 파일과 모든 버전, 이 문서에 연결된 근거가 삭제됩니다. 이미 확정된 할 일·결정은 남지만 이 문서와의 연결은 제거됩니다. 이 작업은 되돌릴 수 없습니다.`,
+                  `'${doc.original_name}' 문서를 영구 삭제할까요?\n\n원본 파일과 모든 버전, 이 문서에 연결된 근거가 삭제됩니다. 이미 확정된 할 일·결정은 남지만 이 문서와의 연결은 제거됩니다.${connectorNotice}\n\n이 작업은 되돌릴 수 없습니다.`,
                 );
                 if (ok) permanentDelete.mutate(doc.id);
               }}
