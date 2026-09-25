@@ -74,7 +74,7 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
                 if (files.isArray()) {
                     for (JsonNode file : files) {
                         String id = file.path("id").asText();
-                        String name = file.path("name").asText("Drive file");
+                        String name = file.path("name").asText("이름 없는 Drive 파일");
                         String mime = file.path("mimeType").asText();
                         if (GOOGLE_FOLDER.equals(mime)) {
                             if (folder.depth() < 3) {
@@ -135,7 +135,7 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
     }
 
     private Downloaded download(String id, String name, String mime, String token) {
-        if (!DRIVE_ID.matcher(id).matches()) throw new IllegalStateException("Drive returned an invalid file id");
+        if (!DRIVE_ID.matcher(id).matches()) throw new IllegalStateException("Google Drive에서 올바르지 않은 파일 정보를 받았습니다.");
         if (GOOGLE_DOC.equals(mime)) {
             byte[] bytes = getBytes("/drive/v3/files/" + id + "/export?mimeType=text/plain", token);
             return new Downloaded(
@@ -192,7 +192,7 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
                     .retrieve()
                     .body(byte[].class);
         } catch (RestClientException e) {
-            throw new IllegalStateException("Google Drive download failed", e);
+            throw new IllegalStateException("Google Drive 파일을 내려받지 못했습니다.", e);
         }
     }
 
@@ -203,9 +203,9 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
                     .headers(headers -> headers.setBearerAuth(token))
                     .retrieve()
                     .body(String.class);
-            return ConnectorSupport.json(json, body, "Invalid Google Drive response");
+            return ConnectorSupport.json(json, body, "Google Drive 응답을 처리하지 못했습니다.");
         } catch (RestClientException e) {
-            throw new IllegalStateException("Google Drive API request failed", e);
+            throw new IllegalStateException("Google Drive 자료를 불러오지 못했습니다.", e);
         }
     }
 

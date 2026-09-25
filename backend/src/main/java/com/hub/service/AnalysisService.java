@@ -91,7 +91,7 @@ public class AnalysisService {
             aiRuns.saveDocument(projectId, versionId, DOCUMENT_ANALYSIS, encode(groundedResponse));
             return groundedResponse;
         });
-        if (saved == null) throw new IllegalStateException("Document analysis transaction returned no result");
+        if (saved == null) throw new IllegalStateException("문서 분석 결과를 저장하지 못했습니다.");
         return saved;
     }
 
@@ -118,7 +118,7 @@ public class AnalysisService {
             aiRuns.saveMeeting(projectId, meetingId, MEETING_ANALYSIS, encode(groundedResponse));
             return groundedResponse;
         });
-        if (saved == null) throw new IllegalStateException("Meeting analysis transaction returned no result");
+        if (saved == null) throw new IllegalStateException("회의 분석 결과를 저장하지 못했습니다.");
         return saved;
     }
 
@@ -267,7 +267,7 @@ public class AnalysisService {
     }
 
     private AiDtos.AnalyzeResponse requireAnalysis(AiDtos.AnalyzeResponse response) {
-        if (response == null) throw new IllegalStateException("AI service returned no analysis");
+        if (response == null) throw new IllegalStateException("AI 분석 결과를 받지 못했습니다. 다시 시도해 주세요.");
         return response;
     }
 
@@ -358,7 +358,7 @@ public class AnalysisService {
         try {
             return json.readValue(value, AiDtos.AnalyzeResponse.class);
         } catch (Exception error) {
-            throw new IllegalStateException("Stored analysis result is invalid", error);
+            throw new IllegalStateException("저장된 AI 분석 결과를 읽지 못했습니다.", error);
         }
     }
 
