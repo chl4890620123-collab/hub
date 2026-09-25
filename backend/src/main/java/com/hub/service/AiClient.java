@@ -118,7 +118,7 @@ public class AiClient {
         try {
             return supplier.get();
         } catch (RestClientException e) {
-            throw new IllegalStateException("AI service request failed", e);
+            throw new IllegalStateException("AI 처리 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.", e);
         }
     }
 }

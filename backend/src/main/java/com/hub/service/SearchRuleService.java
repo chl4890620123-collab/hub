@@ -99,20 +99,20 @@ public class SearchRuleService {
     }
 
     private NormalizedRule normalize(RuleInput input, Long editingId, long projectId) {
-        if (input == null) throw new IllegalArgumentException("Search rule is required");
+        if (input == null) throw new IllegalArgumentException("검색 도움 설정 내용을 입력해 주세요.");
         String name = text(input.name());
-        if (name.isBlank()) throw new IllegalArgumentException("검색 규칙 이름을 입력해 주세요.");
+        if (name.isBlank()) throw new IllegalArgumentException("검색 도움 설정 이름을 입력해 주세요.");
         if (name.length() > 200) throw new IllegalArgumentException("검색 도움 설정 이름은 200자 이하로 입력해 주세요.");
         List<String> patterns = normalizeList(input.patterns(), 20, 500);
         String targetFile = text(input.targetFile());
-        if (targetFile.length() > 500) throw new IllegalArgumentException("Target filename is too long");
-        if (patterns.isEmpty() && targetFile.isBlank()) throw new IllegalArgumentException("Reference file or filename condition is required");
+        if (targetFile.length() > 500) throw new IllegalArgumentException("기준 파일 이름은 500자 이하로 입력해 주세요.");
+        if (patterns.isEmpty() && targetFile.isBlank()) throw new IllegalArgumentException("기준 파일 또는 파일 이름 조건을 하나 이상 입력해 주세요.");
         List<String> aliases = normalizeList(input.aliases(), 20, 100);
         if (aliases.isEmpty()) aliases = autoAliases(name, targetFile);
-        if (aliases.isEmpty()) throw new IllegalArgumentException("Search words could not be inferred from the reference file");
+        if (aliases.isEmpty()) throw new IllegalArgumentException("검색어를 자동으로 만들 수 없습니다. 검색어를 직접 입력해 주세요.");
         String mode = text(input.mode()).toUpperCase(Locale.ROOT);
         if (mode.isBlank()) mode = "SMART";
-        if (!Set.of("SMART", "FULL").contains(mode)) throw new IllegalArgumentException("Search rule mode must be SMART or FULL");
+        if (!Set.of("SMART", "FULL").contains(mode)) throw new IllegalArgumentException("검색 방식은 스마트 검색 또는 전체 검색 중에서 선택해 주세요.");
         int priority = Math.max(0, Math.min(input.priority(), 1000));
         boolean active = input.active();
 
@@ -120,7 +120,7 @@ public class SearchRuleService {
         for (SearchRuleRepository.Row row : repository.list(projectId, false)) {
             if (editingId != null && row.id() == editingId) continue;
             for (String alias : row.aliases()) {
-                if (wanted.contains(lower(alias))) throw new IllegalArgumentException("Search alias is already used: " + alias);
+                if (wanted.contains(lower(alias))) throw new IllegalArgumentException("이미 다른 검색 도움 설정에서 사용 중인 검색어입니다: " + alias);
             }
         }
         return new NormalizedRule(name, aliases, patterns, targetFile, mode, priority, active);
@@ -230,9 +230,9 @@ public class SearchRuleService {
         for (String raw : input) {
             String value = text(raw);
             if (value.isBlank()) continue;
-            if (value.length() > maxLength) throw new IllegalArgumentException("Search rule value is too long");
+            if (value.length() > maxLength) throw new IllegalArgumentException("검색 조건 값이 너무 깁니다.");
             unique.putIfAbsent(lower(value), value);
-            if (unique.size() > maxItems) throw new IllegalArgumentException("Too many search rule values");
+            if (unique.size() > maxItems) throw new IllegalArgumentException("검색 조건은 최대 " + maxItems + "개까지 입력할 수 있습니다.");
         }
         return List.copyOf(unique.values());
     }

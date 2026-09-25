@@ -41,7 +41,7 @@ public class GitHubConnector implements ReadOnlyConnector {
     public List<ExternalContent> fetch(String repository, String token) {
         String scope = repository == null ? "" : repository.trim();
         if (!REPOSITORY.matcher(scope).matches()) {
-            throw new IllegalArgumentException("GitHub scope must be owner/repository");
+            throw new IllegalArgumentException("GitHub 저장소를 목록에서 다시 선택해 주세요.");
         }
 
         List<ExternalContent> out = new ArrayList<>();
@@ -52,7 +52,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                 JsonNode commit = commitNode.path("commit");
                 String author = commit.path("author").path("name").asText("");
                 String date = commit.path("author").path("date").asText("");
-                String message = commit.path("message").asText("Commit");
+                String message = commit.path("message").asText("커밋");
                 out.add(new ExternalContent(
                         sha,
                         "GIT_COMMIT",
@@ -63,7 +63,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                         author,
                         commitNode.path("html_url").asText(""),
                         ConnectorSupport.date(date),
-                        Map.of("sha", sha, "repository", scope, "location", scope + " / Commits / " + sha.substring(0, Math.min(7, sha.length())))
+                        Map.of("sha", sha, "repository", scope, "location", scope + " / 커밋 / " + sha.substring(0, Math.min(7, sha.length())))
                 ));
             }
         }
@@ -83,7 +83,7 @@ public class GitHubConnector implements ReadOnlyConnector {
                         issue.path("user").path("login").asText(""),
                         issue.path("html_url").asText(""),
                         ConnectorSupport.date(issue.path("created_at").asText("")),
-                        Map.of("state", issue.path("state").asText(""), "repository", scope, "number", id, "location", scope + ("GIT_PR".equals(kind) ? " / Pull requests #" : " / Issues #") + id)
+                        Map.of("state", issue.path("state").asText(""), "repository", scope, "number", id, "location", scope + ("GIT_PR".equals(kind) ? " / PR #" : " / 이슈 #") + id)
                 ));
             }
         }
@@ -91,7 +91,7 @@ public class GitHubConnector implements ReadOnlyConnector {
     }
 
     private JsonNode get(String path, String token) {
-        return ConnectorSupport.json(json, getEntity(path, token).getBody(), "Invalid GitHub response");
+        return ConnectorSupport.json(json, getEntity(path, token).getBody(), "GitHub 응답을 처리하지 못했습니다.");
     }
 
     private ResponseEntity<String> getEntity(String uriOrPath, String token) {
@@ -133,8 +133,8 @@ public class GitHubConnector implements ReadOnlyConnector {
 
 
     private static String firstLine(String value) {
-        if (value == null || value.isBlank()) return "Commit";
-        String first = value.lines().findFirst().orElse("Commit");
+        if (value == null || value.isBlank()) return "커밋";
+        String first = value.lines().findFirst().orElse("커밋");
         return first.length() <= 500 ? first : first.substring(0, 500);
     }
 
@@ -147,7 +147,7 @@ public class GitHubConnector implements ReadOnlyConnector {
         String uri = "/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member";
         for (int page = 0; uri != null && page < MAX_TARGET_PAGES; page++) {
             ResponseEntity<String> response = getEntity(uri, token);
-            JsonNode repos = ConnectorSupport.json(json, response.getBody(), "Invalid GitHub response");
+            JsonNode repos = ConnectorSupport.json(json, response.getBody(), "GitHub 응답을 처리하지 못했습니다.");
             if (repos.isArray()) {
                 for (JsonNode repo : repos) {
                     String full = repo.path("full_name").asText("");

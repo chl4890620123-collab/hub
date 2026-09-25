@@ -65,7 +65,7 @@ public class GoogleAccessTokenProvider {
         var credential = accounts.find(userId, "GOOGLE_DRIVE").orElse(null);
         if (credential == null) {
             if (!props.allowSharedConnectorFallback())
-                throw new IllegalStateException("Google Drive is not linked for this account.");
+                throw new IllegalStateException("이 계정에 Google Drive가 연결되어 있지 않습니다.");
             return accessToken();
         }
         if (credential.accessToken() != null && credential.expiresAt() != null
@@ -97,7 +97,7 @@ public class GoogleAccessTokenProvider {
         String staticToken = trim(props.googleAccessToken());
         if (!staticToken.isBlank()) return staticToken;
         throw new IllegalStateException(
-                "Google Drive credentials are not configured. Set GOOGLE_ACCESS_TOKEN or GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REFRESH_TOKEN."
+                "Google Drive 공용 연결 설정이 없습니다. 관리자에게 연결 설정을 확인해 달라고 요청해 주세요."
         );
     }
 
@@ -122,18 +122,18 @@ public class GoogleAccessTokenProvider {
                     .body(String.class);
             JsonNode node = json.readTree(body == null ? "{}" : body);
             String token = node.path("access_token").asText("").trim();
-            if (token.isBlank()) throw new IllegalStateException("Google token refresh returned no access token");
+            if (token.isBlank()) throw new IllegalStateException("Google Drive 연결을 갱신하지 못했습니다. 다시 연결해 주세요.");
             long expiresIn = Math.max(120, node.path("expires_in").asLong(3600));
             cachedAccessToken = token;
             cachedUntil = Instant.now().plusSeconds(expiresIn).minus(EXPIRY_SAFETY_MARGIN);
             if (userId != null) accounts.save(userId, null, "GOOGLE_DRIVE", token, refreshToken, cachedUntil);
             return token;
         } catch (RestClientException e) {
-            throw new IllegalStateException("Google Drive token refresh request failed", e);
+            throw new IllegalStateException("Google Drive 연결 갱신 요청에 실패했습니다. 다시 연결해 주세요.", e);
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
-            throw new IllegalStateException("Invalid Google token refresh response", e);
+            throw new IllegalStateException("Google Drive 연결 갱신 응답을 처리하지 못했습니다. 다시 연결해 주세요.", e);
         }
     }
 
