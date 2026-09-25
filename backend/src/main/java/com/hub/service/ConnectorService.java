@@ -115,7 +115,9 @@ public class ConnectorService {
         int skipped = 0;
         int excludedDeleted = 0;
         int excludedArchived = 0;
-        Long connectorAccountId = externalOAuth.accountId(user.id(), normalizedType);
+        Long connectorAccountId = "GOOGLE_DRIVE".equals(normalizedType)
+                ? googleTokens.accountId(user.id())
+                : externalOAuth.accountId(user.id(), normalizedType);
         try {
         for (ExternalContent item : adapter.fetch(cleanScope, effectiveToken)) {
             String metadata;
@@ -137,27 +139,31 @@ public class ConnectorService {
                 excludedArchived++;
                 continue;
             }
-            repository.saveItem(
-                    projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(), normalizedTitle, normalizedContent,
-                    normalizedAuthor, item.sourceUrl(), item.createdAt(), metadata
-            );
-            // A folder is a mixed bag: one binary blob nobody can read must not discard the files
-            // that imported fine before it. The item is skipped and reported in the sync status.
+            // Normalize/import first so only successfully materialized project data gets a searchable
+            // external_item snapshot. Then bind that snapshot to the exact document row for retention.
             try {
+                Long versionId = null;
                 if (item.hasBinary()) {
-                    documents.importExternalFile(
+                    versionId = documents.importExternalFile(
                             projectId, adapter.type(), sourceIdentifier, normalizedTitle, item.contentType(),
                             item.binaryContent(), user
                     );
-                    imported++;
                 } else if (normalizedContent != null && !normalizedContent.isBlank()) {
-                    documents.importExternalText(
+                    versionId = documents.importExternalText(
                             projectId, adapter.type(), sourceIdentifier, normalizedTitle, normalizedContent, user
                     );
-                    imported++;
-                } else {
-                    skipped++;
                 }
+                if (versionId == null) {
+                    skipped++;
+                    continue;
+                }
+                long documentId = documents.documentIdForVersion(versionId);
+                repository.saveImportedItem(
+                        projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(),
+                        normalizedTitle, normalizedContent, normalizedAuthor, item.sourceUrl(), item.createdAt(),
+                        metadata, documentId
+                );
+                imported++;
             } catch (RuntimeException itemFailure) {
                 skipped++;
             }
