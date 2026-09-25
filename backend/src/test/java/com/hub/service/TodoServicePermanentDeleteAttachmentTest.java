@@ -15,7 +15,7 @@ import static org.mockito.Mockito.when;
 
 class TodoServicePermanentDeleteAttachmentTest {
     @Test
-    void permanentDeleteRemovesTodoAttachmentBytesAndMetadataFirst() {
+    void permanentDeleteRemovesTodoAttachmentBytesAndMetadataFirst() throws Exception {
         TodoRepository todos = mock(TodoRepository.class);
         FeedbackRepository feedback = mock(FeedbackRepository.class);
         RevisionRepository revisions = mock(RevisionRepository.class);
@@ -27,8 +27,10 @@ class TodoServicePermanentDeleteAttachmentTest {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         FileStorageService storage = mock(FileStorageService.class);
 
+        ObjectMapper json = mock(ObjectMapper.class);
+        when(json.writeValueAsString(org.mockito.ArgumentMatchers.any())).thenReturn("{}");
         TodoService service = new TodoService(todos, feedback, revisions, timeline, projects, users, evidence,
-                new ObjectMapper(), calendar, attachments, storage);
+                json, calendar, attachments, storage);
 
         TodoItem todo = new TodoItem(77L, 9L, "삭제할 업무", null, 22L, "담당자",
                 null, null, null, null, "HIGH", "CONFIRMED", "DONE", "ACTIVE",
