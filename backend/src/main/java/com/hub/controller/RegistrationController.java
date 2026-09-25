@@ -20,13 +20,14 @@ public class RegistrationController {
     /** MEMBER-only: which project the applicant wants in on. An admin already sees every project. */
     public record MemberSignupRequest(
             @NotBlank String loginId, @NotBlank String email, @NotBlank String password,
-            @NotBlank String displayName, Long requestedProjectId, String jobTitle, String signupNote,
-            boolean privacyConsent
+            @NotBlank String displayName, String companyName, String departmentName, String teamName,
+            Long requestedProjectId, String jobTitle, String signupNote, boolean privacyConsent
     ) {}
 
     public record AdminSignupRequest(
             @NotBlank String loginId, @NotBlank String email, @NotBlank String password,
-            @NotBlank String displayName, boolean privacyConsent
+            @NotBlank String displayName, String companyName, String departmentName, String teamName,
+            boolean privacyConsent
     ) {}
 
     /** Public so the signup screen can offer a project picker before the visitor has any account. */
@@ -48,8 +49,8 @@ public class RegistrationController {
     @PostMapping("/signup/member")
     public Map<String,Object> memberSignup(@Valid @RequestBody MemberSignupRequest request) {
         var result = signup.registerMember(new SignupService.RegisterCommand(
-                request.loginId(), request.email(), request.password(), request.displayName(), null,
-                null, null, request.jobTitle(), request.signupNote(), request.requestedProjectId(), request.privacyConsent()));
+                request.loginId(), request.email(), request.password(), request.displayName(), request.companyName(),
+                request.departmentName(), request.teamName(), request.jobTitle(), request.signupNote(), request.requestedProjectId(), request.privacyConsent()));
         return Map.of("status", result.status(), "requestedRole", "MEMBER", "reopened", result.reopened(),
                 "message", "회원가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
     }
@@ -57,8 +58,8 @@ public class RegistrationController {
     @PostMapping("/signup/admin")
     public Map<String,Object> adminSignup(@Valid @RequestBody AdminSignupRequest request) {
         var result = signup.registerAdmin(new SignupService.RegisterCommand(
-                request.loginId(), request.email(), request.password(), request.displayName(), null,
-                null, null, null, null, null, request.privacyConsent()));
+                request.loginId(), request.email(), request.password(), request.displayName(), request.companyName(),
+                request.departmentName(), request.teamName(), null, null, null, request.privacyConsent()));
         String message = result.firstAdminCreated()
                 ? "최초 관리자 계정이 생성되었습니다. 지금 로그인할 수 있습니다."
                 : "관리자 가입 신청이 접수되었습니다. 기존 관리자가 승인한 뒤 로그인할 수 있습니다.";

@@ -221,6 +221,11 @@ export function AdminMembersPage() {
                     <p className="text-xs text-ink-400">
                       {app.email} · {ROLE_LABELS[app.requestedRole]} · {formatDateTime(app.createdAt)}
                     </p>
+                    {(app.companyName || app.departmentName || app.teamName || app.jobTitle) && (
+                      <p className="mt-1 text-xs text-ink-500">
+                        {[app.companyName, app.departmentName, app.teamName, app.jobTitle].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                     {app.requestedProjectName && <Badge variant="outline">희망: {app.requestedProjectName}</Badge>}
                   </div>
                   <div className="flex items-center gap-2">

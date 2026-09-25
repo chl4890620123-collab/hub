@@ -31,6 +31,8 @@ export interface Project {
   id: number;
   name: string;
   description: string | null;
+  departmentName: string | null;
+  teamName: string | null;
   createdBy: number;
   projectRole: GlobalRole;
   canConfirm: boolean;
@@ -48,6 +50,8 @@ export interface ProjectMember {
 export interface ProjectOption {
   id: number;
   name: string;
+  departmentName: string | null;
+  teamName: string | null;
 }
 
 export interface TodoItem {
@@ -78,6 +82,8 @@ export interface TodoItem {
   /** Context for the todo's current non-normal state: the assignee's help-request note while
    * taskStatus is BLOCKED, or the decision-maker's reason after the last completion rejection. */
   statusNote: string | null;
+  deletedAt: string | null;
+  deletedBy: number | null;
 }
 
 /** decision_candidate row - GET pending/review endpoints. snake_case DB projection. */

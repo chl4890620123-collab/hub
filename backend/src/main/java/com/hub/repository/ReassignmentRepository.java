@@ -32,7 +32,7 @@ public class ReassignmentRepository {
                 FROM todo_reassignment r
                 JOIN todo t ON t.id=r.todo_id
                 LEFT JOIN app_user u ON u.id=r.former_assignee_id
-                WHERE r.project_id=? AND r.status='PENDING'
+                WHERE r.project_id=? AND r.status='PENDING' AND t.deleted_at IS NULL
                 ORDER BY r.created_at,r.id
                 """,projectId);
     }

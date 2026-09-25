@@ -16,16 +16,18 @@ public class ProjectRepository {
     private final JdbcTemplate jdbc;
     public ProjectRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    public record ProjectOption(long id, String name) {}
+    public record ProjectOption(long id, String name, String departmentName, String teamName) {}
 
     /** Names only, for the signup screen's project picker - shown before the visitor has any access. */
     public List<ProjectOption> listAll() {
-        return jdbc.query("SELECT id,name FROM project ORDER BY name,id",
-                (rs, n) -> new ProjectOption(rs.getLong("id"), rs.getString("name")));
+        return jdbc.query("SELECT id,name,department_name,team_name FROM project ORDER BY department_name,team_name,name,id",
+                (rs, n) -> new ProjectOption(rs.getLong("id"), rs.getString("name"),
+                        rs.getString("department_name"), rs.getString("team_name")));
     }
 
-    public void rename(long projectId, String name, String description) {
-        jdbc.update("UPDATE project SET name=?,description=? WHERE id=?", name, description, projectId);
+    public void rename(long projectId, String name, String description, String departmentName, String teamName) {
+        jdbc.update("UPDATE project SET name=?,description=?,department_name=?,team_name=? WHERE id=?",
+                name, description, departmentName, teamName, projectId);
     }
 
     public boolean exists(long projectId) {
@@ -35,22 +37,24 @@ public class ProjectRepository {
 
     public List<Project> listForUser(long userId, boolean admin) {
         if (admin) {
-            return jdbc.query("SELECT p.id,p.name,p.description,p.created_by FROM project p ORDER BY p.id",
-                    (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),rs.getLong("created_by"),"ADMIN",true));
+            return jdbc.query("SELECT p.id,p.name,p.description,p.department_name,p.team_name,p.created_by FROM project p ORDER BY p.department_name,p.team_name,p.name,p.id",
+                    (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),
+                            rs.getString("department_name"),rs.getString("team_name"),rs.getLong("created_by"),"ADMIN",true));
         }
         return jdbc.query("""
-                SELECT p.id,p.name,p.description,p.created_by,pm.can_confirm_todos
+                SELECT p.id,p.name,p.description,p.department_name,p.team_name,p.created_by,pm.can_confirm_todos
                 FROM project p JOIN project_member pm ON pm.project_id=p.id WHERE pm.user_id=? ORDER BY p.id
                 """,
-                (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),rs.getLong("created_by"),
+                (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),
+                        rs.getString("department_name"),rs.getString("team_name"),rs.getLong("created_by"),
                         "MEMBER",rs.getBoolean("can_confirm_todos")), userId);
     }
 
-    public long create(String name, String description, long userId) {
+    public long create(String name, String description, String departmentName, String teamName, long userId) {
         KeyHolder key = new GeneratedKeyHolder();
         jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO project(name,description,created_by) VALUES(?,?,?)", new String[]{"id"});
-            ps.setString(1, name); ps.setString(2, description); ps.setLong(3, userId); return ps;
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO project(name,description,department_name,team_name,created_by) VALUES(?,?,?,?,?)", new String[]{"id"});
+            ps.setString(1, name); ps.setString(2, description); ps.setString(3, departmentName); ps.setString(4, teamName); ps.setLong(5, userId); return ps;
         }, key);
         if (key.getKey() == null) throw new IllegalStateException("Project id was not generated");
         return key.getKey().longValue();

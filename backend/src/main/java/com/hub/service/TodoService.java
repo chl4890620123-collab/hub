@@ -24,6 +24,7 @@ public class TodoService {
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
     public List<TodoItem> dueThrough(long projectId,LocalDate through){return todos.listDueThrough(projectId,through);}
     public List<TodoItem> pending(long projectId){return todos.pending(projectId);}
+    public List<TodoItem> trash(long projectId){return todos.listDeleted(projectId);}
 
     /** Registering a document with a due date can create its follow-up task in the same step. */
     @Transactional
@@ -111,6 +112,42 @@ public class TodoService {
                 "{\"mergedIntoTodoId\":"+targetId+",\"reviewStatus\":\"REJECTED\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(candidate.projectId(),"TODO_DUPLICATE_MERGED",candidate.title(),"기존 TODO #"+targetId+"에 근거 합침",LocalDateTime.now(),"TODO",targetId);
+    }
+
+    @Transactional
+    public void softDelete(TodoItem before,User actor){
+        if(before.deletedAt()!=null)throw new StateConflictException("이미 휴지통에 있는 할 일입니다.");
+        if(!todos.softDelete(before.id(),actor.id()))throw new StateConflictException("할 일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"SOFT_DELETE",json.writeValueAsString(before),"{\"deleted\":true}");}
+        catch(Exception e){throw new IllegalStateException(e);}
+        timeline.append(before.projectId(),"TODO_DELETED",before.title(),"휴지통으로 이동",LocalDateTime.now(),"TODO",before.id());
+        if(before.googleCalendarEventId()!=null&&before.assigneeId()!=null){
+            calendar.deleteEvent(before.assigneeId(),before.googleCalendarEventId());
+            todos.setCalendarEventId(before.id(),null);
+        }
+    }
+
+    @Transactional
+    public void restore(TodoItem before,User actor){
+        if(before.deletedAt()==null)throw new StateConflictException("휴지통에 있는 할 일이 아닙니다.");
+        if(!todos.restore(before.id()))throw new StateConflictException("할 일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"RESTORE",json.writeValueAsString(before),"{\"deleted\":false}");}
+        catch(Exception e){throw new IllegalStateException(e);}
+        timeline.append(before.projectId(),"TODO_RESTORED",before.title(),"휴지통에서 복원",LocalDateTime.now(),"TODO",before.id());
+        if(!"DONE".equals(before.taskStatus())&&"ACTIVE".equals(before.assignmentStatus())
+                &&before.dueDate()!=null&&before.assigneeId()!=null){
+            String eventId=calendar.createEvent(before.assigneeId(),before.title(),before.description(),before.dueDate());
+            if(eventId!=null)todos.setCalendarEventId(before.id(),eventId);
+        }
+    }
+
+    @Transactional
+    public void permanentDelete(TodoItem before,User actor){
+        if(before.deletedAt()==null)throw new StateConflictException("먼저 할 일을 휴지통으로 이동해 주세요.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"PERMANENT_DELETE",json.writeValueAsString(before),"{\"permanentDeleted\":true}");}
+        catch(Exception e){throw new IllegalStateException(e);}
+        if(!todos.permanentDelete(before.id()))throw new StateConflictException("할 일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+        timeline.append(before.projectId(),"TODO_PERMANENTLY_DELETED",before.title(),"영구 삭제",LocalDateTime.now(),"TODO",before.id());
     }
 
     @Transactional

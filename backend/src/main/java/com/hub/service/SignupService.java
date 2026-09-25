@@ -41,9 +41,9 @@ public class SignupService {
     }
 
     /**
-     * Common identity fields. team/jobTitle/note are optional by signup type. company/department/team
-     * are legacy free-text context (kept only for rows written before signup switched to project
-     * requests); requestedProjectId is the applicant's actual ask and is MEMBER-only - an admin sees
+     * Common identity fields. company/department/team are optional organization context collected for
+     * both MEMBER and ADMIN signups. They help administrators place people into the right shared project,
+     * but never grant access by themselves. requestedProjectId is the applicant's actual ask and is MEMBER-only - an admin sees
      * all projects already, so there is nothing for an admin signup to request.
      */
     public record RegisterCommand(String loginId, String email, String password, String displayName,
@@ -87,7 +87,8 @@ public class SignupService {
         if (users.findAuthByIdentifier(v.loginId()).isPresent()) throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         if (users.findAuthByEmail(v.email()).isPresent()) throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         try {
-            long id = users.createBootstrapAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), false);
+            long id = users.createBootstrapAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(),
+                    v.company(), v.department(), v.team(), false);
             audit.add(id, null, "FIRST_ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
             return new RegisterResult(id, "APPROVED", "ADMIN", false, true);
         } catch (DataIntegrityViolationException conflict) {

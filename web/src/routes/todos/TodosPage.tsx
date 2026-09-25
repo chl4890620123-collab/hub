@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggle';
@@ -73,6 +73,7 @@ export function TodosPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => (searchParams.get('view') === 'calendar' ? 'calendar' : 'list'));
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
+  const [showTrash, setShowTrash] = useState(false);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth() + 1;
@@ -88,6 +89,11 @@ export function TodosPage() {
     queryFn: () => todosApi.undated(currentProject!.id),
     enabled: !!currentProject,
   });
+  const { data: trashedTodos, isLoading: loadingTrash } = useQuery({
+    queryKey: ['todos-trash', currentProject?.id],
+    queryFn: () => todosApi.trash(currentProject!.id),
+    enabled: !!currentProject && showTrash,
+  });
   const { data: members } = useQuery({
     queryKey: ['project-members', currentProject?.id],
     queryFn: () => projectsApi.members(currentProject!.id),
@@ -97,6 +103,7 @@ export function TodosPage() {
   const invalidateTodos = () => {
     queryClient.invalidateQueries({ queryKey: ['todos-month', currentProject?.id] });
     queryClient.invalidateQueries({ queryKey: ['todos-undated', currentProject?.id] });
+    queryClient.invalidateQueries({ queryKey: ['todos-trash', currentProject?.id] });
   };
 
   const statusMutation = useMutation({
@@ -142,6 +149,32 @@ export function TodosPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.softDelete(todoId),
+    onSuccess: () => {
+      toast.success('할 일을 휴지통으로 이동했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const restoreMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.restore(todoId),
+    onSuccess: () => {
+      toast.success('할 일을 복원했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.permanentDelete(todoId),
+    onSuccess: () => {
+      toast.success('할 일을 영구 삭제했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const evidenceMutation = useMutation({
     mutationFn: (todo: TodoItem) => todosApi.evidence(todo.id).then((items) => ({ todo, items })),
     onSuccess: ({ todo, items }) => openEvidence(todo.title, items),
@@ -151,16 +184,21 @@ export function TodosPage() {
   const allTodos = useMemo(() => [...(monthTodos ?? []), ...(undated ?? [])], [monthTodos, undated]);
   const filtered = useMemo(
     () =>
-      (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter))
-        .filter((t) => assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
+      (showTrash
+        ? (trashedTodos ?? [])
+        : (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter)))
+        .filter((t) => showTrash || assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
         .sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31')),
-    [allTodos, statusFilter, assigneeFilter],
+    [allTodos, statusFilter, assigneeFilter, showTrash, trashedTodos],
   );
 
   if (!currentProject || !user) return <NoProjectState />;
 
   const isAssignee = (todo: TodoItem) =>
     todo.assignmentStatus === 'ACTIVE' && (isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id));
+
+  const canDeleteTodo = (todo: TodoItem) =>
+    isAdmin || canConfirm || (todo.reviewStatus === 'CONFIRMED' && todo.taskStatus === 'DONE' && todo.assigneeId === user.id);
 
   const cardFor = (todo: TodoItem, compact?: boolean) => (
     <TodoCard
@@ -174,21 +212,40 @@ export function TodosPage() {
       onRequestHelp={(note) => requestHelpMutation.mutate({ todoId: todo.id, note })}
       onResolveHelp={() => resolveHelpMutation.mutate(todo.id)}
       onShowEvidence={() => evidenceMutation.mutate(todo)}
+      canDelete={canDeleteTodo(todo)}
+      isDeleted={showTrash}
+      onDelete={() => {
+        if (window.confirm(`"${todo.title}" 할 일을 삭제할까요? 휴지통에서 복원할 수 있습니다.`)) deleteMutation.mutate(todo.id);
+      }}
+      onRestore={() => restoreMutation.mutate(todo.id)}
+      canPermanentDelete={isAdmin || canConfirm}
+      onPermanentDelete={() => {
+        if (window.confirm(`"${todo.title}" 할 일을 영구 삭제할까요? 이 작업은 복원할 수 없습니다.`)) {
+          permanentDeleteMutation.mutate(todo.id);
+        }
+      }}
       compact={compact}
     />
   );
 
-  const isLoading = loadingMonth || loadingUndated;
+  const isLoading = showTrash ? loadingTrash : loadingMonth || loadingUndated;
 
   return (
     <div>
       <PageHeader
         title="할 일·일정"
         description="확정된 할 일을 확인하고 진행 상태를 관리합니다. 담당자가 완료를 요청하면 의사결정권자 또는 관리자가 승인해야 완료됩니다."
-        action={<ViewModeToggle value={viewMode} onChange={setViewMode} />}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant={showTrash ? 'primary' : 'outline'} size="sm" onClick={() => setShowTrash((v) => !v)}>
+              <Trash2 size={14} /> {showTrash ? '할 일로 돌아가기' : '휴지통'}
+            </Button>
+            {!showTrash && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
+          </div>
+        }
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      {!showTrash && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" aria-label="이전 달" onClick={() => setCursor(new Date(year, month - 2, 1))}>
             <ChevronLeft size={14} />
@@ -227,16 +284,16 @@ export function TodosPage() {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
-      <TodoProgressPanel todos={allTodos} month={monthKey} />
+      {!showTrash && <TodoProgressPanel todos={allTodos} month={monthKey} />}
 
       {isLoading ? (
         <LoadingBlock />
-      ) : viewMode === 'calendar' ? (
+      ) : !showTrash && viewMode === 'calendar' ? (
         <CalendarGrid items={filtered} getDate={(t) => t.dueDate} renderItem={(t) => cardFor(t, true)} year={year} month={month} />
       ) : filtered.length === 0 ? (
-        <EmptyState title="조건에 맞는 할 일이 없습니다." />
+        <EmptyState title={showTrash ? "휴지통이 비어 있습니다." : "조건에 맞는 할 일이 없습니다."} />
       ) : (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'flex flex-col gap-2'}>
           {filtered.map((todo) => (
@@ -245,9 +302,11 @@ export function TodosPage() {
         </div>
       )}
 
-      <div className="mt-6">
-        <FileTransferPanel projectId={currentProject.id} />
-      </div>
+      {!showTrash && (
+        <div className="mt-6">
+          <FileTransferPanel projectId={currentProject.id} />
+        </div>
+      )}
     </div>
   );
 }

@@ -20,20 +20,33 @@ export const authApi = {
       `/api/auth/check-login-id?loginId=${encodeURIComponent(loginId)}`,
     ),
 
-  signupProjects: () => apiGet<{ id: number; name: string }[]>('/api/auth/signup/projects'),
+  signupProjects: () =>
+    apiGet<{ id: number; name: string; departmentName: string | null; teamName: string | null }[]>('/api/auth/signup/projects'),
 
   signupMember: (payload: {
     loginId: string;
     email: string;
     password: string;
     displayName: string;
+    companyName: string | null;
+    departmentName: string | null;
+    teamName: string | null;
     requestedProjectId: number | null;
     jobTitle: string | null;
     signupNote: string | null;
     privacyConsent: boolean;
   }) => apiPost<{ status: string; requestedRole: GlobalRole; reopened: boolean; message: string }>('/api/auth/signup/member', payload),
 
-  signupAdmin: (payload: { loginId: string; email: string; password: string; displayName: string; privacyConsent: boolean }) =>
+  signupAdmin: (payload: {
+    loginId: string;
+    email: string;
+    password: string;
+    displayName: string;
+    companyName: string | null;
+    departmentName: string | null;
+    teamName: string | null;
+    privacyConsent: boolean;
+  }) =>
     apiPost<{ status: string; requestedRole: GlobalRole; reopened: boolean; firstAdminCreated: boolean; message: string }>(
       '/api/auth/signup/admin',
       payload,

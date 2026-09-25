@@ -15,6 +15,9 @@ interface FormValues {
   password: string;
   passwordConfirm: string;
   displayName: string;
+  companyName: string;
+  departmentName: string;
+  teamName: string;
   jobTitle: string;
   signupNote: string;
   requestedProjectId: string;
@@ -38,6 +41,9 @@ export function MemberSignupPage() {
         email: values.email,
         password: values.password,
         displayName: values.displayName,
+        companyName: values.companyName || null,
+        departmentName: values.departmentName || null,
+        teamName: values.teamName || null,
         requestedProjectId: values.requestedProjectId ? Number(values.requestedProjectId) : null,
         jobTitle: values.jobTitle || null,
         signupNote: values.signupNote || null,
@@ -104,6 +110,21 @@ export function MemberSignupPage() {
             )}
           </div>
         </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="companyName">회사/법인 (선택)</Label>
+            <Input id="companyName" {...register('companyName')} placeholder="예: 본사" />
+          </div>
+          <div>
+            <Label htmlFor="departmentName">부서 (선택)</Label>
+            <Input id="departmentName" {...register('departmentName')} placeholder="예: 개발부" />
+          </div>
+          <div>
+            <Label htmlFor="teamName">팀 (선택)</Label>
+            <Input id="teamName" {...register('teamName')} placeholder="예: 플랫폼팀" />
+          </div>
+        </div>
+        <p className="-mt-2 text-xs text-ink-400">부서·팀 정보는 관리자가 공유 프로젝트/저장소를 배정할 때 참고하며, 입력만으로 접근 권한이 생기지는 않습니다.</p>
         <div>
           <Label>소속 프로젝트</Label>
           <Select value={watch('requestedProjectId')} onValueChange={(v) => setValue('requestedProjectId', v)}>
@@ -113,7 +134,7 @@ export function MemberSignupPage() {
             <SelectContent>
               {projects?.map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name}
+                  {[p.departmentName, p.teamName].filter(Boolean).join(' · ') ? `${[p.departmentName, p.teamName].filter(Boolean).join(' · ')} · ${p.name}` : p.name}
                 </SelectItem>
               ))}
             </SelectContent>

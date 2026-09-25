@@ -9,6 +9,7 @@ import com.hub.service.ProjectAccessService;
 import com.hub.service.TodoService;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,6 +71,13 @@ public class TodoController {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
         return todoService.dueThrough(projectId, date);
+    }
+
+    @GetMapping("/api/projects/{projectId}/todos/trash")
+    public List<TodoItem> trash(@PathVariable long projectId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAccess(projectId, user);
+        return todoService.trash(projectId);
     }
 
     @GetMapping("/api/projects/{projectId}/review/todos")
@@ -146,6 +154,33 @@ public class TodoController {
         return Map.of("status","MERGED");
     }
 
+    @PostMapping("/api/todos/{todoId}/delete")
+    public Map<String,Object> softDelete(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        requireDeletePermission(todo, user);
+        todoService.softDelete(todo, user);
+        return Map.of("status", "DELETED");
+    }
+
+    @PostMapping("/api/todos/{todoId}/restore")
+    public Map<String,Object> restore(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        requireDeletePermission(todo, user);
+        todoService.restore(todo, user);
+        return Map.of("status", "RESTORED");
+    }
+
+    @DeleteMapping("/api/todos/{todoId}/permanent")
+    public Map<String,Object> permanentDelete(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        todoService.permanentDelete(todo, user);
+        return Map.of("status", "PERMANENTLY_DELETED");
+    }
+
     public record StatusChange(String status) {}
 
     @PatchMapping("/api/todos/{todoId}/status")
@@ -162,6 +197,15 @@ public class TodoController {
         }
         todoService.updateStatus(todo, status, user);
         return Map.of("status", status);
+    }
+
+    /** Decision-makers can remove mistakes; an assignee may clean up only their own completed work. */
+    private void requireDeletePermission(TodoItem todo, User user) {
+        projectAccess.requireAccess(todo.projectId(), user);
+        if (projectAccess.isAdmin(todo.projectId(), user)) return;
+        if ("CONFIRMED".equals(todo.reviewStatus()) && "DONE".equals(todo.taskStatus())
+                && todo.assigneeId() != null && todo.assigneeId() == user.id()) return;
+        projectAccess.requireConfirmPermission(todo.projectId(), user);
     }
 
     /** The assignee, or an ADMIN acting on their behalf - same rule the generic status PATCH already used. */

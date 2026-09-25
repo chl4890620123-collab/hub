@@ -45,8 +45,8 @@ export const mockUser: User = {
 };
 
 const projects: Project[] = [
-  { id: 101, name: 'Atlas 리뉴얼', description: '고객용 업무 허브 리뉴얼 프로젝트', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
-  { id: 202, name: 'Northstar 런칭', description: '신규 분석 기능의 베타 런칭 준비', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
+  { id: 101, name: 'Atlas 리뉴얼', description: '고객용 업무 허브 리뉴얼 프로젝트', departmentName: '개발부', teamName: '플랫폼팀', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
+  { id: 202, name: 'Northstar 런칭', description: '신규 분석 기능의 베타 런칭 준비', departmentName: '사업부', teamName: '런칭팀', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
 ];
 
 const members: ProjectMember[] = [
@@ -56,12 +56,12 @@ const members: ProjectMember[] = [
 ];
 
 const todos: TodoItem[] = [
-  { id: 1001, projectId: 101, title: '대시보드 빈 상태 문구 확정', description: '첫 방문 사용자의 다음 행동을 명확하게 안내한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(2), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(4), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: true, statusNote: null },
-  { id: 1002, projectId: 101, title: '검색 결과 카드에 출처 배지 추가', description: '원문 유형과 최신 동기화 시간을 함께 노출한다.', assigneeId: 3, assigneeText: '박준호', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(5), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'BLOCKED', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(3), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: '디자인 시스템 배지 컴포넌트 확정이 필요합니다.' },
-  { id: 1003, projectId: 101, title: '온보딩 인터뷰 3건 예약', description: '신규 팀원과 기존 사용자 그룹을 나눠 진행한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: null, dueDateSuggestion: null, confidence: 'MEDIUM', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(6), updatedAt: iso(6), googleCalendarEventId: null, pendingApproval: false, statusNote: null },
-  { id: 1004, projectId: 101, title: '회의록에서 추출된 예산 검토', description: '2분기 인프라 비용안을 재무팀과 확인한다.', assigneeId: null, assigneeText: null, assigneeSuggestionId: null, assigneeSuggestionText: '이승현', dueDate: date(8), dueDateSuggestion: date(8), confidence: 'MEDIUM', reviewStatus: 'AI_GENERATED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(1), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null },
-  { id: 2001, projectId: 202, title: '베타 사용자 초대 리스트 정리', description: '초기 사용성 테스트 그룹 20명을 확정한다.', assigneeId: 2, assigneeText: '이서윤', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(3), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(5), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null },
-  { id: 2002, projectId: 202, title: '런칭 체크리스트 최종 리뷰', description: '마케팅, CS, 기술 운영 항목을 한 번에 점검한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(7), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(2), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: null },
+  { id: 1001, projectId: 101, title: '대시보드 빈 상태 문구 확정', description: '첫 방문 사용자의 다음 행동을 명확하게 안내한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(2), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(4), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: true, statusNote: null, deletedAt: null, deletedBy: null },
+  { id: 1002, projectId: 101, title: '검색 결과 카드에 출처 배지 추가', description: '원문 유형과 최신 동기화 시간을 함께 노출한다.', assigneeId: 3, assigneeText: '박준호', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(5), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'BLOCKED', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(3), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: '디자인 시스템 배지 컴포넌트 확정이 필요합니다.', deletedAt: null, deletedBy: null },
+  { id: 1003, projectId: 101, title: '온보딩 인터뷰 3건 예약', description: '신규 팀원과 기존 사용자 그룹을 나눠 진행한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: null, dueDateSuggestion: null, confidence: 'MEDIUM', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(6), updatedAt: iso(6), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
+  { id: 1004, projectId: 101, title: '회의록에서 추출된 예산 검토', description: '2분기 인프라 비용안을 재무팀과 확인한다.', assigneeId: null, assigneeText: null, assigneeSuggestionId: null, assigneeSuggestionText: '이승현', dueDate: date(8), dueDateSuggestion: date(8), confidence: 'MEDIUM', reviewStatus: 'AI_GENERATED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(1), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
+  { id: 2001, projectId: 202, title: '베타 사용자 초대 리스트 정리', description: '초기 사용성 테스트 그룹 20명을 확정한다.', assigneeId: 2, assigneeText: '이서윤', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(3), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(5), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
+  { id: 2002, projectId: 202, title: '런칭 체크리스트 최종 리뷰', description: '마케팅, CS, 기술 운영 항목을 한 번에 점검한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(7), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(2), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
 ];
 
 const documents: DocumentRow[] = [
@@ -104,6 +104,7 @@ const applications: SignupApplication[] = [{ id: 10001, loginId: 'minji', email:
 
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
+const activeProjectTodos = (projectId: number) => projectTodos(projectId).filter((todo) => !todo.deletedAt);
 const jsonBody = (opts: RequestInit) => typeof opts.body === 'string' ? JSON.parse(opts.body) as Record<string, unknown> : {};
 const result = <T>(value: T) => Promise.resolve(value);
 
@@ -115,19 +116,20 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
 
   if (pathname === '/api/me') return result(mockUser as T);
   if (pathname === '/api/projects' && method === 'GET') return result(projects as T);
-  if (pathname === '/api/auth/signup/projects') return result(projects.map(({ id, name }) => ({ id, name })) as T);
+  if (pathname === '/api/auth/signup/projects') return result(projects.map(({ id, name, departmentName, teamName }) => ({ id, name, departmentName, teamName })) as T);
   if (pathname.includes('/members') && method === 'GET') return result(members as T);
-  if (pathname.endsWith('/review/todos')) return result(projectTodos(projectId).filter((todo) => todo.reviewStatus === 'AI_GENERATED') as T);
+  if (pathname.endsWith('/review/todos')) return result(activeProjectTodos(projectId).filter((todo) => todo.reviewStatus === 'AI_GENERATED') as T);
   if (pathname.endsWith('/review/decisions')) return result(reviewDecisions as T);
   if (pathname.endsWith('/changes/review')) return result(reviewChanges as T);
+  if (pathname.endsWith('/todos/trash')) return result(projectTodos(projectId).filter((todo) => !!todo.deletedAt) as T);
   if (pathname.includes('/todos/due-through')) {
     const through = searchParams.get('date') ?? '9999-12-31';
-    return result(projectTodos(projectId).filter(
+    return result(activeProjectTodos(projectId).filter(
       (todo) => todo.reviewStatus === 'CONFIRMED' && todo.taskStatus !== 'DONE' && !!todo.dueDate && todo.dueDate <= through,
     ) as T);
   }
-  if (pathname.includes('/todos/undated')) return result(projectTodos(projectId).filter((todo) => !todo.dueDate) as T);
-  if (pathname.match(/\/todos$/) && method === 'GET') return result(projectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
+  if (pathname.includes('/todos/undated')) return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate) as T);
+  if (pathname.match(/\/todos$/) && method === 'GET') return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
   if (pathname.endsWith('/changes')) return result(reviewChanges as T);
   if (pathname.match(/\/documents$/)) return result(documents.filter((doc) => projectId === 101 ? doc.id !== 303 : doc.id === 303) as T);
   if (pathname.match(/\/documents\/\d+\/versions/)) return result([{ id: 3021, version_no: 2, sha256: 'mock-sha-3021', parse_status: 'DONE', summary: '사용자 인터뷰 핵심 인사이트와 후속 액션을 정리한 버전입니다.', created_at: iso(1) }, { id: 3020, version_no: 1, sha256: 'mock-sha-3020', parse_status: 'DONE', summary: '초기 인터뷰 메모입니다.', created_at: iso(4) }] as DocumentVersionRow[] as T);
@@ -139,7 +141,7 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   }
   if (pathname.endsWith('/search/top')) return result([{ query_text: '베타 일정', search_count: 12 }, { query_text: '사용자 피드백', search_count: 8 }] as T);
   if (pathname.endsWith('/materials/ask')) return result({ answer: '현재 프로젝트에서는 초대 팀 대상 베타를 먼저 진행하고, 검색 결과와 원문 근거를 함께 제공하는 방향으로 정리되어 있습니다.', sources: hits } as MaterialAskResponse as T);
-  if (pathname.endsWith('/context')) return result({ query: searchParams.get('q') ?? '', summary: '최근 회의와 문서에서 확인된 프로젝트의 핵심 맥락입니다. 베타 범위, 검색 근거, 사용자 인터뷰 후속 작업이 연결되어 있습니다.', sources: hits, todos: projectTodos(projectId), decisions: reviewDecisions, changes: reviewChanges, timeline } as T);
+  if (pathname.endsWith('/context')) return result({ query: searchParams.get('q') ?? '', summary: '최근 회의와 문서에서 확인된 프로젝트의 핵심 맥락입니다. 베타 범위, 검색 근거, 사용자 인터뷰 후속 작업이 연결되어 있습니다.', sources: hits, todos: activeProjectTodos(projectId), decisions: reviewDecisions, changes: reviewChanges, timeline } as T);
   if (pathname.endsWith('/review/todos') || pathname.includes('/evidence')) return result([{ id: 4101, versionId: 3021, chunkId: 1, quote: '다음 베타에서는 초대 팀을 대상으로 검색 근거 연결 경험을 검증한다.', contentHash: 'mock-hash', documentName: '주간 제품 회의록 - 09월 2주차.md', paragraphRef: 'p.2', pageNo: 2, meetingTitle: null, startMs: null, endMs: null, speaker: '이승현' }] as EvidenceView[] as T);
   if (pathname.endsWith('/connectors/status')) {
     const linked = JSON.parse(localStorage.getItem('hub.mock.connectors') ?? '[]') as string[];
@@ -200,6 +202,38 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
           return result({ status: 'ARCHIVED' } as T);
         }
       }
+    }
+    const todoTrashMatch = pathname.match(/^\/api\/todos\/(\d+)\/(delete|restore)$/);
+    if (todoTrashMatch && method === 'POST') {
+      const todoId = Number(todoTrashMatch[1]);
+      const index = todos.findIndex((todo) => todo.id === todoId);
+      if (index >= 0) {
+        const deleting = todoTrashMatch[2] === 'delete';
+        todos[index] = { ...todos[index], deletedAt: deleting ? new Date().toISOString() : null, deletedBy: deleting ? mockUser.id : null };
+      }
+      return result({ status: todoTrashMatch[2] === 'delete' ? 'DELETED' : 'RESTORED' } as T);
+    }
+    const todoPermanentMatch = pathname.match(/^\/api\/todos\/(\d+)\/permanent$/);
+    if (todoPermanentMatch && method === 'DELETE') {
+      const todoId = Number(todoPermanentMatch[1]);
+      const index = todos.findIndex((todo) => todo.id === todoId && !!todo.deletedAt);
+      if (index >= 0) todos.splice(index, 1);
+      return result({ status: 'PERMANENTLY_DELETED' } as T);
+    }
+    if (pathname === '/api/projects' && method === 'POST') {
+      const nextId = Math.max(...projects.map((project) => project.id)) + 1;
+      const created: Project = {
+        id: nextId,
+        name: String(body.name ?? '새 프로젝트'),
+        description: typeof body.description === 'string' ? body.description : null,
+        departmentName: typeof body.departmentName === 'string' ? body.departmentName : null,
+        teamName: typeof body.teamName === 'string' ? body.teamName : null,
+        createdBy: mockUser.id,
+        projectRole: 'ADMIN',
+        canConfirm: true,
+      };
+      projects.push(created);
+      return result(created as T);
     }
     if (pathname.includes('/connectors/') && pathname.endsWith('/link')) {
       const connectorType = pathname.split('/').at(-2)?.toUpperCase() ?? '';

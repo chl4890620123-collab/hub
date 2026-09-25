@@ -30,5 +30,7 @@ public record TodoItem(
         LocalDateTime updatedAt,
         String googleCalendarEventId,
         boolean pendingApproval,
-        String statusNote
+        String statusNote,
+        LocalDateTime deletedAt,
+        Long deletedBy
 ) {}

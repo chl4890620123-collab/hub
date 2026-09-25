@@ -38,9 +38,10 @@ export interface AddableUser {
 
 export const projectsApi = {
   list: () => apiGet<Project[]>('/api/projects'),
-  create: (name: string, description?: string) => apiPost<Project>('/api/projects', { name, description }),
-  rename: (projectId: number, name: string, description?: string) =>
-    apiPut<{ status: string }>(`/api/projects/${projectId}`, { name, description }),
+  create: (name: string, description?: string, departmentName?: string, teamName?: string) =>
+    apiPost<Project>('/api/projects', { name, description, departmentName, teamName }),
+  rename: (projectId: number, name: string, description?: string, departmentName?: string, teamName?: string) =>
+    apiPut<{ status: string }>(`/api/projects/${projectId}`, { name, description, departmentName, teamName }),
   members: (projectId: number) =>
     apiGet<RawProjectMember[]>(`/api/projects/${projectId}/members`).then((rows) => rows.map(toProjectMember)),
   addableUsers: (projectId: number) =>
