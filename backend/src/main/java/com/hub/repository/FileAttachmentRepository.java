@@ -83,6 +83,13 @@ public class FileAttachmentRepository {
                  FROM file_attachment
                  WHERE project_id=?
                    AND (sender_id=? OR recipient_id=?)
+                   AND (
+                     todo_id IS NULL
+                     OR EXISTS (
+                       SELECT 1 FROM todo t
+                       WHERE t.id=file_attachment.todo_id AND t.deleted_at IS NULL
+                     )
+                   )
                    AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
                  ORDER BY id DESC LIMIT ?
                 """, (rs, n) -> map(rs), projectId, userId, userId, term, term, bounded);
