@@ -39,8 +39,13 @@ public class FileAttachmentService {
         var todo = todos.find(todoId);
         access.requireAccess(todo.projectId(), actor);
         String path = save(todo.projectId(), file);
-        return attachments.create(todo.projectId(), todoId, actor.id(), null,
-                safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
+        try {
+            return attachments.create(todo.projectId(), todoId, actor.id(), null,
+                    safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
+        } catch (RuntimeException createFailure) {
+            storage.deleteQuietly(path);
+            throw createFailure;
+        }
     }
 
     public record Recipient(long id, String displayName, String loginId, boolean admin) {}
@@ -76,8 +81,13 @@ public class FileAttachmentService {
                 || users.findById(recipientId).filter(User::active).map(User::isAdmin).orElse(false);
         if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트 팀원 또는 관리자여야 합니다.");
         String path = save(projectId, file);
-        return attachments.create(projectId, null, actor.id(), recipientId,
-                safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
+        try {
+            return attachments.create(projectId, null, actor.id(), recipientId,
+                    safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
+        } catch (RuntimeException createFailure) {
+            storage.deleteQuietly(path);
+            throw createFailure;
+        }
     }
 
     public List<FileAttachmentRepository.Attachment> listForTodo(long todoId, User actor) {
