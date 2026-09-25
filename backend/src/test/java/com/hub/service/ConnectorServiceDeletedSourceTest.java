@@ -51,14 +51,13 @@ class ConnectorServiceDeletedSourceTest {
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
                 googleTokens, externalOAuth, policy
         );
-        User user = new User(7L, "member7", "member7@example.test", "Member 7",
-                "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
+        User user = user(7L);
 
         assertEquals(0, service.importItems(10L, "GITHUB", "repo", user));
 
-        verify(repository, never()).saveItem(
+        verify(repository, never()).saveImportedItem(
                 anyLong(), any(), anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any()
         );
         verify(documents, never()).importExternalText(
                 anyLong(), anyString(), anyString(), anyString(), anyString(), any(User.class)
@@ -66,6 +65,46 @@ class ConnectorServiceDeletedSourceTest {
         verify(repository).saveSyncState(
                 eq(10L), eq("GITHUB"), eq("repo"), eq("SUCCESS"),
                 contains("보관 중인 자료 1건"), eq(0)
+        );
+    }
+
+    @Test
+    void successfulImportLinksSnapshotToNormalizedDocument() {
+        ReadOnlyConnector adapter = mock(ReadOnlyConnector.class);
+        ConnectorRepository repository = mock(ConnectorRepository.class);
+        DocumentService documents = mock(DocumentService.class);
+        TimelineRepository timeline = mock(TimelineRepository.class);
+        HubProperties props = mock(HubProperties.class);
+        GoogleAccessTokenProvider googleTokens = mock(GoogleAccessTokenProvider.class);
+        ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
+        ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
+
+        when(adapter.type()).thenReturn("GITHUB");
+        when(adapter.fetch("repo", "token")).thenReturn(List.of(new ExternalContent(
+                "repo:item-3", "GIT_ISSUE", "정상 이슈", "검색 가능한 내용",
+                null, null, "Alice", "https://github.com/example/repo/issues/3",
+                OffsetDateTime.parse("2026-09-25T00:00:00Z"), Map.of()
+        )));
+        when(policy.isEnabled("GITHUB")).thenReturn(true);
+        when(externalOAuth.token(7L, "GITHUB")).thenReturn("token");
+        when(externalOAuth.accountId(7L, "GITHUB")).thenReturn(55L);
+        when(documents.importExternalText(
+                10L, "GITHUB", "GITHUB:repo:item-3", "정상 이슈", "검색 가능한 내용", user(7L)
+        )).thenReturn(901L);
+        when(documents.documentIdForVersion(901L)).thenReturn(301L);
+
+        ConnectorService service = new ConnectorService(
+                List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
+                googleTokens, externalOAuth, policy
+        );
+        User user = user(7L);
+
+        assertEquals(1, service.importItems(10L, "GITHUB", "repo", user));
+
+        verify(repository).saveImportedItem(
+                eq(10L), eq(55L), eq("GITHUB"), eq("repo:item-3"), eq("GIT_ISSUE"),
+                eq("정상 이슈"), eq("검색 가능한 내용"), eq("Alice"),
+                eq("https://github.com/example/repo/issues/3"), any(), anyString(), eq(301L)
         );
     }
 
@@ -94,14 +133,13 @@ class ConnectorServiceDeletedSourceTest {
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
                 googleTokens, externalOAuth, policy
         );
-        User user = new User(7L, "member7", "member7@example.test", "Member 7",
-                "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
+        User user = user(7L);
 
         assertEquals(0, service.importItems(10L, "GITHUB", "repo", user));
 
-        verify(repository, never()).saveItem(
+        verify(repository, never()).saveImportedItem(
                 anyLong(), any(), anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any()
         );
         verify(documents, never()).importExternalText(
                 anyLong(), anyString(), anyString(), anyString(), anyString(), any(User.class)
@@ -110,5 +148,9 @@ class ConnectorServiceDeletedSourceTest {
                 eq(10L), eq("GITHUB"), eq("repo"), eq("SUCCESS"),
                 contains("영구 삭제한 자료 1건"), eq(0)
         );
+    }
+    private static User user(long id) {
+        return new User(id, "member" + id, "member" + id + "@example.test", "Member " + id,
+                "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
     }
 }
