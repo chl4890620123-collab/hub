@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarCheck, FileText, HelpCircle, Paperclip } from 'lucide-react';
+import { CalendarCheck, FileText, HelpCircle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
 import type { TodoItem } from '@/api/types';
 import { StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
 import { TodoAttachmentsPanel } from '@/features/todos/TodoAttachmentsPanel';
@@ -19,6 +19,10 @@ export function TodoCard({
   onRequestHelp,
   onResolveHelp,
   onShowEvidence,
+  canDelete,
+  isDeleted,
+  onDelete,
+  onRestore,
   compact,
 }: {
   todo: TodoItem;
@@ -34,6 +38,10 @@ export function TodoCard({
   onRequestHelp: (note: string) => void;
   onResolveHelp: () => void;
   onShowEvidence: () => void;
+  canDelete: boolean;
+  isDeleted?: boolean;
+  onDelete: () => void;
+  onRestore: () => void;
   compact?: boolean;
 }) {
   const [showAttachments, setShowAttachments] = useState(false);
@@ -41,13 +49,15 @@ export function TodoCard({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
   const needsReassignment = todo.assignmentStatus === 'REASSIGNMENT_REQUIRED';
-  const canCycle = !needsReassignment && isAssignee && !todo.pendingApproval && (todo.taskStatus === 'TODO' || todo.taskStatus === 'IN_PROGRESS');
+  const canCycle = !isDeleted && !needsReassignment && isAssignee && !todo.pendingApproval && (todo.taskStatus === 'TODO' || todo.taskStatus === 'IN_PROGRESS');
 
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
       <div className="mb-1.5 flex items-start justify-between gap-2">
         <p className={cn('font-medium text-ink-900', compact ? 'truncate text-xs' : 'text-sm')}>{todo.title}</p>
-        {needsReassignment ? (
+        {isDeleted ? (
+          <Badge variant="neutral">휴지통</Badge>
+        ) : needsReassignment ? (
           <Badge variant="warning">새 담당자 필요</Badge>
         ) : todo.pendingApproval ? (
           <Badge variant="warning">완료 승인 대기</Badge>
@@ -89,7 +99,7 @@ export function TodoCard({
         </span>
       </div>
 
-      {!compact && !needsReassignment && (isAssignee || canConfirm) && todo.taskStatus !== 'DONE' && (
+      {!compact && !isDeleted && !needsReassignment && (isAssignee || canConfirm) && todo.taskStatus !== 'DONE' && (
         <div className="mt-2 flex flex-wrap gap-2 border-t border-ink-100 pt-2">
           {isAssignee && !todo.pendingApproval && todo.taskStatus === 'BLOCKED' && (
             <button onClick={onResolveHelp} className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200">
@@ -121,6 +131,24 @@ export function TodoCard({
                 반려
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {!compact && (
+        <div className="mt-2 flex justify-end border-t border-ink-100 pt-2">
+          {isDeleted ? (
+            canDelete && (
+              <button onClick={onRestore} className="flex items-center gap-1 rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
+                <RotateCcw size={12} /> 복원
+              </button>
+            )
+          ) : (
+            canDelete && (
+              <button onClick={onDelete} className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100">
+                <Trash2 size={12} /> 삭제
+              </button>
+            )
           )}
         </div>
       )}
