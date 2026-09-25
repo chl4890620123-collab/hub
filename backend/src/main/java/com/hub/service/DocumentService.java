@@ -159,6 +159,11 @@ public class DocumentService {
         return documents.isSourceDeleted(projectId, sourceType, sourceIdentifier);
     }
 
+    public boolean isArchivedExternalSource(long projectId, String sourceType, String sourceIdentifier) {
+        validateExternalIdentity(sourceType, sourceIdentifier);
+        return documents.isSourceArchived(projectId, sourceType, sourceIdentifier);
+    }
+
     public long importExternalText(long projectId,
                                    String sourceType,
                                    String sourceIdentifier,
@@ -168,6 +173,9 @@ public class DocumentService {
         validateExternalIdentity(sourceType, sourceIdentifier);
         if (documents.isSourceDeleted(projectId, sourceType, sourceIdentifier)) {
             throw new IllegalStateException("영구 삭제된 연결 자료는 다시 가져오지 않습니다.");
+        }
+        if (documents.isSourceArchived(projectId, sourceType, sourceIdentifier)) {
+            throw new IllegalStateException("보관 중인 연결 자료는 복원하기 전까지 다시 가져오지 않습니다.");
         }
         validateExtractedText(text);
         String safeTitle = safeTitle(title, sourceType + " item");
@@ -193,6 +201,9 @@ public class DocumentService {
         validateExternalIdentity(sourceType, sourceIdentifier);
         if (documents.isSourceDeleted(projectId, sourceType, sourceIdentifier)) {
             throw new IllegalStateException("영구 삭제된 연결 자료는 다시 가져오지 않습니다.");
+        }
+        if (documents.isSourceArchived(projectId, sourceType, sourceIdentifier)) {
+            throw new IllegalStateException("보관 중인 연결 자료는 복원하기 전까지 다시 가져오지 않습니다.");
         }
         if (bytes == null || bytes.length == 0) throw new IllegalArgumentException("가져온 파일이 비어 있습니다.");
 
