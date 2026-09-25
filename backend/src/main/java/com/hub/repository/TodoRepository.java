@@ -174,11 +174,11 @@ public class TodoRepository {
     public int purgeCompletedOlderThan(LocalDate cutoff){
         jdbc.update("""
                 UPDATE todo SET possible_duplicate_of_id=NULL WHERE possible_duplicate_of_id IN (
-                  SELECT id FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND due_date<?
+                  SELECT id FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND deleted_at IS NULL AND due_date<?
                 )
                 """, Date.valueOf(cutoff));
         return jdbc.update(
-                "DELETE FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND due_date<?",
+                "DELETE FROM todo WHERE task_status='DONE' AND review_status='CONFIRMED' AND deleted_at IS NULL AND due_date<?",
                 Date.valueOf(cutoff));
     }
 
