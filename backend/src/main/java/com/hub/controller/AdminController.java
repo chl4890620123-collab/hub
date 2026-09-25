@@ -160,5 +160,5 @@ public class AdminController {
 
     private User requireTarget(long userId){return users.findById(userId).orElseThrow(()->new IllegalArgumentException("사용자를 찾을 수 없습니다."));}
     private void protectLastAdmin(User target,boolean nextActive,String nextRole){if(target.active()&&target.isAdmin()&&(!nextActive||!"ADMIN".equals(nextRole))&&users.countActiveAdmins()<=1)throw new IllegalArgumentException("마지막 활성 관리자 계정은 정지/탈퇴하거나 MEMBER로 변경할 수 없습니다.");}
-    private static String normalizeRole(String raw){String r=raw==null?"MEMBER":raw.trim().toUpperCase(Locale.ROOT);if(!GLOBAL_ROLES.contains(r))throw new IllegalArgumentException("Unsupported role: "+r);return r;}
+    private static String normalizeRole(String raw){String r=raw==null?"MEMBER":raw.trim().toUpperCase(Locale.ROOT);if(!GLOBAL_ROLES.contains(r))throw new IllegalArgumentException("지원하지 않는 사용자 권한입니다.");return r;}
 }
