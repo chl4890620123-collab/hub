@@ -149,7 +149,7 @@ public class NotionConnector implements ReadOnlyConnector {
                         .retrieve().body(String.class);
                 body = ConnectorSupport.json(json, response, "Notion 응답을 처리하지 못했습니다.");
             } catch (RestClientException e) {
-                throw new IllegalStateException("Notion API request failed", e);
+                throw new IllegalStateException("Notion 자료 목록을 불러오지 못했습니다.", e);
             }
             JsonNode results = body.path("results");
             if (results.isArray()) {
