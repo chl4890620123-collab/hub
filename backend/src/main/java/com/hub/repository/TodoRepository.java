@@ -79,14 +79,14 @@ public class TodoRepository {
 
     public List<TodoItem> listMonth(long projectId,LocalDate from,LocalDate to){
         return jdbc.query(selectColumns()+"""
-             FROM todo WHERE project_id=? AND review_status='CONFIRMED'
+             FROM todo WHERE project_id=? AND review_status='CONFIRMED' AND deleted_at IS NULL
                AND due_date>=? AND due_date<?
              ORDER BY due_date,id
             """,(rs,n)->map(rs),projectId,Date.valueOf(from),Date.valueOf(to));
     }
 
     public List<TodoItem> listUndated(long projectId){
-        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status='CONFIRMED' AND due_date IS NULL ORDER BY id DESC",
+        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status='CONFIRMED' AND deleted_at IS NULL AND due_date IS NULL ORDER BY id DESC",
                 (rs,n)->map(rs),projectId);
     }
 
@@ -94,7 +94,7 @@ public class TodoRepository {
     public List<TodoItem> listDueThrough(long projectId, LocalDate through){
         return jdbc.query(selectColumns()+"""
                 FROM todo
-                WHERE project_id=? AND review_status='CONFIRMED'
+                WHERE project_id=? AND review_status='CONFIRMED' AND deleted_at IS NULL
                   AND task_status<>'DONE' AND due_date IS NOT NULL AND due_date<=?
                 ORDER BY due_date,id
                 LIMIT 500
@@ -102,18 +102,18 @@ public class TodoRepository {
     }
 
     public List<TodoItem> listRecentConfirmed(long projectId,int limit){
-        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status='CONFIRMED' ORDER BY id DESC LIMIT ?",
+        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status='CONFIRMED' AND deleted_at IS NULL ORDER BY id DESC LIMIT ?",
                 (rs,n)->map(rs),projectId,Math.max(1,Math.min(limit,500)));
     }
 
     public List<TodoItem> pending(long projectId){
-        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status IN ('AI_GENERATED','REVIEWING') ORDER BY id DESC",
+        return jdbc.query(selectColumns()+" FROM todo WHERE project_id=? AND review_status IN ('AI_GENERATED','REVIEWING') AND deleted_at IS NULL ORDER BY id DESC",
                 (rs,n)->map(rs),projectId);
     }
 
     public List<TodoItem> unfinishedAssigned(long projectId,long userId){
         return jdbc.query(selectColumns()+"""
-                FROM todo WHERE project_id=? AND assignee_id=? AND review_status='CONFIRMED'
+                FROM todo WHERE project_id=? AND assignee_id=? AND review_status='CONFIRMED' AND deleted_at IS NULL
                   AND task_status<>'DONE' AND assignment_status='ACTIVE' ORDER BY id
                 """,(rs,n)->map(rs),projectId,userId);
     }
@@ -122,7 +122,7 @@ public class TodoRepository {
         int updated=jdbc.update("""
             UPDATE todo SET assignee_id=?,assignee_text=?,due_date=?,review_status='CONFIRMED',assignment_status='ACTIVE',
               confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
-            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')
+            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING') AND deleted_at IS NULL
             """,assigneeId,assigneeText,dueDate==null?null:Date.valueOf(dueDate),actorId,todoId);
         return updated==1;
     }
@@ -130,33 +130,33 @@ public class TodoRepository {
     public boolean editCandidate(long todoId,String title,String description){
         return jdbc.update("""
             UPDATE todo SET title=?,description=?,normalized_title=?,updated_at=CURRENT_TIMESTAMP
-            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')
+            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING') AND deleted_at IS NULL
             """,title,description,normalizeTitle(title),todoId)==1;
     }
 
     public boolean reject(long todoId,long actorId){
         return jdbc.update("""
             UPDATE todo SET review_status='REJECTED',confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
-            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING')
+            WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING') AND deleted_at IS NULL
             """,actorId,todoId)==1;
     }
 
     public boolean updateTaskStatus(long todoId,String status){
         return jdbc.update("""
                 UPDATE todo SET task_status=?,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND deleted_at IS NULL
                 """,status,todoId)==1;
     }
 
     /** Returns true only for the transaction that moved an ACTIVE assignment into the handoff state. */
     public boolean requireReassignment(long todoId){
-        return jdbc.update("UPDATE todo SET assignment_status='REASSIGNMENT_REQUIRED',updated_at=CURRENT_TIMESTAMP WHERE id=? AND assignment_status='ACTIVE'",todoId)==1;
+        return jdbc.update("UPDATE todo SET assignment_status='REASSIGNMENT_REQUIRED',updated_at=CURRENT_TIMESTAMP WHERE id=? AND assignment_status='ACTIVE' AND deleted_at IS NULL",todoId)==1;
     }
 
     public boolean reassign(long todoId,long newAssigneeId,String assigneeText){
         return jdbc.update("""
                 UPDATE todo SET assignee_id=?,assignee_text=?,assignment_status='ACTIVE',updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='REASSIGNMENT_REQUIRED'
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='REASSIGNMENT_REQUIRED' AND deleted_at IS NULL
                 """,newAssigneeId,assigneeText,todoId)==1;
     }
 
@@ -184,7 +184,7 @@ public class TodoRepository {
 
     public List<TitleRow> recentOpenTitles(long projectId,int limit){
         return jdbc.query("""
-                SELECT id,title,review_status FROM todo WHERE project_id=? AND review_status<>'REJECTED'
+                SELECT id,title,review_status FROM todo WHERE project_id=? AND review_status<>'REJECTED' AND deleted_at IS NULL
                 ORDER BY id DESC LIMIT ?
                 """,(rs,n)->new TitleRow(rs.getLong("id"),rs.getString("title"),rs.getString("review_status")),projectId,Math.max(1,Math.min(limit,500)));
     }
@@ -201,21 +201,21 @@ public class TodoRepository {
         return jdbc.update("""
                 UPDATE todo SET pending_approval=TRUE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
-                  AND pending_approval=FALSE AND task_status<>'DONE'
+                  AND pending_approval=FALSE AND task_status<>'DONE' AND deleted_at IS NULL
                 """,todoId)==1;
     }
 
     public boolean approveCompletion(long todoId){
         return jdbc.update("""
                 UPDATE todo SET task_status='DONE',pending_approval=FALSE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND pending_approval=TRUE
+                WHERE id=? AND pending_approval=TRUE AND deleted_at IS NULL
                 """,todoId)==1;
     }
 
     public boolean rejectCompletion(long todoId,String reason){
         return jdbc.update("""
                 UPDATE todo SET pending_approval=FALSE,status_note=?,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND pending_approval=TRUE
+                WHERE id=? AND pending_approval=TRUE AND deleted_at IS NULL
                 """,reason,todoId)==1;
     }
 
@@ -223,14 +223,36 @@ public class TodoRepository {
     public boolean requestHelp(long todoId,String note){
         return jdbc.update("""
                 UPDATE todo SET task_status='BLOCKED',status_note=?,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND task_status<>'DONE'
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND task_status<>'DONE' AND deleted_at IS NULL
                 """,note,todoId)==1;
     }
 
     public boolean resolveHelp(long todoId){
         return jdbc.update("""
                 UPDATE todo SET task_status='IN_PROGRESS',status_note=NULL,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND task_status='BLOCKED'
+                WHERE id=? AND task_status='BLOCKED' AND deleted_at IS NULL
+                """,todoId)==1;
+    }
+
+    /** Project trash is intentionally separate from normal task lists. */
+    public List<TodoItem> listDeleted(long projectId) {
+        return jdbc.query(selectColumns()+"""
+                FROM todo WHERE project_id=? AND deleted_at IS NOT NULL
+                ORDER BY deleted_at DESC,id DESC LIMIT 500
+                """,(rs,n)->map(rs),projectId);
+    }
+
+    public boolean softDelete(long todoId,long actorId) {
+        return jdbc.update("""
+                UPDATE todo SET deleted_at=CURRENT_TIMESTAMP,deleted_by=?,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND deleted_at IS NULL
+                """,actorId,todoId)==1;
+    }
+
+    public boolean restore(long todoId) {
+        return jdbc.update("""
+                UPDATE todo SET deleted_at=NULL,deleted_by=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND deleted_at IS NOT NULL
                 """,todoId)==1;
     }
 
@@ -238,7 +260,7 @@ public class TodoRepository {
         SELECT id,project_id,title,description,assignee_id,assignee_text,assignee_suggestion_id,
                assignee_suggestion_text,due_date,due_date_suggestion,confidence,review_status,task_status,
                assignment_status,possible_duplicate_of_id,duplicate_reason,created_at,updated_at,google_calendar_event_id,
-               pending_approval,status_note
+               pending_approval,status_note,deleted_at,deleted_by
         """;}
     private TodoItem map(java.sql.ResultSet rs)throws java.sql.SQLException{
         Date due=rs.getDate("due_date"),suggestion=rs.getDate("due_date_suggestion");
@@ -250,6 +272,8 @@ public class TodoRepository {
                 suggestion==null?null:suggestion.toLocalDate(),rs.getString("confidence"),rs.getString("review_status"),
                 rs.getString("task_status"),rs.getString("assignment_status"),duplicateId,rs.getString("duplicate_reason"),
                 rs.getTimestamp("created_at").toLocalDateTime(),rs.getTimestamp("updated_at").toLocalDateTime(),
-                rs.getString("google_calendar_event_id"),rs.getBoolean("pending_approval"),rs.getString("status_note"));
+                rs.getString("google_calendar_event_id"),rs.getBoolean("pending_approval"),rs.getString("status_note"),
+                rs.getTimestamp("deleted_at")==null?null:rs.getTimestamp("deleted_at").toLocalDateTime(),
+                rs.getObject("deleted_by")==null?null:rs.getLong("deleted_by"));
     }
 }
