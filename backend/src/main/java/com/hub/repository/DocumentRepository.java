@@ -363,10 +363,20 @@ public class DocumentRepository {
                 )
                 """, documentId);
         jdbc.update("""
-                UPDATE ai_run SET document_version_id=NULL
+                UPDATE ai_run
+                SET document_version_id=NULL,raw_json=NULL
                 WHERE document_version_id IN (
                   SELECT id FROM document_version WHERE document_id=?
                 )
+                """, documentId);
+        // Background job results are a second copy of AI analysis output. Keep the operational
+        // status/timestamps for audit, but scrub the result/error payload when the source document
+        // is permanently deleted so deleted content cannot survive through /api/jobs/{id}.
+        jdbc.update("""
+                UPDATE processing_job
+                SET result_json=NULL,error_message=NULL
+                WHERE target_type='DOCUMENT_VERSION'
+                  AND target_id IN (SELECT id FROM document_version WHERE document_id=?)
                 """, documentId);
         jdbc.update("""
                 DELETE FROM change_analysis
