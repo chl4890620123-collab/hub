@@ -36,11 +36,18 @@ public class ProjectController {
         this.currentUser = currentUser;
         this.projectAccess = projectAccess;
         this.memberships = memberships;
+        private static String trimNullable(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
+}
 
     public record CreateProject(
             @NotBlank @Size(max = 200) String name,
-            @Size(max = 2000) String description
+            @Size(max = 2000) String description,
+            @Size(max = 200) String departmentName,
+            @Size(max = 200) String teamName
     ) {
     }
 
@@ -55,9 +62,11 @@ public class ProjectController {
         User user = currentUser.requireOperational(authentication);
         if (!user.isAdmin()) throw new org.springframework.security.access.AccessDeniedException("관리자 권한이 필요합니다.");
         String name = request.name().trim();
-        String description = request.description() == null ? null : request.description().trim();
-        long id = projects.create(name, description, user.id());
-        return new Project(id, name, description, user.id(), "ADMIN", true);
+        String description = trimNullable(request.description());
+        String departmentName = trimNullable(request.departmentName());
+        String teamName = trimNullable(request.teamName());
+        long id = projects.create(name, description, departmentName, teamName, user.id());
+        return new Project(id, name, description, departmentName, teamName, user.id(), "ADMIN", true);
     }
 
     @GetMapping("/{projectId}/members")
@@ -95,8 +104,10 @@ public class ProjectController {
         projectAccess.requireAdmin(projectId, user);
         if (!projects.exists(projectId)) throw new IllegalArgumentException("존재하지 않는 프로젝트입니다.");
         String name = request.name().trim();
-        String description = request.description() == null ? null : request.description().trim();
-        projects.rename(projectId, name, description);
+        String description = trimNullable(request.description());
+        String departmentName = trimNullable(request.departmentName());
+        String teamName = trimNullable(request.teamName());
+        projects.rename(projectId, name, description, departmentName, teamName);
         return Map.of("status", "UPDATED");
     }
 }
