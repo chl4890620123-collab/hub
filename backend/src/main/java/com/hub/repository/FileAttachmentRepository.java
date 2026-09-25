@@ -79,6 +79,11 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), projectId, userId, userId, term, term, bounded);
     }
 
+    /** Move private todo files to the new assignee when ownership of the todo changes. */
+    public int reassignTodoRecipient(long todoId, long newRecipientId) {
+        return jdbc.update("UPDATE file_attachment SET recipient_id=? WHERE todo_id=?", newRecipientId, todoId);
+    }
+
     public void markRead(long id) {
         jdbc.update("UPDATE file_attachment SET read_at=CURRENT_TIMESTAMP WHERE id=? AND read_at IS NULL", id);
     }
