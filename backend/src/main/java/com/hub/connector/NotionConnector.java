@@ -38,7 +38,7 @@ public class NotionConnector implements ReadOnlyConnector {
 
     @Override
     public List<ExternalContent> fetch(String scope, String token) {
-        if (token == null || token.isBlank()) throw new IllegalArgumentException("Notion access token is required");
+        if (token == null || token.isBlank()) throw new IllegalArgumentException("Notion 계정을 먼저 연결해 주세요.");
         String pageId = normalizeId(scope);
         JsonNode page = get("/pages/" + pageId, token);
         String title = pageTitle(page);
@@ -79,7 +79,7 @@ public class NotionConnector implements ReadOnlyConnector {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .header("Notion-Version", API_VERSION)
                     .retrieve().body(String.class);
-            return ConnectorSupport.json(json, body, "Invalid Notion response");
+            return ConnectorSupport.json(json, body, "Notion 응답을 처리하지 못했습니다.");
         } catch (HttpClientErrorException.Unauthorized e) {
             throw new IllegalStateException("Notion 연결이 만료되었거나 토큰이 유효하지 않습니다. 다시 연결해 주세요.", e);
         } catch (HttpClientErrorException.Forbidden e) {
@@ -87,7 +87,7 @@ public class NotionConnector implements ReadOnlyConnector {
         } catch (HttpClientErrorException.NotFound e) {
             throw new IllegalStateException("Notion 페이지를 찾을 수 없거나 Integration에 공유되지 않았습니다.", e);
         } catch (RestClientException e) {
-            throw new IllegalStateException("Notion API request failed", e);
+            throw new IllegalStateException("Notion 자료를 가져오지 못했습니다.", e);
         }
     }
 
@@ -101,7 +101,7 @@ public class NotionConnector implements ReadOnlyConnector {
                 if (!title.isBlank()) return title;
             }
         }
-        return "Notion page";
+        return "제목 없는 Notion 페이지";
     }
 
     private static String richText(JsonNode array) {
@@ -119,7 +119,7 @@ public class NotionConnector implements ReadOnlyConnector {
         java.util.regex.Matcher matcher = ID.matcher(value);
         String found = null;
         while (matcher.find()) found = matcher.group();
-        if (found == null) throw new IllegalArgumentException("Notion scope must be a page id or page URL");
+        if (found == null) throw new IllegalArgumentException("Notion 페이지를 목록에서 다시 선택해 주세요.");
         return found;
     }
 
@@ -147,7 +147,7 @@ public class NotionConnector implements ReadOnlyConnector {
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .body(requestBody)
                         .retrieve().body(String.class);
-                body = ConnectorSupport.json(json, response, "Invalid Notion response");
+                body = ConnectorSupport.json(json, response, "Notion 응답을 처리하지 못했습니다.");
             } catch (RestClientException e) {
                 throw new IllegalStateException("Notion API request failed", e);
             }
