@@ -256,6 +256,11 @@ public class TodoRepository {
                 """,todoId)==1;
     }
 
+    public boolean permanentDelete(long todoId) {
+        jdbc.update("UPDATE todo SET possible_duplicate_of_id=NULL WHERE possible_duplicate_of_id=?", todoId);
+        return jdbc.update("DELETE FROM todo WHERE id=? AND deleted_at IS NOT NULL", todoId)==1;
+    }
+
     private static String selectColumns(){return """
         SELECT id,project_id,title,description,assignee_id,assignee_text,assignee_suggestion_id,
                assignee_suggestion_text,due_date,due_date_suggestion,confidence,review_status,task_status,
