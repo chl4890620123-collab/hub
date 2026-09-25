@@ -4,6 +4,7 @@ package com.hub.service;
 import com.hub.model.TodoItem;
 import com.hub.model.User;
 import com.hub.repository.AuditRepository;
+import com.hub.repository.FileAttachmentRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.ReassignmentRepository;
 import com.hub.repository.TodoRepository;
@@ -22,10 +23,13 @@ public class TodoReassignmentService {
     private final UserRepository users;
     private final AuditRepository audit;
     private final GoogleCalendarService calendar;
+    private final FileAttachmentRepository attachments;
 
     public TodoReassignmentService(ReassignmentRepository reassignments,TodoRepository todos,ProjectRepository projects,
-                                   UserRepository users,AuditRepository audit,GoogleCalendarService calendar){
+                                   UserRepository users,AuditRepository audit,GoogleCalendarService calendar,
+                                   FileAttachmentRepository attachments){
         this.reassignments=reassignments;this.todos=todos;this.projects=projects;this.users=users;this.audit=audit;this.calendar=calendar;
+        this.attachments=attachments;
     }
 
     public List<Map<String,Object>> pending(long projectId){return reassignments.listPending(projectId);}
@@ -57,6 +61,7 @@ public class TodoReassignmentService {
                 .orElseThrow(()->new IllegalArgumentException("새 담당 팀원을 찾을 수 없습니다."));
         TodoItem before=todos.find(todoId);
         if(!todos.reassign(todoId,newAssigneeId,name))throw new StateConflictException("할 일의 재배정 상태가 이미 변경되었습니다.");
+        attachments.reassignTodoRecipient(todoId,newAssigneeId);
         if(!reassignments.resolve(requestId,admin.id(),newAssigneeId))throw new StateConflictException("재배정 요청이 이미 처리되었습니다.");
         // The old assignee's calendar hold belongs to a person who no longer owns this TODO - drop
         // it and open a fresh one for the new assignee, the same way TodoService.confirm does for a
