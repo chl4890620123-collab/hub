@@ -126,11 +126,15 @@ public class ConnectorService {
             String normalizedTitle = UnicodeText.nfcNullable(item.title());
             String normalizedContent = UnicodeText.nfcNullable(item.content());
             String normalizedAuthor = UnicodeText.nfcNullable(item.author());
+            String sourceIdentifier = adapter.type() + ":" + item.externalId();
+            if (documents.isPermanentlyDeletedExternalSource(projectId, adapter.type(), sourceIdentifier)) {
+                skipped++;
+                continue;
+            }
             repository.saveItem(
                     projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(), normalizedTitle, normalizedContent,
                     normalizedAuthor, item.sourceUrl(), item.createdAt(), metadata
             );
-            String sourceIdentifier = adapter.type() + ":" + item.externalId();
             // A folder is a mixed bag: one binary blob nobody can read must not discard the files
             // that imported fine before it. The item is skipped and reported in the sync status.
             try {
