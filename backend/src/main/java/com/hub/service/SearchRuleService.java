@@ -101,7 +101,7 @@ public class SearchRuleService {
     private NormalizedRule normalize(RuleInput input, Long editingId, long projectId) {
         if (input == null) throw new IllegalArgumentException("검색 도움 설정 내용을 입력해 주세요.");
         String name = text(input.name());
-        if (name.isBlank()) throw new IllegalArgumentException("검색 규칙 이름을 입력해 주세요.");
+        if (name.isBlank()) throw new IllegalArgumentException("검색 도움 설정 이름을 입력해 주세요.");
         if (name.length() > 200) throw new IllegalArgumentException("검색 도움 설정 이름은 200자 이하로 입력해 주세요.");
         List<String> patterns = normalizeList(input.patterns(), 20, 500);
         String targetFile = text(input.targetFile());
