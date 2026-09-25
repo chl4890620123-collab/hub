@@ -164,6 +164,10 @@ public class DocumentService {
         return documents.isSourceArchived(projectId, sourceType, sourceIdentifier);
     }
 
+    public long documentIdForVersion(long versionId) {
+        return documents.documentIdForVersion(versionId);
+    }
+
     public long importExternalText(long projectId,
                                    String sourceType,
                                    String sourceIdentifier,
