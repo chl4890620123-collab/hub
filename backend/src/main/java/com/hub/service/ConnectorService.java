@@ -29,6 +29,7 @@ public class ConnectorService {
     private final GoogleAccessTokenProvider googleTokens;
     private final ExternalOAuthService externalOAuth;
     private final ConnectorPolicyRepository policy;
+    private final ProjectAccessService projectAccess;
 
     public ConnectorService(List<ReadOnlyConnector> adapters,
                             ConnectorRepository repository,
@@ -47,6 +48,7 @@ public class ConnectorService {
         this.googleTokens = googleTokens;
         this.externalOAuth = externalOAuth;
         this.policy = policy;
+        this.projectAccess = projectAccess;
     }
 
     /**
@@ -100,6 +102,9 @@ public class ConnectorService {
      * accounts combine, not in the credential itself.
      */
     public int importItems(long projectId, String type, String scope, User user) {
+        // Re-check at the service boundary because this method is also called from async/auto-sync jobs.
+        // A user may have been removed from the project after the HTTP request queued the work.
+        projectAccess.requireAccess(projectId, user);
         String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
         ReadOnlyConnector adapter = adapters.get(normalizedType);
         if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
@@ -167,7 +172,7 @@ public class ConnectorService {
         if (excludedArchived > 0) notices.add("보관 중인 자료 " + excludedArchived + "건은 가져오지 않았습니다.");
         if (excludedDeleted > 0) notices.add("영구 삭제한 자료 " + excludedDeleted + "건은 다시 가져오지 않았습니다.");
         String note = notices.isEmpty() ? null : String.join(" ", notices);
-        repository.saveSyncState(projectId, normalizedType, cleanScope, "SUCCESS", note, imported);
+        repository.saveSyncState(projectId, normalizedType, cleanScope, user.id(), "SUCCESS", note, imported);
         timeline.append(
                 projectId,
                 "CONNECTOR_IMPORT",
@@ -179,7 +184,7 @@ public class ConnectorService {
         );
         return imported;
         } catch (RuntimeException ex) {
-            repository.saveSyncState(projectId, normalizedType, cleanScope, "FAILED", safeMessage(ex, effectiveToken), imported);
+            repository.saveSyncState(projectId, normalizedType, cleanScope, user.id(), "FAILED", safeMessage(ex, effectiveToken), imported);
             throw ex;
         }
     }
