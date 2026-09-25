@@ -13,8 +13,10 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -23,6 +25,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class FileAttachmentServiceDeleteTest {
+    private static long eqLong(long value) { return org.mockito.ArgumentMatchers.eq(value); }
+    private static Long eqLongObj(Long value) { return org.mockito.ArgumentMatchers.eq(value); }
     @Test
     void senderWhoNoLongerHasProjectAccessCannotDeleteOldAttachment() {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
@@ -64,6 +68,33 @@ class FileAttachmentServiceDeleteTest {
                 () -> service.sendToMember(9L, 99L, mock(org.springframework.web.multipart.MultipartFile.class), null, sender));
 
         verify(storage, never()).save(anyLong(), anyString(), org.mockito.ArgumentMatchers.any(byte[].class));
+    }
+
+    @Test
+    void failedDirectTransferMetadataInsertRemovesStoredFile() throws Exception {
+        FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
+        TodoRepository todos = mock(TodoRepository.class);
+        ProjectRepository projects = mock(ProjectRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        ProjectAccessService access = mock(ProjectAccessService.class);
+        FileStorageService storage = mock(FileStorageService.class);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+
+        User sender = member(11L);
+        org.springframework.web.multipart.MultipartFile file = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(projects.isMember(9L, 22L)).thenReturn(true);
+        when(file.isEmpty()).thenReturn(false);
+        when(file.getSize()).thenReturn(12L);
+        when(file.getOriginalFilename()).thenReturn("file.txt");
+        when(file.getContentType()).thenReturn("text/plain");
+        when(file.getBytes()).thenReturn(new byte[]{1, 2, 3});
+        when(storage.save(eqLong(9L), anyString(), any(byte[].class))).thenReturn("/trusted/orphan.txt");
+        when(attachments.create(eqLong(9L), isNull(), eqLong(11L), eqLongObj(22L), anyString(), anyString(),
+                eqLong(12L), anyString(), isNull())).thenThrow(new IllegalStateException("db failed"));
+
+        assertThrows(IllegalStateException.class, () -> service.sendToMember(9L, 22L, file, null, sender));
+
+        verify(storage).deleteQuietly("/trusted/orphan.txt");
     }
 
     @Test
