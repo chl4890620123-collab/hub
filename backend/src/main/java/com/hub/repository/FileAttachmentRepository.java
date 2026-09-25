@@ -49,8 +49,13 @@ public class FileAttachmentRepository {
                 .stream().findFirst();
     }
 
-    public List<Attachment> listForTodo(long todoId) {
-        return jdbc.query(selectColumns() + " FROM file_attachment WHERE todo_id=? ORDER BY id DESC", (rs, n) -> map(rs), todoId);
+    /** Todo attachments are private to the sender and the assignee captured as recipient_id. */
+    public List<Attachment> listForTodoVisible(long todoId, long userId) {
+        return jdbc.query(selectColumns() + """
+                FROM file_attachment
+                WHERE todo_id=? AND (sender_id=? OR recipient_id=?)
+                ORDER BY id DESC
+                """, (rs, n) -> map(rs), todoId, userId, userId);
     }
 
     /** Sent or received within the project - a small personal inbox, newest first. */
@@ -60,23 +65,15 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
-    /** Filename/note lookup with the same visibility rules as download: project todo attachments are
-     * visible to project members, while direct transfers stay private to sender/recipient unless the
-     * viewer is a global administrator. */
-    public List<Attachment> searchVisible(long projectId, long userId, boolean admin, String query, int limit) {
+    /** Filename/note lookup uses the same private visibility rule as download:
+     * only the sender or the explicitly recorded recipient may discover the file. */
+    public List<Attachment> searchVisible(long projectId, long userId, String query, int limit) {
         String term = "%" + (query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT)) + "%";
         int bounded = Math.max(1, Math.min(limit, 100));
-        if (admin) {
-            return jdbc.query(selectColumns() + """
-                     FROM file_attachment
-                     WHERE project_id=? AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
-                     ORDER BY id DESC LIMIT ?
-                    """, (rs, n) -> map(rs), projectId, term, term, bounded);
-        }
         return jdbc.query(selectColumns() + """
                  FROM file_attachment
                  WHERE project_id=?
-                   AND (todo_id IS NOT NULL OR sender_id=? OR recipient_id=?)
+                   AND (sender_id=? OR recipient_id=?)
                    AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
                  ORDER BY id DESC LIMIT ?
                 """, (rs, n) -> map(rs), projectId, userId, userId, term, term, bounded);
