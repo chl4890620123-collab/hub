@@ -131,6 +131,21 @@ public class DocumentRepository {
         );
     }
 
+    /**
+     * Connector refreshes update the source snapshot without overriding a user's archive choice.
+     * A source that reappears remotely is no longer source_deleted, but archived/archived_at stay as-is.
+     */
+    public void updateSourceMetadataPreservingArchive(long documentId, String originalName, String storagePath) {
+        jdbc.update(
+                """
+                UPDATE document
+                SET original_name=?,storage_path=?,source_deleted=FALSE
+                WHERE id=?
+                """,
+                originalName, storagePath, documentId
+        );
+    }
+
     public long createVersion(long documentId, String sha256, String fullText, String status) {
         Integer next = jdbc.queryForObject(
                 "SELECT COALESCE(MAX(version_no),0)+1 FROM document_version WHERE document_id=?",
