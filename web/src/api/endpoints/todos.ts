@@ -7,6 +7,7 @@ export const todosApi = {
   undated: (projectId: number) => apiGet<TodoItem[]>(`/api/projects/${projectId}/todos/undated`),
   dueThrough: (projectId: number, date: string) =>
     apiGet<TodoItem[]>(`/api/projects/${projectId}/todos/due-through?date=${encodeURIComponent(date)}`),
+  trash: (projectId: number) => apiGet<TodoItem[]>(`/api/projects/${projectId}/todos/trash`),
   pendingReview: (projectId: number) => apiGet<TodoItem[]>(`/api/projects/${projectId}/review/todos`),
   evidence: (todoId: number) => apiGet<EvidenceView[]>(`/api/todos/${todoId}/evidence`),
 
@@ -20,6 +21,8 @@ export const todosApi = {
     }),
   reject: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/reject`),
   mergeDuplicate: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/merge-duplicate`),
+  softDelete: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/delete`),
+  restore: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/restore`),
   editCandidate: (todoId: number, title: string, description: string) =>
     apiPatch<{ status: string }>(`/api/todos/${todoId}`, { title, description }),
   updateStatus: (todoId: number, status: TaskStatus) =>
