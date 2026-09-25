@@ -14,6 +14,9 @@ interface FormValues {
   password: string;
   passwordConfirm: string;
   displayName: string;
+  companyName: string;
+  departmentName: string;
+  teamName: string;
   privacyConsent: boolean;
 }
 
@@ -30,6 +33,9 @@ export function AdminSignupPage() {
         email: values.email,
         password: values.password,
         displayName: values.displayName,
+        companyName: values.companyName || null,
+        departmentName: values.departmentName || null,
+        teamName: values.teamName || null,
         privacyConsent: values.privacyConsent,
       }),
     onSuccess: (result) => setSuccessMessage(result.message),
@@ -78,6 +84,20 @@ export function AdminSignupPage() {
         <div>
           <Label htmlFor="email">이메일</Label>
           <Input id="email" type="email" {...register('email', { required: true })} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="companyName">회사/법인 (선택)</Label>
+            <Input id="companyName" {...register('companyName')} placeholder="예: 본사" />
+          </div>
+          <div>
+            <Label htmlFor="departmentName">부서 (선택)</Label>
+            <Input id="departmentName" {...register('departmentName')} placeholder="예: 개발부" />
+          </div>
+          <div>
+            <Label htmlFor="teamName">팀 (선택)</Label>
+            <Input id="teamName" {...register('teamName')} placeholder="예: 플랫폼팀" />
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
