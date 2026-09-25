@@ -1,4 +1,4 @@
-import { apiUpload } from '@/api/client';
+import { apiDelete, apiUpload } from '@/api/client';
 
 export interface MeetingUploadResult {
   meetingId: number;
@@ -14,4 +14,6 @@ export const meetingsApi = {
     if (meetingAt) params.set('meetingAt', meetingAt);
     return apiUpload<MeetingUploadResult>(`/api/projects/${projectId}/meetings?${params.toString()}`, form);
   },
+  deleteCompleted: (projectId: number, meetingId: number) =>
+    apiDelete<{ status: string; meetingId: number }>(`/api/projects/${projectId}/meetings/${meetingId}`),
 };
