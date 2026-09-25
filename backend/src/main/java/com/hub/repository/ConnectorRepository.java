@@ -308,9 +308,10 @@ public class ConnectorRepository {
     }
 
     /**
-     * Retention cleanup only: removes imported-item bookkeeping rows left orphaned by a disconnected
-     * connector account (connector_account_id is SET NULL on disconnect). Nothing else references
-     * external_item, and the document it may have imported is never touched.
+     * Retention cleanup only: remove snapshots that have neither a current account association nor a
+     * normalized imported document. A NULL connector_account_id alone is not orphaned: shared server
+     * credentials legitimately use NULL, and disconnecting a personal account must not erase project
+     * content that was already imported.
      */
     public int purgeOrphanedItemsOlderThan(java.time.LocalDate cutoff) {
         return jdbc.update(
