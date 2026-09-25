@@ -46,7 +46,18 @@ public class DocumentQueryController {
     public List<Map<String, Object>> list(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
-        return documents.listDocuments(projectId);
+        // Meeting transcripts are internal searchable evidence, not user-managed documents.
+        // Filter by the stable source type rather than a title so existing transcript rows remain
+        // intact for audit/search/revision while no longer appearing in the document-summary list.
+        return documents.listDocuments(projectId).stream()
+                .filter(row -> !"MEETING_TRANSCRIPT".equalsIgnoreCase(stringValue(row, "source_type")))
+                .toList();
+    }
+
+    private static String stringValue(Map<String, Object> row, String key) {
+        Object value = row.get(key);
+        if (value == null) value = row.get(key.toUpperCase());
+        return value == null ? "" : String.valueOf(value);
     }
 
     @GetMapping("/api/chunks/{chunkId}")
