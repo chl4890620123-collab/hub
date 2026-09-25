@@ -46,9 +46,11 @@ class ConnectorRepositoryVisibilityTest {
                   source_url VARCHAR(2000),
                   source_created_at TIMESTAMP,
                   raw_metadata CLOB,
+                  imported_document_id BIGINT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
+        jdbc.execute("CREATE UNIQUE INDEX uq_external_item_project_external ON external_item(project_id,external_id)");
     }
 
     @Test
@@ -66,5 +68,48 @@ class ConnectorRepositoryVisibilityTest {
                 repository.searchByMetadata(10, "Alice", null, null, Set.of("GITHUB"), 20).stream()
                         .map(ConnectorRepository.ExternalSearchRow::externalId).toList());
         assertTrue(repository.findByExternalId(10, "GITHUB:repo:item-1").isEmpty());
+    }
+
+    @Test
+    void snapshotUpsertUsesProjectAndExternalIdAcrossDifferentConnectorAccounts() {
+        repository.saveImportedItem(
+                10L, 501L, "GITHUB", "repo:item-9", "GIT_ISSUE",
+                "첫 제목", "첫 내용", "Alice", "https://example.test/1", null, "{}", 101L
+        );
+        repository.saveImportedItem(
+                10L, 777L, "GITHUB", "repo:item-9", "GIT_ISSUE",
+                "최신 제목", "최신 내용", "Bob", "https://example.test/2", null, "{}", 102L
+        );
+
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM external_item WHERE project_id=10 AND external_id='GITHUB:repo:item-9'",
+                Integer.class));
+        assertEquals(777L, jdbc.queryForObject(
+                "SELECT connector_account_id FROM external_item WHERE project_id=10 AND external_id='GITHUB:repo:item-9'",
+                Long.class));
+        assertEquals(102L, jdbc.queryForObject(
+                "SELECT imported_document_id FROM external_item WHERE project_id=10 AND external_id='GITHUB:repo:item-9'",
+                Long.class));
+        assertEquals("최신 내용", jdbc.queryForObject(
+                "SELECT content FROM external_item WHERE project_id=10 AND external_id='GITHUB:repo:item-9'",
+                String.class));
+    }
+
+    @Test
+    void retentionKeepsLinkedSharedSnapshotAndRemovesOnlyTrulyUnlinkedRows() {
+        jdbc.update("""
+                INSERT INTO external_item(
+                  id,project_id,connector_account_id,external_id,item_type,title,content,imported_document_id,created_at
+                ) VALUES(20,10,NULL,'GITHUB:repo:linked','GIT_ISSUE','연결됨','keep',101,DATEADD('MONTH',-18,CURRENT_TIMESTAMP))
+                """);
+        jdbc.update("""
+                INSERT INTO external_item(
+                  id,project_id,connector_account_id,external_id,item_type,title,content,imported_document_id,created_at
+                ) VALUES(21,10,NULL,'GITHUB:repo:orphan','GIT_ISSUE','미연결','remove',NULL,DATEADD('MONTH',-18,CURRENT_TIMESTAMP))
+                """);
+
+        assertEquals(1, repository.purgeOrphanedItemsOlderThan(java.time.LocalDate.now().minusMonths(12)));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM external_item WHERE id=20", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM external_item WHERE id=21", Integer.class));
     }
 }
