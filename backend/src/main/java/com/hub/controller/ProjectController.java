@@ -36,12 +36,7 @@ public class ProjectController {
         this.currentUser = currentUser;
         this.projectAccess = projectAccess;
         this.memberships = memberships;
-        private static String trimNullable(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isBlank() ? null : trimmed;
     }
-}
 
     public record CreateProject(
             @NotBlank @Size(max = 200) String name,
@@ -109,5 +104,11 @@ public class ProjectController {
         String teamName = trimNullable(request.teamName());
         projects.rename(projectId, name, description, departmentName, teamName);
         return Map.of("status", "UPDATED");
+    }
+
+    private static String trimNullable(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 }
