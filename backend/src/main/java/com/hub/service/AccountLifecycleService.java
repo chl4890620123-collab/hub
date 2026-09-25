@@ -3,6 +3,8 @@ package com.hub.service;
 
 import com.hub.model.User;
 import com.hub.repository.AuditRepository;
+import com.hub.repository.ConnectorAccountRepository;
+import com.hub.repository.ConnectorRepository;
 import com.hub.repository.RefreshTokenRepository;
 import com.hub.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -17,9 +19,13 @@ public class AccountLifecycleService {
     private final RefreshTokenRepository refreshTokens;
     private final MembershipService memberships;
     private final AuditRepository audit;
+    private final ConnectorAccountRepository connectorAccounts;
+    private final ConnectorRepository connectorSync;
 
-    public AccountLifecycleService(UserRepository users,RefreshTokenRepository refreshTokens,MembershipService memberships,AuditRepository audit){
+    public AccountLifecycleService(UserRepository users,RefreshTokenRepository refreshTokens,MembershipService memberships,AuditRepository audit,
+                                   ConnectorAccountRepository connectorAccounts,ConnectorRepository connectorSync){
         this.users=users;this.refreshTokens=refreshTokens;this.memberships=memberships;this.audit=audit;
+        this.connectorAccounts=connectorAccounts;this.connectorSync=connectorSync;
     }
 
     @Transactional
@@ -37,6 +43,10 @@ public class AccountLifecycleService {
         if(!"ACTIVE".equals(status)) queued=memberships.removeFromAllProjects(userId,actor,"WITHDRAWN".equals(status)?"ACCOUNT_WITHDRAWAL":"ACCOUNT_SUSPEND");
         if(!users.setAccountStatus(userId,status,reason))throw new StateConflictException("계정 상태를 변경할 수 없습니다.");
         refreshTokens.revokeAllForUser(userId,"ACCOUNT_"+status);
+        if("WITHDRAWN".equals(status)){
+            connectorSync.clearSyncOwnersForUser(userId);
+            connectorAccounts.disconnectAllForUser(userId);
+        }
         audit.add(actor==null?userId:actor.id(),null,"USER_ACCOUNT_STATUS","USER",userId,
                 "{\"status\":\""+status+"\",\"reassignmentCount\":"+queued+"}");
         return queued;
