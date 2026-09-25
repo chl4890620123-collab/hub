@@ -109,7 +109,7 @@ public class DocumentService {
         validateExtractedText(text);
         String stripped = text.strip();
         byte[] bytes = stripped.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        return createVersionForDocument(projectId, documentId, safeTitle, null, stripped, bytes, user.id());
+        return createVersionForDocument(projectId, documentId, safeTitle, null, stripped, bytes, user.id(), true);
     }
 
     /**
@@ -171,7 +171,8 @@ public class DocumentService {
                 null,
                 text.strip(),
                 text.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                user
+                user,
+                false
         );
     }
 
@@ -191,9 +192,11 @@ public class DocumentService {
         if (existing.isPresent()) {
             var latest = documents.latestVersion(existing.get());
             var meta = documents.findMeta(existing.get());
-            boolean active = meta.isPresent() && !meta.get().archived() && !meta.get().sourceDeleted();
+            boolean sourcePresent = meta.isPresent() && !meta.get().sourceDeleted();
             if (latest.isPresent() && latest.get().sha256().equals(hash)
-                    && active && !documents.isVersionContentPurged(latest.get().id())) {
+                    && sourcePresent && !documents.isVersionContentPurged(latest.get().id())) {
+                // Same remote bytes need no new version. Crucially, do not unarchive the document:
+                // connector sync is a refresh, not an explicit user restore action.
                 return latest.get().id();
             }
         }
@@ -202,7 +205,7 @@ public class DocumentService {
         validateExtractedText(text);
         String stored = storage.save(projectId, safeName, bytes);
         try {
-            return saveText(projectId, sourceType, sourceIdentifier, safeName, stored, text, bytes, user);
+            return saveText(projectId, sourceType, sourceIdentifier, safeName, stored, text, bytes, user, false);
         } catch (RuntimeException e) {
             storage.deleteQuietly(stored);
             throw e;
@@ -283,7 +286,19 @@ public class DocumentService {
                           String text,
                           byte[] hashBytes,
                           User user) {
-        return saveText(projectId, sourceType, sourceIdentifier, title, storagePath, text, hashBytes, user.id());
+        return saveText(projectId, sourceType, sourceIdentifier, title, storagePath, text, hashBytes, user.id(), true);
+    }
+
+    private long saveText(long projectId,
+                          String sourceType,
+                          String sourceIdentifier,
+                          String title,
+                          String storagePath,
+                          String text,
+                          byte[] hashBytes,
+                          User user,
+                          boolean reactivate) {
+        return saveText(projectId, sourceType, sourceIdentifier, title, storagePath, text, hashBytes, user.id(), reactivate);
     }
 
     private long saveText(long projectId,
@@ -294,6 +309,18 @@ public class DocumentService {
                           String text,
                           byte[] hashBytes,
                           long userId) {
+        return saveText(projectId, sourceType, sourceIdentifier, title, storagePath, text, hashBytes, userId, true);
+    }
+
+    private long saveText(long projectId,
+                          String sourceType,
+                          String sourceIdentifier,
+                          String title,
+                          String storagePath,
+                          String text,
+                          byte[] hashBytes,
+                          long userId,
+                          boolean reactivate) {
         final String normalizedTitle = UnicodeText.nfc(title);
         Long documentId = transaction.execute(status -> {
             // A project-level row lock is intentionally brief and database-portable. It closes the
@@ -306,7 +333,7 @@ public class DocumentService {
                     ));
         });
         if (documentId == null) throw new IllegalStateException("Document id was not resolved");
-        return createVersionForDocument(projectId, documentId, title, storagePath, text, hashBytes, userId);
+        return createVersionForDocument(projectId, documentId, title, storagePath, text, hashBytes, userId, reactivate);
     }
 
     /**
@@ -319,7 +346,8 @@ public class DocumentService {
                                           String storagePath,
                                           String text,
                                           byte[] hashBytes,
-                                          long userId) {
+                                          long userId,
+                                          boolean reactivate) {
         final String normalizedTitle = UnicodeText.nfc(title);
         // Masked before it ever reaches full_text/chunks/embeddings/search, same as meeting transcripts.
         final String normalizedText = piiMasking.mask(UnicodeText.nfc(text));
@@ -334,11 +362,11 @@ public class DocumentService {
             var latest = documents.latestVersion(documentId);
             if (latest.isPresent() && latest.get().sha256().equals(hash)
                     && !documents.isVersionContentPurged(latest.get().id())) {
-                documents.updateSourceMetadata(documentId, normalizedTitle, storagePath);
+                updateSourceMetadata(documentId, normalizedTitle, storagePath, reactivate);
                 return latest.get().id();
             }
 
-            documents.updateSourceMetadata(documentId, normalizedTitle, storagePath);
+            updateSourceMetadata(documentId, normalizedTitle, storagePath, reactivate);
             long version = documents.createVersion(documentId, hash, normalizedText, "READY");
             List<Long> chunkIds = new ArrayList<>();
             for (int i = 0; i < chunks.size(); i++) {
@@ -376,6 +404,11 @@ public class DocumentService {
         });
         if (versionId == null) throw new IllegalStateException("Document transaction returned no version id");
         return versionId;
+    }
+
+    private void updateSourceMetadata(long documentId, String title, String storagePath, boolean reactivate) {
+        if (reactivate) documents.updateSourceMetadata(documentId, title, storagePath);
+        else documents.updateSourceMetadataPreservingArchive(documentId, title, storagePath);
     }
 
     private EmbeddingAttempt embedBestEffort(List<String> chunks) {
