@@ -33,6 +33,6 @@ public class SearchController {
     public List<Map<String, Object>> top(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
-        return searchLogs.top(projectId);
+        return searchLogs.topForUser(projectId, user.id());
     }
 }
