@@ -145,28 +145,29 @@ public class ConnectorService {
                 excludedArchived++;
                 continue;
             }
-            repository.saveItem(
-                    projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(),
-                    piiMasking.mask(normalizedTitle), piiMasking.mask(normalizedContent),
-                    piiMasking.mask(normalizedAuthor), item.sourceUrl(), item.createdAt(), metadata
-            );
-            // A folder is a mixed bag: one binary blob nobody can read must not discard the files
-            // that imported fine before it. The item is skipped and reported in the sync status.
+            // A snapshot must mirror a successfully imported normalized document. Saving the snapshot
+            // first meant a parser/import failure could still leave searchable external content with no
+            // document row to archive/delete alongside it.
             try {
                 if (item.hasBinary()) {
                     documents.importExternalFile(
                             projectId, adapter.type(), sourceIdentifier, normalizedTitle, item.contentType(),
                             item.binaryContent(), user
                     );
-                    imported++;
                 } else if (normalizedContent != null && !normalizedContent.isBlank()) {
                     documents.importExternalText(
                             projectId, adapter.type(), sourceIdentifier, normalizedTitle, normalizedContent, user
                     );
-                    imported++;
                 } else {
                     skipped++;
+                    continue;
                 }
+                repository.saveItem(
+                        projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(),
+                        piiMasking.mask(normalizedTitle), piiMasking.mask(normalizedContent),
+                        piiMasking.mask(normalizedAuthor), item.sourceUrl(), item.createdAt(), metadata
+                );
+                imported++;
             } catch (RuntimeException itemFailure) {
                 skipped++;
             }
