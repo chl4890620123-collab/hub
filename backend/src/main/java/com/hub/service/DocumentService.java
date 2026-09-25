@@ -80,7 +80,7 @@ public class DocumentService {
                 throw e;
             }
         } catch (IOException e) {
-            throw new IllegalStateException("File read failed", e);
+            throw new IllegalStateException("파일을 읽지 못했습니다.", e);
         }
     }
 
@@ -154,6 +154,11 @@ public class DocumentService {
         return ai.revise(originalText, meetingText).revisedText();
     }
 
+    public boolean isPermanentlyDeletedExternalSource(long projectId, String sourceType, String sourceIdentifier) {
+        validateExternalIdentity(sourceType, sourceIdentifier);
+        return documents.isSourceDeleted(projectId, sourceType, sourceIdentifier);
+    }
+
     public long importExternalText(long projectId,
                                    String sourceType,
                                    String sourceIdentifier,
@@ -161,6 +166,9 @@ public class DocumentService {
                                    String text,
                                    User user) {
         validateExternalIdentity(sourceType, sourceIdentifier);
+        if (documents.isSourceDeleted(projectId, sourceType, sourceIdentifier)) {
+            throw new IllegalStateException("영구 삭제된 연결 자료는 다시 가져오지 않습니다.");
+        }
         validateExtractedText(text);
         String safeTitle = safeTitle(title, sourceType + " item");
         return saveText(
@@ -183,7 +191,10 @@ public class DocumentService {
                                    byte[] bytes,
                                    User user) {
         validateExternalIdentity(sourceType, sourceIdentifier);
-        if (bytes == null || bytes.length == 0) throw new IllegalArgumentException("External file is empty");
+        if (documents.isSourceDeleted(projectId, sourceType, sourceIdentifier)) {
+            throw new IllegalStateException("영구 삭제된 연결 자료는 다시 가져오지 않습니다.");
+        }
+        if (bytes == null || bytes.length == 0) throw new IllegalArgumentException("가져온 파일이 비어 있습니다.");
 
         String safeName = safeTitle(filename, "external-file.bin");
         String hash = Hashing.sha256(bytes);
@@ -305,7 +316,7 @@ public class DocumentService {
                             projectId, sourceType, sourceIdentifier, normalizedTitle, storagePath, userId
                     ));
         });
-        if (documentId == null) throw new IllegalStateException("Document id was not resolved");
+        if (documentId == null) throw new IllegalStateException("자료 식별자를 만들지 못했습니다.");
         return createVersionForDocument(projectId, documentId, title, storagePath, text, hashBytes, userId);
     }
 
@@ -324,7 +335,7 @@ public class DocumentService {
         // Masked before it ever reaches full_text/chunks/embeddings/search, same as meeting transcripts.
         final String normalizedText = piiMasking.mask(UnicodeText.nfc(text));
         List<String> chunks = chunker.chunk(normalizedText);
-        if (chunks.isEmpty()) throw new IllegalArgumentException("No searchable text was produced");
+        if (chunks.isEmpty()) throw new IllegalArgumentException("검색할 수 있는 텍스트를 만들지 못했습니다.");
         EmbeddingAttempt embedding = embedBestEffort(chunks);
         String hash = Hashing.sha256(hashBytes);
 
@@ -374,7 +385,7 @@ public class DocumentService {
             );
             return version;
         });
-        if (versionId == null) throw new IllegalStateException("Document transaction returned no version id");
+        if (versionId == null) throw new IllegalStateException("자료 버전을 저장하지 못했습니다.");
         return versionId;
     }
 
@@ -402,16 +413,16 @@ public class DocumentService {
     private record EmbeddingAttempt(List<List<Float>> vectors, boolean ready, String error) {}
 
     private static void validateExternalIdentity(String sourceType, String sourceIdentifier) {
-        if (sourceType == null || sourceType.isBlank()) throw new IllegalArgumentException("Source type is required");
+        if (sourceType == null || sourceType.isBlank()) throw new IllegalArgumentException("자료 출처 종류가 필요합니다.");
         if (sourceIdentifier == null || sourceIdentifier.isBlank()) {
-            throw new IllegalArgumentException("Source identifier is required");
+            throw new IllegalArgumentException("자료 원본 식별자가 필요합니다.");
         }
     }
 
     private static void validateExtractedText(String text) {
-        if (text == null || text.isBlank()) throw new IllegalArgumentException("No text could be extracted");
+        if (text == null || text.isBlank()) throw new IllegalArgumentException("파일에서 읽을 수 있는 텍스트를 찾지 못했습니다.");
         if (text.length() > MAX_TEXT_LENGTH) {
-            throw new IllegalArgumentException("Extracted text is too large; split the source into smaller files");
+            throw new IllegalArgumentException("추출된 내용이 너무 큽니다. 원본을 더 작은 파일로 나눠 주세요.");
         }
     }
 
