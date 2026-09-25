@@ -50,6 +50,19 @@ class FileAttachmentRepositoryVisibilityTest {
     }
 
     @Test
+    void reassignmentMovesRecipientVisibilityToNewAssignee() {
+        insert(1L, 9L, 77L, 11L, 22L, "handoff.txt", "handoff");
+
+        assertEquals(1, repository.reassignTodoRecipient(77L, 33L));
+
+        assertTrue(repository.listForTodoVisible(77L, 22L).isEmpty());
+        assertEquals(List.of(1L), repository.listForTodoVisible(77L, 33L).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
+        assertEquals(List.of(1L), repository.listForTodoVisible(77L, 11L).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
+    }
+
+    @Test
     void attachmentSearchCannotLeakPrivateTodoFileToOtherProjectMember() {
         insert(1L, 9L, 77L, 11L, 22L, "private-plan.txt", "secret plan");
         insert(2L, 9L, null, 33L, 44L, "other-secret.txt", "secret note");
