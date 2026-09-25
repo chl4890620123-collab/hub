@@ -51,9 +51,9 @@ public class SlackConnector implements ReadOnlyConnector {
      */
     @Override
     public List<ExternalContent> fetch(String channelId, String token) {
-        if (token == null || token.isBlank()) throw new IllegalArgumentException("Slack access token is required");
+        if (token == null || token.isBlank()) throw new IllegalArgumentException("Slack 계정을 먼저 연결해 주세요.");
         String channel = channelId == null ? "" : channelId.trim();
-        if (!CHANNEL_ID.matcher(channel).matches()) throw new IllegalArgumentException("Slack scope must be a channel id");
+        if (!CHANNEL_ID.matcher(channel).matches()) throw new IllegalArgumentException("Slack 채널을 목록에서 다시 선택해 주세요.");
 
         JsonNode info = get("/conversations.info?channel=" + encode(channel), token);
         String channelName = info.path("channel").path("name").asText(channel);
@@ -130,11 +130,11 @@ public class SlackConnector implements ReadOnlyConnector {
             }
             return node;
         } catch (RestClientException e) {
-            throw new IllegalStateException("Slack API request failed", e);
+            throw new IllegalStateException("Slack 자료를 가져오지 못했습니다.", e);
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
-            throw new IllegalStateException("Invalid Slack response", e);
+            throw new IllegalStateException("Slack 응답을 처리하지 못했습니다.", e);
         }
     }
 
