@@ -9,6 +9,7 @@ import com.hub.service.ProjectAccessService;
 import com.hub.service.TodoService;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -169,6 +170,15 @@ public class TodoController {
         requireDeletePermission(todo, user);
         todoService.restore(todo, user);
         return Map.of("status", "RESTORED");
+    }
+
+    @DeleteMapping("/api/todos/{todoId}/permanent")
+    public Map<String,Object> permanentDelete(@PathVariable long todoId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        TodoItem todo = todos.find(todoId);
+        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        todoService.permanentDelete(todo, user);
+        return Map.of("status", "PERMANENTLY_DELETED");
     }
 
     public record StatusChange(String status) {}
