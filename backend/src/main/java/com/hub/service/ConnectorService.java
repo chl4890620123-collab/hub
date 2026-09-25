@@ -113,6 +113,7 @@ public class ConnectorService {
         }
         int imported = 0;
         int skipped = 0;
+        int excludedDeleted = 0;
         Long connectorAccountId = externalOAuth.accountId(user.id(), normalizedType);
         try {
         for (ExternalContent item : adapter.fetch(cleanScope, effectiveToken)) {
@@ -128,7 +129,7 @@ public class ConnectorService {
             String normalizedAuthor = UnicodeText.nfcNullable(item.author());
             String sourceIdentifier = adapter.type() + ":" + item.externalId();
             if (documents.isPermanentlyDeletedExternalSource(projectId, adapter.type(), sourceIdentifier)) {
-                skipped++;
+                excludedDeleted++;
                 continue;
             }
             repository.saveItem(
@@ -156,7 +157,10 @@ public class ConnectorService {
                 skipped++;
             }
         }
-        String note = skipped == 0 ? null : "읽을 수 없는 파일 " + skipped + "건은 건너뛰었습니다.";
+        java.util.List<String> notices = new java.util.ArrayList<>();
+        if (skipped > 0) notices.add("읽을 수 없는 파일 " + skipped + "건은 건너뛰었습니다.");
+        if (excludedDeleted > 0) notices.add("영구 삭제한 자료 " + excludedDeleted + "건은 다시 가져오지 않았습니다.");
+        String note = notices.isEmpty() ? null : String.join(" ", notices);
         repository.saveSyncState(projectId, normalizedType, cleanScope, "SUCCESS", note, imported);
         timeline.append(
                 projectId,
