@@ -213,6 +213,13 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
       }
       return result({ status: todoTrashMatch[2] === 'delete' ? 'DELETED' : 'RESTORED' } as T);
     }
+    const todoPermanentMatch = pathname.match(/^\/api\/todos\/(\d+)\/permanent$/);
+    if (todoPermanentMatch && method === 'DELETE') {
+      const todoId = Number(todoPermanentMatch[1]);
+      const index = todos.findIndex((todo) => todo.id === todoId && !!todo.deletedAt);
+      if (index >= 0) todos.splice(index, 1);
+      return result({ status: 'PERMANENTLY_DELETED' } as T);
+    }
     if (pathname === '/api/projects' && method === 'POST') {
       const nextId = Math.max(...projects.map((project) => project.id)) + 1;
       const created: Project = {
