@@ -26,6 +26,16 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
   const setThemeMode = useAppStore((s) => s.setThemeMode);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const searchShortcut = useMemo(() => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'), []);
+  const projectGroups = useMemo(() => {
+    const groups = new Map<string, typeof projects>();
+    projects.forEach((project) => {
+      const label = [project.departmentName, project.teamName].filter(Boolean).join(' · ') || '회사 공용';
+      const rows = groups.get(label) ?? [];
+      rows.push(project);
+      groups.set(label, rows);
+    });
+    return Array.from(groups.entries());
+  }, [projects]);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-ink-200 bg-white px-3 sm:px-5 dark:bg-ink-100">
@@ -49,18 +59,24 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
                 align="start"
                 className="z-50 min-w-[200px] rounded-md border border-ink-200 bg-white p-1 shadow-lg dark:bg-ink-100"
               >
-                {projects.map((p) => (
-                  <DropdownMenu.Item
-                    key={p.id}
-                    onSelect={() => setCurrentProjectId(p.id)}
-                    className={cn(
-                      'cursor-pointer rounded-sm px-2 py-1.5 text-sm outline-none',
-                      'data-[highlighted]:bg-accent-50 data-[highlighted]:text-accent-700',
-                      p.id === currentProject?.id && 'font-semibold text-accent-600',
-                    )}
-                  >
-                    {p.name}
-                  </DropdownMenu.Item>
+                {projectGroups.map(([label, rows], groupIndex) => (
+                  <div key={label}>
+                    {groupIndex > 0 && <DropdownMenu.Separator className="my-1 h-px bg-ink-100" />}
+                    <DropdownMenu.Label className="px-2 py-1 text-[11px] font-medium text-ink-400">{label}</DropdownMenu.Label>
+                    {rows.map((p) => (
+                      <DropdownMenu.Item
+                        key={p.id}
+                        onSelect={() => setCurrentProjectId(p.id)}
+                        className={cn(
+                          'cursor-pointer rounded-sm px-2 py-1.5 text-sm outline-none',
+                          'data-[highlighted]:bg-accent-50 data-[highlighted]:text-accent-700',
+                          p.id === currentProject?.id && 'font-semibold text-accent-600',
+                        )}
+                      >
+                        {p.name}
+                      </DropdownMenu.Item>
+                    ))}
+                  </div>
                 ))}
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
