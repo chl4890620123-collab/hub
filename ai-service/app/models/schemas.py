@@ -4,9 +4,16 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
+class MemberCandidate(BaseModel):
+    display_name: str
+    login_id: Optional[str] = None
+    job_title: Optional[str] = None
+
+
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=1)
     source_date: Optional[str] = None
+    project_members: list[MemberCandidate] = Field(default_factory=list)
 
 
 class TodoProposal(BaseModel):
