@@ -3,6 +3,9 @@ package com.hub.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hub.config.HubProperties;
+import com.hub.model.User;
+import com.hub.repository.ProjectRepository;
+import com.hub.repository.UserRepository;
 import com.hub.util.HttpRequestFactories;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,9 +31,13 @@ public class ExternalOAuthService {
     private final ExternalOAuthTokenStore store;
     private final RestClient client;
     private final ObjectMapper json;
+    private final UserRepository users;
+    private final ProjectRepository projects;
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();
-    public ExternalOAuthService(HubProperties props, ExternalOAuthTokenStore store, RestClient.Builder builder, ObjectMapper json) {
-        this.props=props;this.store=store;this.json=json;this.client=builder.requestFactory(HttpRequestFactories.create(Duration.ofSeconds(5),Duration.ofSeconds(30))).build();
+    public ExternalOAuthService(HubProperties props, ExternalOAuthTokenStore store, RestClient.Builder builder, ObjectMapper json,
+                                UserRepository users, ProjectRepository projects) {
+        this.props=props;this.store=store;this.json=json;this.users=users;this.projects=projects;
+        this.client=builder.requestFactory(HttpRequestFactories.create(Duration.ofSeconds(5),Duration.ofSeconds(30))).build();
     }
     public String authorize(long userId,long projectId,String type,String redirectUri){
         String id=clientId(type),secret=clientSecret(type);if(blank(id)||blank(secret))throw new IllegalStateException(type+" OAuth 설정이 필요합니다.");
@@ -47,6 +54,10 @@ public class ExternalOAuthService {
     }
     public Pending callback(String code,String state){
         Pending p=pending.remove(state);if(p==null||p.expiresAt().isBefore(Instant.now()))throw new IllegalArgumentException("OAuth 요청이 만료되었습니다.");
+        User user=users.findById(p.userId()).filter(User::active)
+                .orElseThrow(()->new IllegalStateException("계정 상태가 변경되어 연결을 완료할 수 없습니다."));
+        if(!projects.canAccess(p.projectId(),user.id(),user.isAdmin()))
+            throw new IllegalStateException("프로젝트 접근 권한이 변경되어 연결을 완료할 수 없습니다.");
         try{var form=new LinkedMultiValueMap<String,String>();form.add("client_id",clientId(p.type()));form.add("client_secret",clientSecret(p.type()));form.add("code",code);form.add("redirect_uri",p.redirectUri());
             String uri=switch(p.type()){case "GITHUB"->"https://github.com/login/oauth/access_token";case "SLACK"->"https://slack.com/api/oauth.v2.access";default->"https://api.notion.com/v1/oauth/token";};
             var request=client.post().uri(uri).accept(MediaType.APPLICATION_JSON);
