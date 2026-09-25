@@ -30,6 +30,7 @@ public class ConnectorService {
     private final ExternalOAuthService externalOAuth;
     private final ConnectorPolicyRepository policy;
     private final ProjectAccessService projectAccess;
+    private final SensitiveDataMaskingService piiMasking;
 
     public ConnectorService(List<ReadOnlyConnector> adapters,
                             ConnectorRepository repository,
@@ -38,7 +39,8 @@ public class ConnectorService {
                             ObjectMapper json,
                             HubProperties props,
                             GoogleAccessTokenProvider googleTokens, ExternalOAuthService externalOAuth,
-                            ConnectorPolicyRepository policy, ProjectAccessService projectAccess) {
+                            ConnectorPolicyRepository policy, ProjectAccessService projectAccess,
+                            SensitiveDataMaskingService piiMasking) {
         adapters.forEach(adapter -> this.adapters.put(adapter.type(), adapter));
         this.repository = repository;
         this.documents = documents;
@@ -49,6 +51,7 @@ public class ConnectorService {
         this.externalOAuth = externalOAuth;
         this.policy = policy;
         this.projectAccess = projectAccess;
+        this.piiMasking = piiMasking;
     }
 
     /**
@@ -143,8 +146,9 @@ public class ConnectorService {
                 continue;
             }
             repository.saveItem(
-                    projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(), normalizedTitle, normalizedContent,
-                    normalizedAuthor, item.sourceUrl(), item.createdAt(), metadata
+                    projectId, connectorAccountId, adapter.type(), item.externalId(), item.itemType(),
+                    piiMasking.mask(normalizedTitle), piiMasking.mask(normalizedContent),
+                    piiMasking.mask(normalizedAuthor), item.sourceUrl(), item.createdAt(), metadata
             );
             // A folder is a mixed bag: one binary blob nobody can read must not discard the files
             // that imported fine before it. The item is skipped and reported in the sync status.
