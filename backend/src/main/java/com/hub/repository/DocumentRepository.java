@@ -82,6 +82,13 @@ public class DocumentRepository {
         return ids.stream().findFirst();
     }
 
+    public boolean isSourceDeleted(long projectId, String sourceType, String sourceIdentifier) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM document WHERE project_id=? AND source_type=? AND source_identifier=? AND source_deleted=TRUE",
+                Integer.class, projectId, sourceType, sourceIdentifier);
+        return count != null && count > 0;
+    }
+
     /**
      * Serializes first-time source creation inside one project. This prevents two simultaneous uploads
      * of the same new source from racing into the UNIQUE(project_id, source_type, source_identifier)
@@ -256,7 +263,7 @@ public class DocumentRepository {
                        ) content_purged
                 FROM document d
                 LEFT JOIN document_version v ON v.document_id=d.id
-                WHERE d.project_id=?
+                WHERE d.project_id=? AND d.source_deleted=FALSE
                 GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.storage_path
                 ORDER BY d.id DESC
                 LIMIT 500
@@ -332,6 +339,11 @@ public class DocumentRepository {
      */
     @Transactional
     public void deletePermanently(long documentId) {
+        Map<String,Object> identity = jdbc.queryForMap(
+                "SELECT source_type,source_identifier FROM document WHERE id=?", documentId);
+        String sourceType = String.valueOf(identity.getOrDefault("source_type", identity.get("SOURCE_TYPE")));
+        boolean connectorSource = isConnectorSource(sourceType);
+
         jdbc.update("""
                 UPDATE todo SET source_document_version_id=NULL
                 WHERE source_document_version_id IN (
@@ -381,9 +393,35 @@ public class DocumentRepository {
                      )
                    )
                 """, documentId, documentId, documentId, documentId);
+        if (connectorSource) {
+            // Keep only the external identity as a tombstone. All user/content-bearing rows are gone,
+            // but the UNIQUE(project, source_type, source_identifier) identity remains so a later sync
+            // cannot silently resurrect a source the user explicitly permanently deleted.
+            jdbc.update("""
+                    DELETE FROM document_chunk
+                    WHERE version_id IN (SELECT id FROM document_version WHERE document_id=?)
+                    """, documentId);
+            jdbc.update("DELETE FROM document_version WHERE document_id=?", documentId);
+            if (jdbc.update("""
+                    UPDATE document
+                    SET storage_path=NULL,archived=TRUE,source_deleted=TRUE,archived_at=CURRENT_TIMESTAMP
+                    WHERE id=?
+                    """, documentId) != 1) {
+                throw new IllegalArgumentException("삭제할 문서를 찾을 수 없습니다.");
+            }
+            return;
+        }
+
         if (jdbc.update("DELETE FROM document WHERE id=?", documentId) != 1) {
             throw new IllegalArgumentException("삭제할 문서를 찾을 수 없습니다.");
         }
+    }
+
+    private static boolean isConnectorSource(String sourceType) {
+        return "GITHUB".equalsIgnoreCase(sourceType)
+                || "GOOGLE_DRIVE".equalsIgnoreCase(sourceType)
+                || "SLACK".equalsIgnoreCase(sourceType)
+                || "NOTION".equalsIgnoreCase(sourceType);
     }
 
     private static final String ARCHIVED_CONTENT_PLACEHOLDER = "[보관 기간이 지나 본문이 정리되었습니다]";
