@@ -75,7 +75,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public Map<String, Object> state(IllegalStateException exception) {
-        return error("PROCESSING_FAILED", safe(exception));
+        return error("PROCESSING_FAILED", safeProcessingMessage(exception));
+    }
+
+    private static String safeProcessingMessage(IllegalStateException exception) {
+        String message = exception.getMessage();
+        if (message != null && message.matches(".*[가-힣].*")) return message;
+        return "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
     }
 
     private static Map<String, Object> error(String code, String message) {
