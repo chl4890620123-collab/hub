@@ -73,7 +73,7 @@ public class AnalysisService {
         if (cached.isPresent()) return decode(cached.get());
 
         String text = documents.versionText(versionId);
-        AiDtos.AnalyzeResponse raw = requireAnalysis(ai.analyze(text, dateText(sourceDate)));
+        AiDtos.AnalyzeResponse raw = requireAnalysis(ai.analyze(text, dateText(sourceDate), memberCandidates(projectId)));
         List<SearchHit> chunks = documents.chunksForVersion(versionId);
         List<GroundedTodo> groundedTodos = groundDocumentTodos(raw, chunks);
         List<GroundedDecision> groundedDecisions = groundDocumentDecisions(raw, chunks);
@@ -101,7 +101,7 @@ public class AnalysisService {
         if (cached.isPresent()) return decode(cached.get());
 
         String text = meetings.transcript(meetingId);
-        AiDtos.AnalyzeResponse raw = requireAnalysis(ai.analyze(text, dateText(sourceDate)));
+        AiDtos.AnalyzeResponse raw = requireAnalysis(ai.analyze(text, dateText(sourceDate), memberCandidates(projectId)));
         List<Map<String, Object>> segments = meetings.segments(meetingId);
         List<GroundedMeetingTodo> groundedTodos = groundMeetingTodos(raw, segments);
         List<GroundedMeetingDecision> groundedDecisions = groundMeetingDecisions(raw, segments);
@@ -297,9 +297,9 @@ public class AnalysisService {
     }
 
     /**
-     * Links the name the AI read out of the document to a real project member, so the review screen can
-     * preselect that person. Only the suggestion is stored; assignee_id stays empty until an admin confirms.
-     * An ambiguous name (two members sharing a display name) resolves to nothing rather than to a guess.
+     * Links the AI's roster-constrained suggestion to a real project member, so the review screen can
+     * preselect that person. assignee_id still stays empty until a decision-maker confirms the candidate.
+     * Matching accepts the exact display name or login id only; ambiguous matches resolve to nothing.
      */
     private Long matchProjectMember(long projectId, String suggestedName) {
         if (suggestedName == null || suggestedName.isBlank()) return null;
@@ -308,7 +308,10 @@ public class AnalysisService {
         Long matched = null;
         for (Map<String, Object> member : projects.listMembers(projectId)) {
             Object nameValue = value(member, "display_name");
-            if (nameValue == null || !wanted.equals(normalizePersonName(nameValue.toString()))) continue;
+            Object loginValue = value(member, "login_id");
+            boolean sameDisplay = nameValue != null && wanted.equals(normalizePersonName(nameValue.toString()));
+            boolean sameLogin = loginValue != null && wanted.equals(normalizePersonName(loginValue.toString()));
+            if (!sameDisplay && !sameLogin) continue;
             Object idValue = value(member, "user_id");
             if (!(idValue instanceof Number number)) continue;
             if (matched != null && matched != number.longValue()) return null;
@@ -317,16 +320,34 @@ public class AnalysisService {
         return matched;
     }
 
+    private List<AiDtos.MemberCandidate> memberCandidates(long projectId) {
+        List<AiDtos.MemberCandidate> result = new ArrayList<>();
+        for (Map<String,Object> member : projects.listMembers(projectId)) {
+            Object displayName = value(member, "display_name");
+            if (displayName == null || displayName.toString().isBlank()) continue;
+            Object loginId = value(member, "login_id");
+            Object jobTitle = value(member, "job_title");
+            result.add(new AiDtos.MemberCandidate(
+                    displayName.toString(),
+                    loginId == null ? null : loginId.toString(),
+                    jobTitle == null ? null : jobTitle.toString()
+            ));
+        }
+        return result;
+    }
+
     private static String normalizePersonName(String raw) {
         return raw.replaceAll("\s+", "").toLowerCase(java.util.Locale.ROOT);
     }
 
     private String candidateAssigneeText(AiDtos.TodoProposal proposal) {
-        if (proposal.assigneeText() != null && !proposal.assigneeText().isBlank()) {
-            return proposal.assigneeText().trim();
-        }
+        // The roster-constrained suggestion is the value intended for member-ID linking.
+        // Keep the raw assignee_text only as a fallback/evidence when no safe roster match was proposed.
         if (proposal.assigneeSuggestionText() != null && !proposal.assigneeSuggestionText().isBlank()) {
             return proposal.assigneeSuggestionText().trim();
+        }
+        if (proposal.assigneeText() != null && !proposal.assigneeText().isBlank()) {
+            return proposal.assigneeText().trim();
         }
         return null;
     }

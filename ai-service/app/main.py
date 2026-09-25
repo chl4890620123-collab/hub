@@ -55,7 +55,7 @@ def health():
 @app.post("/api/v1/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest):
     try:
-        return await analyzer.analyze(req.text, req.source_date)
+        return await analyzer.analyze(req.text, req.source_date, req.project_members)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

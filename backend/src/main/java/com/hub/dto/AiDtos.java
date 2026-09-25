@@ -26,6 +26,11 @@ public final class AiDtos {
     public record DecisionProposal(String statement, String confidence,
                                    @JsonAlias("evidence_quote") String evidenceQuote) {}
 
+    public record MemberCandidate(
+            @JsonProperty("display_name") String displayName,
+            @JsonProperty("login_id") String loginId,
+            @JsonProperty("job_title") String jobTitle) {}
+
     public record AnalyzeResponse(String summary, List<TodoProposal> todos, List<DecisionProposal> decisions) {}
     public record RagChunk(long id, String text, @JsonProperty("paragraph_ref") String paragraphRef) {}
     public record RagEvidence(long id, String quote) {}

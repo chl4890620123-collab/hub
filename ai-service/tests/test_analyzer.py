@@ -1,5 +1,6 @@
 import pytest
 from app.services.analyzer import Analyzer
+from app.models.schemas import MemberCandidate
 
 @pytest.mark.asyncio
 async def test_explicit_todo_and_evidence():
@@ -31,3 +32,34 @@ async def test_discussion_or_completed_status_is_not_todo():
 async def test_action_with_owner_and_deadline_is_todo():
     result=await Analyzer().analyze("민규님이 금요일까지 로그인 오류를 수정합니다.","2026-09-04")
     assert result.todos
+
+
+@pytest.mark.asyncio
+async def test_spoken_name_is_canonicalized_to_unique_project_member():
+    members = [
+        MemberCandidate(display_name="김민규", login_id="mingyu", job_title="대리"),
+        MemberCandidate(display_name="박서연", login_id="seoyeon", job_title="과장"),
+    ]
+    result = await Analyzer().analyze(
+        "민규님이 금요일까지 로그인 오류를 수정합니다.",
+        "2026-09-04",
+        members,
+    )
+    assert result.todos
+    assert result.todos[0].assignee_text == "민규"
+    assert result.todos[0].assignee_suggestion_text == "김민규"
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_spoken_name_is_not_linked_to_member():
+    members = [
+        MemberCandidate(display_name="김민규", login_id="mingyu1", job_title="대리"),
+        MemberCandidate(display_name="이민규", login_id="mingyu2", job_title="과장"),
+    ]
+    result = await Analyzer().analyze(
+        "민규님이 금요일까지 로그인 오류를 수정합니다.",
+        "2026-09-04",
+        members,
+    )
+    assert result.todos
+    assert result.todos[0].assignee_suggestion_text is None

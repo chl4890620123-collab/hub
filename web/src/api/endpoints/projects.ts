@@ -9,6 +9,7 @@ interface RawProjectMember {
   user_id: number;
   display_name: string;
   login_id: string;
+  job_title?: string | null;
   project_role?: string;
   can_confirm_todos: boolean;
 }
@@ -18,7 +19,7 @@ function toProjectMember(row: RawProjectMember): ProjectMember {
     id: row.user_id,
     displayName: row.display_name,
     loginId: row.login_id,
-    jobTitle: null,
+    jobTitle: row.job_title ?? null,
     projectRole: row.project_role,
     canConfirm: row.can_confirm_todos,
   };

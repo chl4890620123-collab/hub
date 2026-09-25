@@ -62,7 +62,10 @@ export function TodoCandidateCard({
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="rounded-md bg-ink-50 px-3 py-2 dark:bg-ink-200/60">
               <p className="text-[11px] font-medium text-ink-400">AI 추천 담당자</p>
-              <p className="mt-0.5 text-xs font-medium text-ink-700">{todo.assigneeSuggestionText ?? '추천 없음'}</p>
+              <p className="mt-0.5 text-xs font-medium text-ink-700">
+                {todo.assigneeSuggestionText ?? '추천 없음'}
+                {todo.assigneeSuggestionId ? ' · 프로젝트 팀원 연결됨' : ''}
+              </p>
             </div>
             <div className="rounded-md bg-ink-50 px-3 py-2 dark:bg-ink-200/60">
               <p className="text-[11px] font-medium text-ink-400">AI 추천 기한</p>
@@ -87,7 +90,7 @@ export function TodoCandidateCard({
               ) : (
                 members.map((m) => (
                   <SelectItem key={m.id} value={String(m.id)}>
-                    {m.displayName}
+                    {m.displayName}{m.jobTitle ? ` · ${m.jobTitle}` : ` · ${m.loginId}`}
                   </SelectItem>
                 ))
               )}

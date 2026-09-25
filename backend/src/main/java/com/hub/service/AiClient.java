@@ -28,11 +28,15 @@ public class AiClient {
                 .build();
     }
 
-    public AiDtos.AnalyzeResponse analyze(String text, String sourceDate) {
+    public AiDtos.AnalyzeResponse analyze(String text, String sourceDate, List<AiDtos.MemberCandidate> projectMembers) {
+        Map<String,Object> body = new java.util.LinkedHashMap<>();
+        body.put("text", text);
+        body.put("source_date", sourceDate == null ? "" : sourceDate);
+        body.put("project_members", projectMembers == null ? List.of() : projectMembers);
         return call(() -> client.post()
                 .uri("/api/v1/analyze")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("text", text, "source_date", sourceDate == null ? "" : sourceDate))
+                .body(body)
                 .retrieve()
                 .body(AiDtos.AnalyzeResponse.class));
     }
