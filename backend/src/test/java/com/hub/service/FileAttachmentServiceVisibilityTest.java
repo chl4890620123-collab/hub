@@ -43,7 +43,8 @@ class FileAttachmentServiceVisibilityTest {
         when(file.getOriginalFilename()).thenReturn("brief.txt");
         when(file.getContentType()).thenReturn("text/plain");
         when(file.getBytes()).thenReturn(new byte[]{1,2,3,4});
-        when(storage.save(9L, "brief.txt", new byte[]{1,2,3,4})).thenReturn("/trusted/brief.txt");
+        when(storage.save(org.mockito.ArgumentMatchers.eq(9L), org.mockito.ArgumentMatchers.eq("brief.txt"),
+                org.mockito.ArgumentMatchers.any(byte[].class))).thenReturn("/trusted/brief.txt");
         when(attachments.create(9L, 77L, 11L, 22L, "brief.txt", "text/plain", 4L, "/trusted/brief.txt", null))
                 .thenReturn(501L);
 
