@@ -166,6 +166,15 @@ export function TodosPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (todoId: number) => todosApi.permanentDelete(todoId),
+    onSuccess: () => {
+      toast.success('할 일을 영구 삭제했습니다.');
+      invalidateTodos();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const evidenceMutation = useMutation({
     mutationFn: (todo: TodoItem) => todosApi.evidence(todo.id).then((items) => ({ todo, items })),
     onSuccess: ({ todo, items }) => openEvidence(todo.title, items),
@@ -209,6 +218,12 @@ export function TodosPage() {
         if (window.confirm(`"${todo.title}" 할 일을 삭제할까요? 휴지통에서 복원할 수 있습니다.`)) deleteMutation.mutate(todo.id);
       }}
       onRestore={() => restoreMutation.mutate(todo.id)}
+      canPermanentDelete={isAdmin || canConfirm}
+      onPermanentDelete={() => {
+        if (window.confirm(`"${todo.title}" 할 일을 영구 삭제할까요? 이 작업은 복원할 수 없습니다.`)) {
+          permanentDeleteMutation.mutate(todo.id);
+        }
+      }}
       compact={compact}
     />
   );
