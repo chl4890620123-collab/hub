@@ -106,7 +106,7 @@ public class DocumentController {
     public Map<String,Object> reviseDraft(@PathVariable long projectId, @PathVariable long documentId,
                                           @RequestBody ReviseDraftRequest request, Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
-        String revisedText = documents.reviseDraftFromMeeting(projectId, documentId, request.meetingDocumentId());
+        String revisedText = documents.reviseDraftFromMeeting(projectId, documentId, request.meetingDocumentId(), user);
         return Map.of("revisedText", revisedText);
     }
 

@@ -72,7 +72,7 @@ export function SearchPage() {
   }
 
   const { data: topSearches } = useQuery({
-    queryKey: ['top-searches', currentProject?.id],
+    queryKey: ['top-searches', currentProject?.id, user?.id],
     queryFn: () => materialsApi.topSearches(currentProject!.id),
     enabled: !!currentProject,
   });
@@ -158,7 +158,7 @@ export function SearchPage() {
           )}
           {topSearches && topSearches.length > 0 && (
             <div>
-              <span className="mr-2 text-ink-400">인기 검색어</span>
+              <span className="mr-2 text-ink-400">내 자주 찾은 검색</span>
               {topSearches.map((t) => (
                 <button
                   key={t.query_text}
