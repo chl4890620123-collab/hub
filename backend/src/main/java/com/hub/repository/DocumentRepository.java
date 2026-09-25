@@ -399,15 +399,20 @@ public class DocumentRepository {
                      )
                    )
                 """, documentId, documentId, documentId, documentId);
+
+        // Clear the content rows explicitly for both local and connector sources instead of relying
+        // only on FK cascade behaviour. This keeps permanent deletion deterministic in H2 tests,
+        // PostgreSQL production, and any future schema migration.
+        jdbc.update("""
+                DELETE FROM document_chunk
+                WHERE version_id IN (SELECT id FROM document_version WHERE document_id=?)
+                """, documentId);
+        jdbc.update("DELETE FROM document_version WHERE document_id=?", documentId);
+
         if (connectorSource) {
             // Keep only the external identity as a tombstone. All user/content-bearing rows are gone,
             // but the UNIQUE(project, source_type, source_identifier) identity remains so a later sync
             // cannot silently resurrect a source the user explicitly permanently deleted.
-            jdbc.update("""
-                    DELETE FROM document_chunk
-                    WHERE version_id IN (SELECT id FROM document_version WHERE document_id=?)
-                    """, documentId);
-            jdbc.update("DELETE FROM document_version WHERE document_id=?", documentId);
             if (jdbc.update("""
                     UPDATE document
                     SET storage_path=NULL,archived=TRUE,source_deleted=TRUE,archived_at=CURRENT_TIMESTAMP
