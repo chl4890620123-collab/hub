@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,7 +40,7 @@ class DocumentControllerFollowUpValidationTest {
 
         verify(access).requireAccess(10L, user);
         verify(documents).upload(10L, file, user);
-        verify(jobs, never()).queueDocument(10L, 21L, null);
+        verify(jobs, never()).queueDocument(any(Long.class), any(Long.class), any());
         assertEquals("UPLOADED", result.get("status"));
         assertEquals(21L, result.get("versionId"));
         assertEquals(12L, result.get("documentId"));
