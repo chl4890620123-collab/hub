@@ -31,6 +31,8 @@ export interface Project {
   id: number;
   name: string;
   description: string | null;
+  departmentName: string | null;
+  teamName: string | null;
   createdBy: number;
   projectRole: GlobalRole;
   canConfirm: boolean;
@@ -48,6 +50,8 @@ export interface ProjectMember {
 export interface ProjectOption {
   id: number;
   name: string;
+  departmentName: string | null;
+  teamName: string | null;
 }
 
 export interface TodoItem {
