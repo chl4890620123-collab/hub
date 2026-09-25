@@ -31,6 +31,7 @@ class ConnectorServiceAccessRecheckTest {
         ExternalOAuthService externalOAuth = mock(ExternalOAuthService.class);
         ConnectorPolicyRepository policy = mock(ConnectorPolicyRepository.class);
         ProjectAccessService access = mock(ProjectAccessService.class);
+        SensitiveDataMaskingService piiMasking = mock(SensitiveDataMaskingService.class);
 
         User user = new User(7L, "member7", "member7@example.test", "Member 7",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
@@ -38,7 +39,7 @@ class ConnectorServiceAccessRecheckTest {
 
         ConnectorService service = new ConnectorService(
                 List.of(adapter), repository, documents, timeline, new ObjectMapper(), props,
-                googleTokens, externalOAuth, policy, access
+                googleTokens, externalOAuth, policy, access, piiMasking
         );
 
         assertThrows(AccessDeniedException.class, () -> service.importItems(10L, "GITHUB", "repo", user));
