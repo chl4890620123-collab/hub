@@ -104,7 +104,7 @@ public class MaterialSearchService {
             int rank = merged.size() + 1;
             int attachmentCount = 0;
             for (FileAttachmentRepository.Attachment attachment :
-                    attachments.searchVisible(projectId, actor.id(), actor.isAdmin(), plan.searchText(), ATTACHMENT_RESULTS)) {
+                    attachments.searchVisible(projectId, actor.id(), plan.searchText(), ATTACHMENT_RESULTS)) {
                 String key = "ATTACHMENT:" + attachment.id();
                 if (!seen.add(key)) continue;
                 String note = blankTo(attachment.note(), "첨부파일 이름이 검색어와 일치합니다.");
@@ -176,7 +176,7 @@ public class MaterialSearchService {
         if (actor != null && chunks.size() < props.ragMaxChunks() && usedChars < props.ragMaxContextChars()) {
             try {
                 for (FileAttachmentRepository.Attachment attachment :
-                        attachments.searchVisible(projectId, actor.id(), actor.isAdmin(), plan.searchText(), ATTACHMENT_RESULTS)) {
+                        attachments.searchVisible(projectId, actor.id(), plan.searchText(), ATTACHMENT_RESULTS)) {
                     if (chunks.size() >= props.ragMaxChunks() || usedChars >= props.ragMaxContextChars()) break;
                     String note = blankTo(attachment.note(), "메모 없음");
                     String attachmentText = "첨부파일 이름: " + attachment.fileName() + "\n메모: " + note;
