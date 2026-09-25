@@ -134,7 +134,7 @@ export function MemberSignupPage() {
             <SelectContent>
               {projects?.map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name}
+                  {[p.departmentName, p.teamName].filter(Boolean).join(' · ') ? `${[p.departmentName, p.teamName].filter(Boolean).join(' · ')} · ${p.name}` : p.name}
                 </SelectItem>
               ))}
             </SelectContent>
