@@ -9,6 +9,7 @@ import com.hub.util.Hashing;
 import com.hub.util.UnicodeText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -88,10 +89,10 @@ public class DocumentService {
         String safeTitle = safeTitle(title, "Manual text");
         validateExtractedText(text);
         byte[] bytes = text.strip().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        String hash = Hashing.sha256(bytes);
-        var duplicate = documents.findVersionByHash(projectId, "MANUAL_TEXT", hash);
-        if (duplicate.isPresent()) return duplicate.get();
-        return saveText(projectId, "MANUAL_TEXT", "manual:" + normalizeSourceName(safeTitle), safeTitle, null, text.strip(), bytes, user);
+        // Manual notes are owned per user. Reusing a project-wide hash/title identity could silently
+        // append one teammate's note to another teammate's document.
+        String sourceIdentifier = "manual:" + user.id() + ":" + normalizeSourceName(safeTitle);
+        return saveText(projectId, "MANUAL_TEXT", sourceIdentifier, safeTitle, null, text.strip(), bytes, user);
     }
 
     /**
@@ -105,6 +106,8 @@ public class DocumentService {
                 .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
         if (!"MANUAL_TEXT".equals(meta.sourceType()))
             throw new IllegalArgumentException("직접 입력한 자료만 수정할 수 있습니다.");
+        if (meta.createdBy() != user.id())
+            throw new AccessDeniedException("직접 입력한 자료는 만든 사람만 수정할 수 있습니다.");
         String safeTitle = safeTitle(title, meta.originalName());
         validateExtractedText(text);
         String stripped = text.strip();
@@ -136,11 +139,13 @@ public class DocumentService {
      * the new version; the existing 두 문서의 달라진 내용 비교 (version compare) feature then shows the diff
      * against the original with no extra plumbing.
      */
-    public String reviseDraftFromMeeting(long projectId, long documentId, Long meetingDocumentId) {
+    public String reviseDraftFromMeeting(long projectId, long documentId, Long meetingDocumentId, User user) {
         var meta = documents.findMeta(documentId).filter(m -> m.projectId() == projectId)
                 .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
         if (!"MANUAL_TEXT".equals(meta.sourceType()))
             throw new IllegalArgumentException("직접 입력한 자료만 회의 내용으로 수정할 수 있습니다.");
+        if (meta.createdBy() != user.id())
+            throw new AccessDeniedException("직접 입력한 자료는 만든 사람만 수정안을 만들 수 있습니다.");
         if (meetingDocumentId == null) throw new IllegalArgumentException("참고할 회의 기록을 선택해 주세요.");
         var meetingMeta = documents.findMeta(meetingDocumentId).filter(m -> m.projectId() == projectId)
                 .orElseThrow(() -> new IllegalArgumentException("회의 기록을 찾을 수 없습니다."));
