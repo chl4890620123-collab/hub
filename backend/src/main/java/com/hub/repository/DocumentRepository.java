@@ -346,9 +346,8 @@ public class DocumentRepository {
      */
     @Transactional
     public void deletePermanently(long documentId) {
-        Map<String,Object> identity = jdbc.queryForMap(
-                "SELECT source_type,source_identifier FROM document WHERE id=?", documentId);
-        String sourceType = String.valueOf(identity.getOrDefault("source_type", identity.get("SOURCE_TYPE")));
+        String sourceType = jdbc.queryForObject(
+                "SELECT source_type FROM document WHERE id=?", String.class, documentId);
         boolean connectorSource = isConnectorSource(sourceType);
 
         jdbc.update("""
