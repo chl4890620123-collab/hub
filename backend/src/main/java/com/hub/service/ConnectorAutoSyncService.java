@@ -1,7 +1,6 @@
 package com.hub.service;
 
 import com.hub.model.User;
-import com.hub.repository.ConnectorAccountRepository;
 import com.hub.repository.ConnectorRepository;
 import com.hub.repository.UserRepository;
 import org.slf4j.Logger;
@@ -21,18 +20,15 @@ import org.springframework.stereotype.Service;
 public class ConnectorAutoSyncService {
     private static final Logger log = LoggerFactory.getLogger(ConnectorAutoSyncService.class);
     private final ConnectorRepository syncStates;
-    private final ConnectorAccountRepository accounts;
     private final UserRepository users;
     private final ConnectorService connectorService;
     private final boolean enabled;
 
     public ConnectorAutoSyncService(ConnectorRepository syncStates,
-                                    ConnectorAccountRepository accounts,
                                     UserRepository users,
                                     ConnectorService connectorService,
                                     @Value("${hub.connector-auto-sync-enabled:true}") boolean enabled) {
         this.syncStates = syncStates;
-        this.accounts = accounts;
         this.users = users;
         this.connectorService = connectorService;
         this.enabled = enabled;
@@ -48,17 +44,18 @@ public class ConnectorAutoSyncService {
     }
 
     /**
-     * No linked account left for this project+connector means the person who originally imported it
-     * has since disconnected; skipped rather than falling back to a shared token, so the corpus never
-     * silently starts filling with a different account's content than whoever set the scope up chose.
+     * Replay the scope only as the exact user who originally imported it. ConnectorService performs
+     * a fresh project-access check, so a removed/suspended/withdrawn user cannot keep importing in the
+     * background and another teammate's credential is never substituted.
      */
     private void resync(ConnectorRepository.SyncScope scope) {
-        Long userId = accounts.anyConnectedUserId(scope.projectId(), scope.connectorType()).orElse(null);
-        if (userId == null) return;
-        User user = users.findById(userId).filter(User::active).orElse(null);
+        User user = users.findById(scope.ownerUserId()).filter(User::active).orElse(null);
         if (user == null) return;
         try {
             connectorService.importItems(scope.projectId(), scope.connectorType(), scope.externalScope(), user);
+        } catch (org.springframework.security.access.AccessDeniedException noLongerMember) {
+            log.info("Connector auto-sync skipped for project {} {} '{}': owner {} no longer has project access",
+                    scope.projectId(), scope.connectorType(), scope.externalScope(), scope.ownerUserId());
         } catch (RuntimeException failure) {
             log.warn("Connector auto-sync failed for project {} {} '{}': {}",
                     scope.projectId(), scope.connectorType(), scope.externalScope(), failure.getMessage());
