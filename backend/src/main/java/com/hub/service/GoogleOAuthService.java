@@ -3,6 +3,9 @@ package com.hub.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hub.config.HubProperties;
+import com.hub.model.User;
+import com.hub.repository.ProjectRepository;
+import com.hub.repository.UserRepository;
 import com.hub.util.HttpRequestFactories;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -28,10 +31,13 @@ public class GoogleOAuthService {
     private final GoogleAccessTokenProvider tokens;
     private final RestClient client;
     private final ObjectMapper json;
+    private final UserRepository users;
+    private final ProjectRepository projects;
     private final Map<String, PendingState> states = new ConcurrentHashMap<>();
 
-    public GoogleOAuthService(HubProperties props, GoogleAccessTokenProvider tokens, RestClient.Builder builder, ObjectMapper json) {
-        this.props = props; this.tokens = tokens; this.json = json;
+    public GoogleOAuthService(HubProperties props, GoogleAccessTokenProvider tokens, RestClient.Builder builder, ObjectMapper json,
+                              UserRepository users, ProjectRepository projects) {
+        this.props = props; this.tokens = tokens; this.json = json; this.users = users; this.projects = projects;
         this.client = builder.baseUrl("https://oauth2.googleapis.com")
                 .requestFactory(HttpRequestFactories.create(Duration.ofSeconds(5), Duration.ofSeconds(30))).build();
     }
@@ -56,6 +62,10 @@ public class GoogleOAuthService {
     public PendingState consume(String state, String code) {
         PendingState pending = states.remove(state);
         if (pending == null || pending.expiresAt().isBefore(Instant.now())) throw new IllegalArgumentException("Google 로그인 요청이 만료되었습니다.");
+        User user = users.findById(pending.userId()).filter(User::active)
+                .orElseThrow(() -> new IllegalStateException("계정 상태가 변경되어 Google 연결을 완료할 수 없습니다."));
+        if (!projects.canAccess(pending.projectId(), user.id(), user.isAdmin()))
+            throw new IllegalStateException("프로젝트 접근 권한이 변경되어 Google 연결을 완료할 수 없습니다.");
         try {
             var form = new LinkedMultiValueMap<String, String>();
             form.add("code", code); form.add("client_id", props.googleClientId()); form.add("client_secret", props.googleClientSecret());
