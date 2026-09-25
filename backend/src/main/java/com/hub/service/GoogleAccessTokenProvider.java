@@ -45,6 +45,8 @@ public class GoogleAccessTokenProvider {
     /** The Google account that granted access, for display. */
     public String accountLabel(long userId) { return accounts.accountLabel(userId, "GOOGLE_DRIVE"); }
 
+    public Long accountId(long userId) { return accounts.id(userId, "GOOGLE_DRIVE"); }
+
     /**
      * True when this account linked Google itself, or when the server holds shared credentials AND
      * an admin has explicitly opted into sharing them (hub.allow-shared-connector-fallback). Without

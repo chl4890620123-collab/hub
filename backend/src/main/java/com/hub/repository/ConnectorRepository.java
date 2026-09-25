@@ -49,7 +49,8 @@ public class ConnectorRepository {
                          String sourceUrl,
                          OffsetDateTime createdAt,
                          String metadataJson) {
-        saveItem(projectId, null, connectorType, externalId, itemType, title, content, author, sourceUrl, createdAt, metadataJson);
+        saveImportedItem(projectId, null, connectorType, externalId, itemType, title, content, author,
+                sourceUrl, createdAt, metadataJson, null);
     }
 
     public void saveItem(long projectId,
@@ -63,10 +64,33 @@ public class ConnectorRepository {
                          String sourceUrl,
                          OffsetDateTime createdAt,
                          String metadataJson) {
+        saveImportedItem(projectId, connectorAccountId, connectorType, externalId, itemType, title, content, author,
+                sourceUrl, createdAt, metadataJson, null);
+    }
+
+    /**
+     * One project has one snapshot per namespaced external id, regardless of which teammate imported
+     * it most recently. The unique index is (project_id, external_id), so the upsert must use that same
+     * identity rather than connector_account_id; otherwise a second teammate's sync conflicts and leaves
+     * stale content behind. importedDocumentId ties retention to the normalized document that search uses.
+     */
+    public void saveImportedItem(long projectId,
+                                 Long connectorAccountId,
+                                 String connectorType,
+                                 String externalId,
+                                 String itemType,
+                                 String title,
+                                 String content,
+                                 String author,
+                                 String sourceUrl,
+                                 OffsetDateTime createdAt,
+                                 String metadataJson,
+                                 Long importedDocumentId) {
         String id = connectorType + ":" + externalId;
         Object timestamp = createdAt == null ? null : Timestamp.from(createdAt.toInstant());
 
-        int updated = updateExisting(projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
+        int updated = updateExisting(projectId, connectorAccountId, id, itemType, title, content, author,
+                sourceUrl, timestamp, metadataJson, importedDocumentId);
         if (updated > 0) return;
 
         try {
@@ -74,14 +98,15 @@ public class ConnectorRepository {
                     """
                     INSERT INTO external_item(
                         project_id,connector_account_id,external_id,item_type,title,content,author,
-                        source_url,source_created_at,raw_metadata
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?)
+                        source_url,source_created_at,raw_metadata,imported_document_id
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
                     """,
-                    projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson
+                    projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl,
+                    timestamp, metadataJson, importedDocumentId
             );
         } catch (DuplicateKeyException concurrentSync) {
-            // Another sync may have inserted the same provider item between UPDATE and INSERT.
-            updateExisting(projectId, connectorAccountId, id, itemType, title, content, author, sourceUrl, timestamp, metadataJson);
+            updateExisting(projectId, connectorAccountId, id, itemType, title, content, author,
+                    sourceUrl, timestamp, metadataJson, importedDocumentId);
         }
     }
 
@@ -94,18 +119,20 @@ public class ConnectorRepository {
                                String author,
                                String sourceUrl,
                                Object createdAt,
-                               String metadataJson) {
-        String accountClause = connectorAccountId == null ? "connector_account_id IS NULL" : "connector_account_id=?";
-        String sql = """
+                               String metadataJson,
+                               Long importedDocumentId) {
+        return jdbc.update(
+                """
                 UPDATE external_item
-                SET item_type=?,title=?,content=?,author=?,source_url=?,source_created_at=?,raw_metadata=?
-                WHERE project_id=? AND %s AND external_id=?
-                """.formatted(accountClause);
-        if (connectorAccountId == null) {
-            return jdbc.update(sql, itemType, title, content, author, sourceUrl, createdAt, metadataJson, projectId, externalId);
-        }
-        return jdbc.update(sql, itemType, title, content, author, sourceUrl, createdAt, metadataJson, projectId, connectorAccountId, externalId);
+                SET connector_account_id=?,item_type=?,title=?,content=?,author=?,source_url=?,
+                    source_created_at=?,raw_metadata=?,imported_document_id=COALESCE(?,imported_document_id)
+                WHERE project_id=? AND external_id=?
+                """,
+                connectorAccountId, itemType, title, content, author, sourceUrl, createdAt, metadataJson,
+                importedDocumentId, projectId, externalId
+        );
     }
+
     public record ExternalSearchRow(
             long id,
             String externalId,
@@ -281,13 +308,19 @@ public class ConnectorRepository {
     }
 
     /**
-     * Retention cleanup only: removes imported-item bookkeeping rows left orphaned by a disconnected
-     * connector account (connector_account_id is SET NULL on disconnect). Nothing else references
-     * external_item, and the document it may have imported is never touched.
+     * Retention cleanup only: remove snapshots that have neither a current account association nor a
+     * normalized imported document. A NULL connector_account_id alone is not orphaned: shared server
+     * credentials legitimately use NULL, and disconnecting a personal account must not erase project
+     * content that was already imported.
      */
     public int purgeOrphanedItemsOlderThan(java.time.LocalDate cutoff) {
         return jdbc.update(
-                "DELETE FROM external_item WHERE connector_account_id IS NULL AND created_at<?",
+                """
+                DELETE FROM external_item
+                WHERE connector_account_id IS NULL
+                  AND imported_document_id IS NULL
+                  AND created_at<?
+                """,
                 java.sql.Date.valueOf(cutoff));
     }
 

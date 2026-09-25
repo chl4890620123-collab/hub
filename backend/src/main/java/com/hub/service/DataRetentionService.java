@@ -19,8 +19,9 @@ import java.time.LocalDate;
  * - refresh_token: rows already past their own expires_at are otherwise only swept on the next login
  *   anywhere in the system, so an idle deployment can carry them indefinitely.
  * - search_log: a plain query log with no other table referencing it.
- * - external_item: import bookkeeping left behind after a connector is disconnected
- *   (connector_account_id is SET NULL on disconnect); the imported document itself is never touched.
+ * - external_item: only old snapshots that are neither tied to a live connector account nor to a
+ *   normalized imported document are removed. Disconnecting an account must not make already-imported
+ *   project data disappear from search, and shared/server credentials legitimately have no account id.
  * - archived documents past retention: only their full_text/content/embedding columns are cleared: the
  *   document/version/chunk rows stay so evidence/decision/todo/change records that cite them by id keep
  *   working. Search/RAG already exclude archived documents, so nothing user-visible changes but size.
@@ -71,7 +72,7 @@ public class DataRetentionService {
         if (searchLogsRemoved > 0) log.info("Data retention cleanup removed {} search log row(s) before {}", searchLogsRemoved, cutoff);
 
         int orphanedItemsRemoved = connectors.purgeOrphanedItemsOlderThan(cutoff);
-        if (orphanedItemsRemoved > 0) log.info("Data retention cleanup removed {} orphaned external_item row(s) before {}", orphanedItemsRemoved, cutoff);
+        if (orphanedItemsRemoved > 0) log.info("Data retention cleanup removed {} unlinked external_item row(s) before {}", orphanedItemsRemoved, cutoff);
 
         int archivedVersionsCleared = documents.purgeArchivedContentOlderThan(cutoff);
         if (archivedVersionsCleared > 0) log.info("Data retention cleanup cleared content for {} archived document version(s) before {}", archivedVersionsCleared, cutoff);
