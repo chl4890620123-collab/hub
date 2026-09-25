@@ -42,6 +42,7 @@ export function TodoAttachmentsPanel({ todoId }: { todoId: number }) {
 
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-md border border-dashed border-ink-200 p-2">
+      <p className="text-xs text-ink-400">여기에 보낸 파일은 보낸 사람과 이 할 일의 담당자만 볼 수 있습니다. 다른 팀원에게는 표시되지 않습니다.</p>
       {isLoading ? (
         <LoadingBlock />
       ) : !attachments || attachments.length === 0 ? (
