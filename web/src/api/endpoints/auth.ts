@@ -20,7 +20,8 @@ export const authApi = {
       `/api/auth/check-login-id?loginId=${encodeURIComponent(loginId)}`,
     ),
 
-  signupProjects: () => apiGet<{ id: number; name: string }[]>('/api/auth/signup/projects'),
+  signupProjects: () =>
+    apiGet<{ id: number; name: string; departmentName: string | null; teamName: string | null }[]>('/api/auth/signup/projects'),
 
   signupMember: (payload: {
     loginId: string;
