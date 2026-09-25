@@ -89,6 +89,13 @@ public class DocumentRepository {
         return count != null && count > 0;
     }
 
+    public boolean isSourceArchived(long projectId, String sourceType, String sourceIdentifier) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM document WHERE project_id=? AND source_type=? AND source_identifier=? AND archived=TRUE AND source_deleted=FALSE",
+                Integer.class, projectId, sourceType, sourceIdentifier);
+        return count != null && count > 0;
+    }
+
     /**
      * Serializes first-time source creation inside one project. This prevents two simultaneous uploads
      * of the same new source from racing into the UNIQUE(project_id, source_type, source_identifier)
