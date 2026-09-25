@@ -10,10 +10,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 
 /**
- * Keeps the todo table from growing forever: work that is DONE and long past its due date is removed
- * so DB size/index cost stays bounded as a project accumulates years of history. This purges only the
- * todo row itself - documents, meeting recordings, and evidence content are never touched, and nothing
- * still open (any status other than DONE, or with no confirmed due date) is ever eligible.
+ * Moves old completed work into the normal restorable trash instead of physically deleting it.
+ * This keeps active lists bounded without bypassing the user's delete/restore model. Permanent
+ * deletion remains an explicit trash action, and nothing still open is ever eligible.
  */
 @Service
 public class TodoRetentionService {
@@ -35,7 +34,7 @@ public class TodoRetentionService {
     public void purgeOldCompletedTodos() {
         if (!enabled) return;
         LocalDate cutoff = LocalDate.now().minusMonths(Math.max(1, retentionMonths));
-        int removed = todos.purgeCompletedOlderThan(cutoff);
-        if (removed > 0) log.info("Todo retention cleanup removed {} completed todo(s) due before {}", removed, cutoff);
+        int moved = todos.moveCompletedToTrashOlderThan(cutoff);
+        if (moved > 0) log.info("Todo retention cleanup moved {} completed todo(s) to trash; due before {}", moved, cutoff);
     }
 }
