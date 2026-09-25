@@ -249,26 +249,46 @@ public class ConnectorRepository {
 
     public record SyncState(String connectorType, String externalScope, OffsetDateTime lastSyncedAt, String lastStatus, String lastError, int lastImportedCount) {}
 
-    public void saveSyncState(long projectId, String connectorType, String scope, String status, String error, int count) {
+    public void saveSyncState(long projectId, String connectorType, String scope, long ownerUserId,
+                              String status, String error, int count) {
         Timestamp now = Timestamp.from(java.time.Instant.now());
-        int updated = jdbc.update("UPDATE connector_sync_state SET last_synced_at=?,last_status=?,last_error=?,last_imported_count=? WHERE project_id=? AND connector_type=? AND external_scope=?",
-                now, status, error, count, projectId, connectorType, scope);
+        int updated = jdbc.update("""
+                UPDATE connector_sync_state
+                SET owner_user_id=?,last_synced_at=?,last_status=?,last_error=?,last_imported_count=?
+                WHERE project_id=? AND connector_type=? AND external_scope=?
+                """, ownerUserId, now, status, error, count, projectId, connectorType, scope);
         if (updated > 0) return;
         try {
-            jdbc.update("INSERT INTO connector_sync_state(project_id,connector_type,external_scope,last_synced_at,last_status,last_error,last_imported_count) VALUES(?,?,?,?,?,?,?)",
-                    projectId, connectorType, scope, now, status, error, count);
+            jdbc.update("""
+                    INSERT INTO connector_sync_state(project_id,connector_type,external_scope,owner_user_id,
+                                                     last_synced_at,last_status,last_error,last_imported_count)
+                    VALUES(?,?,?,?,?,?,?,?)
+                    """, projectId, connectorType, scope, ownerUserId, now, status, error, count);
         } catch (DuplicateKeyException race) {
-            jdbc.update("UPDATE connector_sync_state SET last_synced_at=?,last_status=?,last_error=?,last_imported_count=? WHERE project_id=? AND connector_type=? AND external_scope=?",
-                    now, status, error, count, projectId, connectorType, scope);
+            jdbc.update("""
+                    UPDATE connector_sync_state
+                    SET owner_user_id=?,last_synced_at=?,last_status=?,last_error=?,last_imported_count=?
+                    WHERE project_id=? AND connector_type=? AND external_scope=?
+                    """, ownerUserId, now, status, error, count, projectId, connectorType, scope);
         }
     }
 
-    public record SyncScope(long projectId, String connectorType, String externalScope) {}
+    public record SyncScope(long projectId, String connectorType, String externalScope, long ownerUserId) {}
 
-    /** Every (project, connector, scope) combination ever imported, across all projects - the auto-sync job's worklist. */
+    /** Auto-sync replays only scopes that have an explicit owner. Legacy unbound rows are skipped until
+     * someone manually imports that scope again, which is safer than guessing a credential owner. */
     public List<SyncScope> allKnownScopes() {
-        return jdbc.query("SELECT DISTINCT project_id,connector_type,external_scope FROM connector_sync_state",
-                (rs, n) -> new SyncScope(rs.getLong("project_id"), rs.getString("connector_type"), rs.getString("external_scope")));
+        return jdbc.query("""
+                SELECT project_id,connector_type,external_scope,owner_user_id
+                FROM connector_sync_state
+                WHERE owner_user_id IS NOT NULL
+                """,
+                (rs, n) -> new SyncScope(rs.getLong("project_id"), rs.getString("connector_type"),
+                        rs.getString("external_scope"), rs.getLong("owner_user_id")));
+    }
+
+    public int clearSyncOwnersForUser(long userId) {
+        return jdbc.update("UPDATE connector_sync_state SET owner_user_id=NULL WHERE owner_user_id=?", userId);
     }
 
     public List<SyncState> listSyncStates(long projectId) {
