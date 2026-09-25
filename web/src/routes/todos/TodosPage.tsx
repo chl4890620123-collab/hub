@@ -178,7 +178,7 @@ export function TodosPage() {
       (showTrash
         ? (trashedTodos ?? [])
         : (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter)))
-        .filter((t) => assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
+        .filter((t) => showTrash || assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
         .sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31')),
     [allTodos, statusFilter, assigneeFilter, showTrash, trashedTodos],
   );
@@ -222,7 +222,7 @@ export function TodosPage() {
         description="확정된 할 일을 확인하고 진행 상태를 관리합니다. 담당자가 완료를 요청하면 의사결정권자 또는 관리자가 승인해야 완료됩니다."
         action={
           <div className="flex items-center gap-2">
-            <Button variant={showTrash ? 'default' : 'outline'} size="sm" onClick={() => setShowTrash((v) => !v)}>
+            <Button variant={showTrash ? 'primary' : 'outline'} size="sm" onClick={() => setShowTrash((v) => !v)}>
               <Trash2 size={14} /> {showTrash ? '할 일로 돌아가기' : '휴지통'}
             </Button>
             {!showTrash && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
@@ -287,9 +287,11 @@ export function TodosPage() {
         </div>
       )}
 
-      <div className="mt-6">
-        <FileTransferPanel projectId={currentProject.id} />
-      </div>
+      {!showTrash && (
+        <div className="mt-6">
+          <FileTransferPanel projectId={currentProject.id} />
+        </div>
+      )}
     </div>
   );
 }
