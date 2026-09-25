@@ -142,6 +142,15 @@ public class TodoService {
     }
 
     @Transactional
+    public void permanentDelete(TodoItem before,User actor){
+        if(before.deletedAt()==null)throw new StateConflictException("먼저 할 일을 휴지통으로 이동해 주세요.");
+        try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"PERMANENT_DELETE",json.writeValueAsString(before),"{\"permanentDeleted\":true}");}
+        catch(Exception e){throw new IllegalStateException(e);}
+        if(!todos.permanentDelete(before.id()))throw new StateConflictException("할 일 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+        timeline.append(before.projectId(),"TODO_PERMANENTLY_DELETED",before.title(),"영구 삭제",LocalDateTime.now(),"TODO",before.id());
+    }
+
+    @Transactional
     public void updateStatus(TodoItem before,String status,User actor){
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
             throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
