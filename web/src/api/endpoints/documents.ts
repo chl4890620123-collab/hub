@@ -3,7 +3,7 @@ import type { DocumentRow, DocumentVersionRow } from '@/api/types';
 
 export interface UploadResult {
   versionId: number;
-  jobId: number;
+  jobId?: number;
   status: string;
   todoId?: number;
   documentId?: number;
@@ -19,19 +19,10 @@ export const documentsApi = {
   deletePermanently: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}/permanent`),
   download: (documentId: number) => apiDownload(`/api/documents/${documentId}/download`),
 
-  upload: (
-    projectId: number,
-    file: File,
-    options?: { sourceDate?: string; dueDate?: string; assigneeId?: number },
-  ) => {
+  upload: (projectId: number, file: File) => {
     const form = new FormData();
     form.append('file', file);
-    const params = new URLSearchParams();
-    if (options?.sourceDate) params.set('sourceDate', options.sourceDate);
-    if (options?.dueDate) params.set('dueDate', options.dueDate);
-    if (options?.assigneeId) params.set('assigneeId', String(options.assigneeId));
-    const query = params.toString();
-    return apiUpload<UploadResult>(`/api/projects/${projectId}/documents/upload${query ? `?${query}` : ''}`, form);
+    return apiUpload<UploadResult>(`/api/projects/${projectId}/documents/upload`, form);
   },
 
   manual: (
