@@ -8,6 +8,7 @@ import com.hub.service.ProcessingJobService;
 import com.hub.service.ProjectAccessService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +44,14 @@ public class MeetingController {
         var uploaded = meetingService.createUpload(projectId, title, meetingAt, file, user);
         long jobId = jobs.queueMeeting(projectId, uploaded.meetingId());
         return ResponseEntity.accepted().body(Map.<String,Object>of("meetingId", uploaded.meetingId(), "jobId", jobId, "status", "PENDING"));
+    }
+
+    @DeleteMapping("/{meetingId}")
+    public Map<String, Object> delete(@PathVariable long projectId, @PathVariable long meetingId,
+                                      Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAccess(projectId, user);
+        meetingService.deleteCompleted(projectId, meetingId, user);
+        return Map.of("status", "DELETED", "meetingId", meetingId);
     }
 }
