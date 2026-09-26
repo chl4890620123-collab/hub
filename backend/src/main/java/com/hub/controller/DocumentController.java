@@ -52,7 +52,7 @@ public class DocumentController {
     public ResponseEntity<Map<String,Object>> edit(@PathVariable long projectId, @PathVariable long documentId,
                                                     @RequestBody DocumentEdit request, Authentication auth) {
         User user = current.requireOperational(auth); access.requireAccess(projectId, user);
-        long versionId = documents.manualEdit(projectId, documentId, request.title(), request.text(), user);
+        long versionId = documents.edit(projectId, documentId, request.title(), request.text(), user);
         long jobId = jobs.queueDocument(projectId, versionId, null);
         return ResponseEntity.accepted().body(Map.<String,Object>of("versionId", versionId, "jobId", jobId, "status", "PENDING"));
     }
