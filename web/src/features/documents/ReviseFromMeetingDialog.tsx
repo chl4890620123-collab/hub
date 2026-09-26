@@ -7,6 +7,7 @@ import { Label, Textarea } from '@/components/ui/input';
 import { LoadingBlock } from '@/components/ui/spinner';
 import { documentsApi } from '@/api/endpoints/documents';
 import { useJobPolling } from '@/hooks/useJobPolling';
+import { useCurrentUser } from '@/hooks/useAuth';
 import type { DocumentRow } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
@@ -29,10 +30,11 @@ export function ReviseFromMeetingDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
+  const { data: user } = useCurrentUser();
   const [meetingId, setMeetingId] = useState('');
   const [draft, setDraft] = useState('');
   const [jobId, setJobId] = useState<number | null>(null);
-  const jobKey = document ? `hub.document-revision-job.${projectId}.${document.id}` : '';
+  const jobKey = document ? `hub.document-revision-job.${user?.id ?? 'anon'}.${projectId}.${document.id}` : '';
   const { data: job } = useJobPolling(jobId);
 
   useEffect(() => {
@@ -40,12 +42,12 @@ export function ReviseFromMeetingDialog({
     setMeetingId('');
     setDraft('');
     try {
-      const raw = window.localStorage.getItem(`hub.document-revision-job.${projectId}.${document.id}`);
+      const raw = window.localStorage.getItem(`hub.document-revision-job.${user?.id ?? 'anon'}.${projectId}.${document.id}`);
       setJobId(raw ? Number(raw) || null : null);
     } catch {
       setJobId(null);
     }
-  }, [open, document?.id, projectId]);
+  }, [open, document?.id, projectId, user?.id]);
 
   useEffect(() => {
     if (job?.status !== 'SUCCESS' || !job.resultJson) return;
