@@ -2,6 +2,7 @@ package com.hub.service;
 
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
+import com.hub.repository.OrganizationRepository;
 import com.hub.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,12 +24,13 @@ class SignupServiceAvailabilityTest {
     @Mock ProjectRepository projects;
     @Mock ProjectAccessService projectAccess;
     @Mock MembershipService memberships;
+    @Mock OrganizationRepository organizations;
 
     private SignupService signup;
 
     @BeforeEach
     void setUp() {
-        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, memberships);
+        signup = new SignupService(users, encoder, new PasswordPolicy(), audit, projects, projectAccess, memberships, organizations);
     }
 
     @Test
