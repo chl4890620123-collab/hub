@@ -114,9 +114,13 @@ async function record(role, routes, filename) {
   });
 
   await context.addInitScript(({ role }) => {
+    // Seed the initial login state only once for this browser session. Re-applying
+    // "logged-out" on every navigation would send the recording back to /login.
+    if (sessionStorage.getItem('hub.video.seeded') === 'true') return;
     localStorage.setItem('hub.mock.logged-out', 'true');
     localStorage.setItem('hub.mock.role', role);
     localStorage.removeItem('hub.currentProjectId');
+    sessionStorage.setItem('hub.video.seeded', 'true');
   }, { role });
 
   const page = await context.newPage();
