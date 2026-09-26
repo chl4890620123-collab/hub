@@ -124,6 +124,13 @@ async function record(role, routes, filename) {
   }, { role });
 
   const page = await context.newPage();
+  let activePath = '/login';
+  const pageErrors = [];
+  page.on('pageerror', (error) => {
+    const message = `[${role}] ${activePath}: ${error.stack ?? error.message}`;
+    pageErrors.push(message);
+    console.error(message);
+  });
   await page.goto(baseURL + '/login', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle').catch(() => {});
   await sleep(900);
@@ -135,9 +142,12 @@ async function record(role, routes, filename) {
   await sleep(1000);
 
   for (const path of routes) {
+    activePath = path;
+    console.log(`[${role}] recording ${path}`);
     await showWholePage(page, path);
     await exerciseKeyFlow(page, path);
     await sleep(650);
+    if (pageErrors.length > 0) throw new Error(pageErrors.join('\n\n'));
   }
 
   const video = page.video();
