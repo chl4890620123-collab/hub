@@ -9,6 +9,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.Types;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,25 +17,53 @@ import java.util.Optional;
 public class ProcessingJobRepository {
     public record Lease(long id, boolean shouldRun) {}
 
+    private static final String SELECT =
+            "SELECT id,project_id,job_type,target_type,target_id,requester_user_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job";
+
     private final JdbcTemplate jdbc;
     public ProcessingJobRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public Lease createOrReuse(long projectId, String jobType, String targetType, long targetId, String requestKey) {
+        return createOrReuse(projectId, jobType, targetType, targetId, requestKey, null, false);
+    }
+
+    public Lease createOrReuseForUser(long projectId, String jobType, String targetType, long targetId,
+                                      String requestKey, long requesterUserId) {
+        return createOrReuse(projectId, jobType, targetType, targetId, requestKey, requesterUserId, false);
+    }
+
+    public Lease createOrReuseRerunnable(long projectId, String jobType, String targetType, long targetId, String requestKey) {
+        return createOrReuse(projectId, jobType, targetType, targetId, requestKey, null, true);
+    }
+
+    public Lease createOrReuseRerunnableForUser(long projectId, String jobType, String targetType, long targetId,
+                                                String requestKey, long requesterUserId) {
+        return createOrReuse(projectId, jobType, targetType, targetId, requestKey, requesterUserId, true);
+    }
+
+    private Lease createOrReuse(long projectId, String jobType, String targetType, long targetId,
+                                String requestKey, Long requesterUserId, boolean rerunnable) {
         Optional<ProcessingJob> existing = findByRequestKey(requestKey);
-        if (existing.isPresent()) return reviveIfFailed(existing.get());
+        if (existing.isPresent()) return rerunnable ? reviveIfTerminal(existing.get()) : reviveIfFailed(existing.get());
         try {
             KeyHolder key = new GeneratedKeyHolder();
             jdbc.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement(
-                        "INSERT INTO processing_job(project_id,job_type,target_type,target_id,status,request_key,progress,updated_at) VALUES(?,?,?,?,'PENDING',?,0,CURRENT_TIMESTAMP)",
+                        "INSERT INTO processing_job(project_id,job_type,target_type,target_id,requester_user_id,status,request_key,progress,updated_at) VALUES(?,?,?,?,?,'PENDING',?,0,CURRENT_TIMESTAMP)",
                         new String[]{"id"});
-                ps.setLong(1, projectId); ps.setString(2, jobType); ps.setString(3, targetType); ps.setLong(4, targetId); ps.setString(5, requestKey);
+                ps.setLong(1, projectId);
+                ps.setString(2, jobType);
+                ps.setString(3, targetType);
+                ps.setLong(4, targetId);
+                if (requesterUserId == null) ps.setNull(5, Types.BIGINT); else ps.setLong(5, requesterUserId);
+                ps.setString(6, requestKey);
                 return ps;
             }, key);
             if (key.getKey() == null) throw new IllegalStateException("Processing job id was not generated");
             return new Lease(key.getKey().longValue(), true);
         } catch (DuplicateKeyException race) {
-            return reviveIfFailed(findByRequestKey(requestKey).orElseThrow());
+            ProcessingJob found = findByRequestKey(requestKey).orElseThrow();
+            return rerunnable ? reviveIfTerminal(found) : reviveIfFailed(found);
         }
     }
 
@@ -44,39 +73,11 @@ public class ProcessingJobRepository {
         return new Lease(existing.id(), changed == 1);
     }
 
-    /**
-     * Like createOrReuse, but a request key here identifies a repeatable action ("자료 가져오기" for
-     * a given project+connector+scope), not a one-time target row - a document upload or meeting
-     * always gets a fresh id, so their keys never collide with a past SUCCESS the way a stable
-     * (project, type, scope) key otherwise would. Reviving on SUCCESS too means a scope can be
-     * re-imported by clicking the button again instead of createOrReuse silently handing back the
-     * first run's result forever; still collapses a genuine double-click while one is in flight.
-     */
-    public Lease createOrReuseRerunnable(long projectId, String jobType, String targetType, long targetId, String requestKey) {
-        Optional<ProcessingJob> existing = findByRequestKey(requestKey);
-        if (existing.isPresent()) return reviveIfTerminal(existing.get());
-        try {
-            KeyHolder key = new GeneratedKeyHolder();
-            jdbc.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                        "INSERT INTO processing_job(project_id,job_type,target_type,target_id,status,request_key,progress,updated_at) VALUES(?,?,?,?,'PENDING',?,0,CURRENT_TIMESTAMP)",
-                        new String[]{"id"});
-                ps.setLong(1, projectId); ps.setString(2, jobType); ps.setString(3, targetType); ps.setLong(4, targetId); ps.setString(5, requestKey);
-                return ps;
-            }, key);
-            if (key.getKey() == null) throw new IllegalStateException("Processing job id was not generated");
-            return new Lease(key.getKey().longValue(), true);
-        } catch (DuplicateKeyException race) {
-            return reviveIfTerminal(findByRequestKey(requestKey).orElseThrow());
-        }
-    }
-
     private Lease reviveIfTerminal(ProcessingJob existing) {
         if (!"FAILED".equals(existing.status()) && !"SUCCESS".equals(existing.status())) return new Lease(existing.id(), false);
         int changed = jdbc.update("UPDATE processing_job SET status='PENDING',progress=0,error_code=NULL,error_message=NULL,result_json=NULL,started_at=NULL,finished_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('FAILED','SUCCESS')", existing.id());
         return new Lease(existing.id(), changed == 1);
     }
-
 
     public int failInterruptedJobs() {
         return jdbc.update("UPDATE processing_job SET status='FAILED',error_code='INTERRUPTED',error_message='Server restarted before this job finished. Retry the same source to resume safely.',finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE status IN ('PENDING','PROCESSING')");
@@ -85,31 +86,42 @@ public class ProcessingJobRepository {
     public void start(long id) {
         jdbc.update("UPDATE processing_job SET status='PROCESSING',progress=5,started_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='PENDING'", id);
     }
+
     public void progress(long id, int progress) {
         jdbc.update("UPDATE processing_job SET progress=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='PROCESSING'", Math.max(0, Math.min(progress, 99)), id);
     }
+
     public void success(long id, String resultJson) {
         jdbc.update("UPDATE processing_job SET status='SUCCESS',progress=100,result_json=?,error_code=NULL,error_message=NULL,finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?", resultJson, id);
     }
+
     public void fail(long id, String code, String message) {
         jdbc.update("UPDATE processing_job SET status='FAILED',error_code=?,error_message=?,finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?", code, safe(message), id);
     }
 
     public ProcessingJob find(long id) {
-        return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE id=?", id)
-                .stream().findFirst().orElseThrow(() -> new IllegalArgumentException("처리 작업을 찾을 수 없습니다."));
+        return rows(SELECT + " WHERE id=?", id).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("처리 작업을 찾을 수 없습니다."));
     }
+
     public List<ProcessingJob> recent(long projectId) {
-        return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE project_id=? ORDER BY updated_at DESC,id DESC LIMIT 20", projectId);
+        return rows(SELECT + " WHERE project_id=? ORDER BY updated_at DESC,id DESC LIMIT 20", projectId);
     }
+
+    public List<ProcessingJob> recentVisible(long projectId, long userId) {
+        return rows(SELECT + " WHERE project_id=? AND (requester_user_id IS NULL OR requester_user_id=?) ORDER BY updated_at DESC,id DESC LIMIT 20",
+                projectId, userId);
+    }
+
     public Optional<ProcessingJob> findByRequestKey(String requestKey) {
-        return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE request_key=?", requestKey).stream().findFirst();
+        return rows(SELECT + " WHERE request_key=?", requestKey).stream().findFirst();
     }
 
     private List<ProcessingJob> rows(String sql, Object... args) {
         return jdbc.query(sql, (rs, n) -> new ProcessingJob(
                 rs.getLong("id"), rs.getLong("project_id"), rs.getString("job_type"), rs.getString("target_type"),
-                rs.getObject("target_id", Long.class), rs.getString("status"), rs.getInt("progress"), rs.getString("error_code"),
+                rs.getObject("target_id", Long.class), rs.getObject("requester_user_id", Long.class),
+                rs.getString("status"), rs.getInt("progress"), rs.getString("error_code"),
                 rs.getString("error_message"), rs.getString("result_json"),
                 rs.getTimestamp("created_at").toLocalDateTime(), rs.getTimestamp("updated_at").toLocalDateTime()), args);
     }
