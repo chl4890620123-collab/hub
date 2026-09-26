@@ -42,6 +42,11 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
 
+      - name: Install FFmpeg for MP4 export
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Start Hub demo UI
         env:
           VITE_DEV_AUTH_BYPASS: "true"
