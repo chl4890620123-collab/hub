@@ -11,6 +11,7 @@ export interface UploadResult {
 
 export const documentsApi = {
   list: (projectId: number) => apiGet<DocumentRow[]>(`/api/projects/${projectId}/documents`),
+  meetingTranscripts: (projectId: number) => apiGet<DocumentRow[]>(`/api/projects/${projectId}/documents/meeting-transcripts`),
   versions: (documentId: number) => apiGet<DocumentVersionRow[]>(`/api/documents/${documentId}/versions`),
   version: (versionId: number) => apiGet<Record<string, unknown>>(`/api/versions/${versionId}`),
   chunk: (chunkId: number) => apiGet<Record<string, unknown>>(`/api/chunks/${chunkId}`),
@@ -30,7 +31,7 @@ export const documentsApi = {
     payload: { title: string; text: string; sourceDate?: string; dueDate?: string; assigneeId?: number },
   ) => apiPost<UploadResult>(`/api/projects/${projectId}/documents/manual`, payload),
 
-  editManual: (projectId: number, documentId: number, title: string, text: string) =>
+  edit: (projectId: number, documentId: number, title: string, text: string) =>
     apiPut<UploadResult>(`/api/projects/${projectId}/documents/${documentId}`, { title, text }),
 
   /** Read-only: proposes a revision from a meeting-transcript document, saves nothing. */
