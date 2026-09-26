@@ -3,6 +3,7 @@ package com.hub.service;
 
 import com.hub.model.User;
 import com.hub.repository.ProcessingJobRepository;
+import com.hub.util.Hashing;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,23 @@ public class ProcessingJobService {
                 ? jobs.createOrReuseRerunnable(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey)
                 : jobs.createOrReuse(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey);
         if (lease.shouldRun()) executor.document(lease.id(), projectId, versionId, sourceDate);
+        return lease.id();
+    }
+
+    public long queueMaterialAsk(long projectId, String question, User user) {
+        String normalized = question == null ? "" : question.trim();
+        String requestKey = "MATERIAL_ASK:" + projectId + ":" + user.id() + ":" + Hashing.sha256(normalized);
+        var lease = jobs.createOrReuseRerunnableForUser(
+                projectId, "MATERIAL_ASK", "USER", user.id(), requestKey, user.id());
+        if (lease.shouldRun()) executor.materialAsk(lease.id(), projectId, normalized, user);
+        return lease.id();
+    }
+
+    public long queueDocumentRevision(long projectId, long documentId, long meetingDocumentId, User user) {
+        String requestKey = "DOCUMENT_REVISION:" + projectId + ":" + user.id() + ":" + documentId + ":" + meetingDocumentId;
+        var lease = jobs.createOrReuseRerunnableForUser(
+                projectId, "DOCUMENT_REVISION", "DOCUMENT", documentId, requestKey, user.id());
+        if (lease.shouldRun()) executor.documentRevision(lease.id(), projectId, documentId, meetingDocumentId, user);
         return lease.id();
     }
 
