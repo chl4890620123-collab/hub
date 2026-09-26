@@ -80,15 +80,15 @@ public class ProcessingJobRepository {
     }
 
     public int failInterruptedJobs() {
-        return jdbc.update("UPDATE processing_job SET status='FAILED',error_code='INTERRUPTED',error_message='Server restarted before this job finished. Retry the same source to resume safely.',finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE status IN ('PENDING','PROCESSING')");
+        return jdbc.update("UPDATE processing_job SET status='FAILED',error_code='INTERRUPTED',error_message='Server restarted before this job finished. Retry the same source to resume safely.',finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE status IN ('PENDING','RUNNING','PROCESSING')");
     }
 
     public void start(long id) {
-        jdbc.update("UPDATE processing_job SET status='PROCESSING',progress=5,started_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='PENDING'", id);
+        jdbc.update("UPDATE processing_job SET status='RUNNING',progress=5,started_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='PENDING'", id);
     }
 
     public void progress(long id, int progress) {
-        jdbc.update("UPDATE processing_job SET progress=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='PROCESSING'", Math.max(0, Math.min(progress, 99)), id);
+        jdbc.update("UPDATE processing_job SET progress=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='RUNNING'", Math.max(0, Math.min(progress, 99)), id);
     }
 
     public void success(long id, String resultJson) {
