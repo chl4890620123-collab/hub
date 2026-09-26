@@ -4,6 +4,8 @@ import type {
   AuditLogRow,
   GlobalRole,
   MaterialHit,
+  OrganizationDepartment,
+  OrganizationTeam,
   ReassignmentRequest,
   RevisionRow,
   RuleInput,
@@ -25,8 +27,8 @@ export const adminUsersApi = {
 
 export const adminSignupApi = {
   list: () => apiGet<SignupApplication[]>('/api/admin/signup-applications'),
-  approve: (userId: number, projectId?: number) =>
-    apiPost<{ status: string; projectAssigned: boolean }>(`/api/admin/signup-applications/${userId}/approve`, { projectId }),
+  approve: (userId: number, projectId?: number, departmentId?: number, teamId?: number) =>
+    apiPost<{ status: string; projectAssigned: boolean }>(`/api/admin/signup-applications/${userId}/approve`, { projectId, departmentId, teamId }),
   reject: (userId: number, reason?: string) =>
     apiPost<{ status: string }>(`/api/admin/signup-applications/${userId}/reject`, { reason }),
 };
@@ -83,4 +85,14 @@ export const adminSearchRuleApi = {
 export const adminHistoryApi = {
   revisions: (projectId: number) => apiGet<RevisionRow[]>(`/api/projects/${projectId}/revisions`),
   audit: () => apiGet<AuditLogRow[]>('/api/admin/audit'),
+};
+
+export const adminOrganizationApi = {
+  get: () => apiGet<{ departments: OrganizationDepartment[]; teams: OrganizationTeam[] }>('/api/admin/organization'),
+  createDepartment: (name: string) => apiPost<{ id: number; status: string }>('/api/admin/organization/departments', { name }),
+  renameDepartment: (id: number, name: string) => apiPut<{ status: string }>(`/api/admin/organization/departments/${id}`, { name }),
+  setDepartmentActive: (id: number, active: boolean) => apiPatch<{ status: string }>(`/api/admin/organization/departments/${id}/active`, { active }),
+  createTeam: (departmentId: number, name: string) => apiPost<{ id: number; status: string }>('/api/admin/organization/teams', { departmentId, name }),
+  renameTeam: (id: number, name: string) => apiPut<{ status: string }>(`/api/admin/organization/teams/${id}`, { name }),
+  setTeamActive: (id: number, active: boolean) => apiPatch<{ status: string }>(`/api/admin/organization/teams/${id}/active`, { active }),
 };
