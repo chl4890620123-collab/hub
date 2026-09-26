@@ -6,6 +6,8 @@ export const materialsApi = {
     apiGet<MaterialHit[]>(`/api/projects/${projectId}/materials/search?q=${encodeURIComponent(q)}&offset=${offset}`),
   ask: (projectId: number, question: string) =>
     apiPost<MaterialAskResponse>(`/api/projects/${projectId}/materials/ask`, { question }),
+  askJob: (projectId: number, question: string) =>
+    apiPost<{ jobId: number; status: string }>(`/api/projects/${projectId}/materials/ask-job`, { question }),
   topSearches: (projectId: number) =>
     apiGet<{ query_text: string; search_count: number }[]>(`/api/projects/${projectId}/search/top`),
   context: (projectId: number, q: string) =>

@@ -44,18 +44,14 @@ function IdentitySummary() {
 function ProfilePanel() {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const [departmentName, setDepartmentName] = useState(user?.departmentName ?? '');
-  const [teamName, setTeamName] = useState(user?.teamName ?? '');
   const [jobTitle, setJobTitle] = useState(user?.jobTitle ?? '');
 
   useEffect(() => {
-    setDepartmentName(user?.departmentName ?? '');
-    setTeamName(user?.teamName ?? '');
     setJobTitle(user?.jobTitle ?? '');
   }, [user]);
 
   const save = useMutation({
-    mutationFn: () => meApi.updateProfile({ departmentName, teamName, jobTitle }),
+    mutationFn: () => meApi.updateProfile({ jobTitle }),
     onSuccess: (updated) => {
       queryClient.setQueryData(['me'], updated);
       toast.success('프로필을 저장했습니다.');
@@ -84,13 +80,14 @@ function ProfilePanel() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="department">부서</Label>
-            <Input id="department" value={departmentName ?? ''} onChange={(e) => setDepartmentName(e.target.value)} />
+            <Input id="department" value={user.departmentName ?? '-'} disabled />
           </div>
           <div>
             <Label htmlFor="team">팀</Label>
-            <Input id="team" value={teamName ?? ''} onChange={(e) => setTeamName(e.target.value)} />
+            <Input id="team" value={user.teamName ?? '-'} disabled />
           </div>
         </div>
+        <p className="text-xs text-ink-400">부서·팀 변경은 회사 관리자가 지정합니다.</p>
         <div>
           <Label htmlFor="jobTitle">직급/직책</Label>
           <Input id="jobTitle" value={jobTitle ?? ''} onChange={(e) => setJobTitle(e.target.value)} className="max-w-xs" />
