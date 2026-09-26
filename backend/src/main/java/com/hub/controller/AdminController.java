@@ -44,10 +44,11 @@ public class AdminController {
     @GetMapping("/users") public List<User> listUsers(Authentication authentication){requireAdmin(authentication);return users.list();}
     @GetMapping("/signup-applications") public List<UserRepository.SignupApplication> signupApplications(Authentication authentication){requireAdmin(authentication);return users.listPendingApplications();}
 
-    public record ApproveSignup(Long projectId){}
+    public record ApproveSignup(Long projectId, Long departmentId, Long teamId){}
     @PostMapping("/signup-applications/{userId}/approve")
     public Map<String,Object> approveSignup(@PathVariable long userId,@RequestBody(required=false) ApproveSignup request,Authentication authentication){
-        User actor=requireAdmin(authentication);Long projectId=request==null?null:request.projectId();signup.approve(userId,actor,projectId);
+        User actor=requireAdmin(authentication);Long projectId=request==null?null:request.projectId();
+        signup.approve(userId,actor,projectId,request==null?null:request.departmentId(),request==null?null:request.teamId());
         return Map.of("status","APPROVED","projectAssigned",projectId!=null);
     }
 
