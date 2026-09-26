@@ -65,7 +65,7 @@ async function showWholePage(page, path) {
 
 async function exerciseKeyFlow(page, path) {
   if (path === '/search') {
-    const input = page.locator('input').filter({ visible: true }).first();
+    const input = page.locator('input:visible').first();
     if (await input.count()) {
       await input.fill('베타 일정');
       const button = page.getByRole('button', { name: /찾기|검색/ }).first();
@@ -77,7 +77,7 @@ async function exerciseKeyFlow(page, path) {
   }
 
   if (path === '/ask') {
-    const input = page.locator('input').filter({ visible: true }).first();
+    const input = page.locator('input:visible').first();
     if (await input.count()) {
       await input.fill('베타 일정이 왜 바뀌었어?');
       const button = page.getByRole('button', { name: /답변|질문|묻기/ }).first();
@@ -89,7 +89,7 @@ async function exerciseKeyFlow(page, path) {
   }
 
   if (path === '/context') {
-    const input = page.locator('input').filter({ visible: true }).first();
+    const input = page.locator('input:visible').first();
     if (await input.count()) {
       await input.fill('로그인 방식 개선');
       const button = page.getByRole('button', { name: /찾기|모아보기|검색/ }).first();
