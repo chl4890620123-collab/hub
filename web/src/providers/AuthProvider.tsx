@@ -3,7 +3,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { meApi } from '@/api/endpoints/auth';
 import type { User } from '@/api/types';
 import { LoadingBlock } from '@/components/ui/spinner';
-import { mockMode, mockUser } from '@/api/mockApi';
+import { getMockUser, mockMode } from '@/api/mockApi';
 
 type AuthQuery = UseQueryResult<User, Error>;
 
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (localStorage.getItem('hub.mock.logged-out') === 'true') {
           throw new Error('로그인이 필요합니다.');
         }
-        return mockUser;
+        return getMockUser();
       }
       return meApi.get();
     },
