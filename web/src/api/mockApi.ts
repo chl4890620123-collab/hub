@@ -100,7 +100,7 @@ const rules: SearchRule[] = [
   { id: 802, projectId: 202, name: '베타 피드백', aliases: ['사용성', '피드백'], patterns: ['베타', '리서치'], targetFile: null, mode: 'SMART', priority: 100, active: true, managed: true },
 ];
 const terms: SensitiveTerm[] = [{ id: 901, term: '개인정보' }, { id: 902, term: '계약 금액' }];
-const applications: SignupApplication[] = [{ id: 10001, loginId: 'minji', email: 'minji@example.com', displayName: '최민지', companyName: 'Hub Demo', departmentName: 'CS팀', teamName: null, jobTitle: 'CS 매니저', signupNote: '프로젝트 자료를 함께 검토하고 싶습니다.', requestedProjectId: 101, requestedProjectName: 'Atlas 리뉴얼', requestedRole: 'MEMBER', approvalStatus: 'PENDING', rejectionReason: null, createdAt: iso(1) }];
+const applications: SignupApplication[] = [{ id: 10001, loginId: 'minji', email: 'minji@example.com', displayName: '최민지', companyName: 'Hub Demo', departmentName: 'CS팀', teamName: null, departmentId: null, teamId: null, jobTitle: 'CS 매니저', signupNote: '프로젝트 자료를 함께 검토하고 싶습니다.', requestedProjectId: 101, requestedProjectName: 'Atlas 리뉴얼', requestedRole: 'MEMBER', approvalStatus: 'PENDING', rejectionReason: null, createdAt: iso(1) }];
 
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
