@@ -23,6 +23,8 @@ export const adminUsersApi = {
     apiPatch<{ status: string }>(`/api/admin/users/${userId}/role`, { role }),
   resetPassword: (userId: number, temporaryPassword: string) =>
     apiPost<{ status: string; mustChangePassword: boolean }>(`/api/admin/users/${userId}/reset-password`, { temporaryPassword }),
+  setOrganization: (userId: number, departmentId: number, teamId: number) =>
+    apiPatch<{ status: string }>(`/api/admin/users/${userId}/organization`, { departmentId, teamId }),
 };
 
 export const adminSignupApi = {
