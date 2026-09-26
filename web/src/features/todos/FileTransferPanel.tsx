@@ -1,6 +1,6 @@
 import { DragEvent, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Pencil, Send, Trash2, UploadCloud, X } from 'lucide-react';
+import { Download, EyeOff, Pencil, Send, Trash2, UploadCloud, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -86,6 +86,12 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
       if (note == null) return;
       await attachmentsApi.update(item.id, fileName.trim(), note);
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] }),
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const hideTransfer = useMutation({
+    mutationFn: (id: number) => attachmentsApi.hideFromInbox(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] }),
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -197,16 +203,20 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
                   <button onClick={() => download.mutate(item.id)} className="text-accent-600 hover:underline" aria-label={`${item.fileName} 다운로드`}>
                     <Download size={14} />
                   </button>
-                  {item.senderId === user?.id && (
+                  {item.senderId === user?.id ? (
                     <>
                       <button onClick={() => updateTransfer.mutate(item)} className="text-accent-600 hover:underline" aria-label={`${item.fileName} 수정`}>
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => { if (window.confirm(`'${item.fileName}' 파일을 삭제할까요? 받는 사람 목록에서도 사라집니다.`)) deleteTransfer.mutate(item.id); }} className="text-red-600 hover:underline" aria-label={`${item.fileName} 삭제`}>
+                      <button onClick={() => { if (window.confirm(`'${item.fileName}' 원본을 삭제할까요? 받는 사람 목록에서도 사라집니다.`)) deleteTransfer.mutate(item.id); }} className="text-red-600 hover:underline" aria-label={`${item.fileName} 삭제`}>
                         <Trash2 size={14} />
                       </button>
                     </>
-                  )}
+                  ) : item.recipientId === user?.id ? (
+                    <button onClick={() => hideTransfer.mutate(item.id)} className="text-ink-500 hover:underline" aria-label={`${item.fileName} 받은 목록에서 숨기기`}>
+                      <EyeOff size={14} />
+                    </button>
+                  ) : null}
                 </div>
               </li>
             ))}
