@@ -1,0 +1,80 @@
+name: Record Hub demo videos
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - video/demo-recording-20260927
+    paths:
+      - "web/**"
+      - ".github/workflows/record-demo-videos.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Install Playwright for recording
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start Hub demo UI
+        env:
+          VITE_DEV_AUTH_BYPASS: "true"
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/hub-video-vite.log 2>&1 &
+          echo $! > /tmp/hub-video-vite.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173/login >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/hub-video-vite.log
+          exit 1
+
+      - name: Record administrator and member flows
+        run: node scripts/record-demo-videos.mjs
+
+      - name: Convert recordings to MP4
+        run: |
+          mkdir -p demo-videos/mp4
+          for f in demo-videos/hub-*.webm; do
+            ffmpeg -y -i "$f" -an -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p "demo-videos/mp4/$(basename "${f%.webm}").mp4"
+          done
+
+      - name: Show Vite log on failure
+        if: failure()
+        run: cat /tmp/hub-video-vite.log || true
+
+      - name: Upload demo videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-admin-member-demo-videos
+          path: |
+            web/demo-videos/mp4/*.mp4
+            web/demo-videos/hub-*.webm
+          if-no-files-found: error
+          retention-days: 14
