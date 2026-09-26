@@ -10,10 +10,7 @@ import type { DocumentRow } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
-/** AI proposes a revision of a manually-entered document, grounded in a meeting transcript already
- * registered in this project - nothing is saved until the user reviews/edits the draft and presses
- * 저장, which goes through the same editManual path as any other manual edit. To see exactly what
- * changed afterward, use the existing 버전 비교 (version compare) button on the document. */
+/** AI proposes a revision of a user-managed document grounded in a meeting transcript. Nothing is saved until the user reviews the draft and explicitly stores a new version. */
 export function ReviseFromMeetingDialog({
   projectId,
   document,
@@ -46,7 +43,7 @@ export function ReviseFromMeetingDialog({
   });
 
   const save = useMutation({
-    mutationFn: () => documentsApi.editManual(projectId, document!.id, document!.original_name, draft),
+    mutationFn: () => documentsApi.edit(projectId, document!.id, document!.original_name, draft),
     onSuccess: () => {
       toast.success('회의 내용을 반영해 새 버전으로 저장했습니다. 버전 비교에서 달라진 점을 확인하세요.');
       onOpenChange(false);
