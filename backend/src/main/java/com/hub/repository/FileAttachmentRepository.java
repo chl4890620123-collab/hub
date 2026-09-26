@@ -70,7 +70,10 @@ public class FileAttachmentRepository {
     /** Sent or received within the project - a small personal inbox, newest first. */
     public List<Attachment> listForUser(long projectId, long userId) {
         return jdbc.query(selectColumns() + " " + """
-                 FROM file_attachment WHERE project_id=? AND todo_id IS NULL AND (sender_id=? OR recipient_id=?) ORDER BY id DESC LIMIT 300
+                 FROM file_attachment
+                 WHERE project_id=? AND todo_id IS NULL
+                   AND (sender_id=? OR (recipient_id=? AND recipient_hidden_at IS NULL))
+                 ORDER BY id DESC LIMIT 300
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
@@ -82,7 +85,7 @@ public class FileAttachmentRepository {
         return jdbc.query(selectColumns() + " " + """
                  FROM file_attachment
                  WHERE project_id=?
-                   AND (sender_id=? OR recipient_id=?)
+                   AND (sender_id=? OR (recipient_id=? AND recipient_hidden_at IS NULL))
                    AND (
                      todo_id IS NULL
                      OR EXISTS (
@@ -106,6 +109,13 @@ public class FileAttachmentRepository {
 
     public boolean updateMetadata(long id, String fileName, String note) {
         return jdbc.update("UPDATE file_attachment SET file_name=?,note=? WHERE id=?", fileName, note, id) == 1;
+    }
+
+    public boolean hideForRecipient(long id, long recipientId) {
+        return jdbc.update("""
+                UPDATE file_attachment SET recipient_hidden_at=CURRENT_TIMESTAMP
+                WHERE id=? AND todo_id IS NULL AND recipient_id=? AND recipient_hidden_at IS NULL
+                """, id, recipientId) == 1;
     }
 
     public boolean delete(long id) {
