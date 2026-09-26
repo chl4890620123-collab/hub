@@ -257,6 +257,9 @@ public class MaterialSearchService {
         }
         candidates.values().forEach(candidate -> candidate.rerankBonus = rerankBonus(candidate.hit(), plan, terms));
         return candidates.values().stream()
+                // Meeting transcripts are internal evidence for AI/revision, not user-facing material search results.
+                .filter(candidate -> candidate.nativeSeed() == null
+                        || !"MEETING_TRANSCRIPT".equalsIgnoreCase(candidate.nativeSeed().sourceType()))
                 .sorted(Comparator.comparingDouble((Candidate c) -> c.score(plan)).reversed()
                         .thenComparing(c -> c.hit().sourceCreatedAt(), Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();

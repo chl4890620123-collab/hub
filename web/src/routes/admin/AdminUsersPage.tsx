@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
-import { adminUsersApi } from '@/api/endpoints/admin';
+import { adminOrganizationApi, adminUsersApi } from '@/api/endpoints/admin';
 import type { User } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
@@ -21,6 +22,10 @@ export function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState('');
   const [suspendTarget, setSuspendTarget] = useState<User | null>(null);
   const [suspendReason, setSuspendReason] = useState('');
+  const [organizationTarget, setOrganizationTarget] = useState<User | null>(null);
+  const [departmentId, setDepartmentId] = useState('');
+  const [teamId, setTeamId] = useState('');
+  const { data: organization } = useQuery({ queryKey: ['admin-organization'], queryFn: adminOrganizationApi.get });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] });
 
@@ -42,6 +47,18 @@ export function AdminUsersPage() {
     mutationFn: ({ userId, role }: { userId: number; role: 'ADMIN' | 'MEMBER' }) => adminUsersApi.setRole(userId, role),
     onSuccess: () => {
       toast.success('권한을 변경했습니다.');
+      invalidate();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const setOrganization = useMutation({
+    mutationFn: () => adminUsersApi.setOrganization(organizationTarget!.id, Number(departmentId), Number(teamId)),
+    onSuccess: () => {
+      toast.success('부서·팀을 변경했습니다.');
+      setOrganizationTarget(null);
+      setDepartmentId('');
+      setTeamId('');
       invalidate();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -116,6 +133,9 @@ export function AdminUsersPage() {
                       >
                         {u.globalRole === 'ADMIN' ? '일반 사용자로 변경' : '관리자로 변경'}
                       </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setOrganizationTarget(u); setDepartmentId(''); setTeamId(''); }}>
+                        부서·팀 변경
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => setResetTarget(u)}>
                         비밀번호 초기화
                       </Button>
@@ -167,6 +187,33 @@ export function AdminUsersPage() {
                 정지
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!organizationTarget} onOpenChange={(open) => { if (!open) { setOrganizationTarget(null); setDepartmentId(''); setTeamId(''); } }}>
+        <DialogContent>
+          <DialogTitle>{organizationTarget?.displayName}님의 부서·팀 변경</DialogTitle>
+          <div className="flex flex-col gap-3">
+            <Select value={departmentId} onValueChange={(value) => { setDepartmentId(value); setTeamId(''); }}>
+              <SelectTrigger><SelectValue placeholder="부서 선택" /></SelectTrigger>
+              <SelectContent>
+                {(organization?.departments ?? []).filter((department) => department.active).map((department) => (
+                  <SelectItem key={department.id} value={String(department.id)}>{department.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
+              <SelectTrigger><SelectValue placeholder={departmentId ? '팀 선택' : '부서를 먼저 선택하세요'} /></SelectTrigger>
+              <SelectContent>
+                {(organization?.teams ?? []).filter((team) => team.active && String(team.departmentId) === departmentId).map((team) => (
+                  <SelectItem key={team.id} value={String(team.id)}>{team.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button disabled={!departmentId || !teamId || setOrganization.isPending} onClick={() => setOrganization.mutate()}>
+              변경
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

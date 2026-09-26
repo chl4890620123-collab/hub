@@ -7,11 +7,10 @@ import { ViewModeToggle, type ViewMode } from '@/components/layout/ViewModeToggl
 import { CalendarGrid } from '@/components/layout/CalendarGrid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input, Label, Textarea } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
-import { AssigneeField } from '@/components/form/AssigneeField';
 import { VersionCompareDialog } from '@/features/documents/VersionCompareDialog';
 import { ReviseFromMeetingDialog } from '@/features/documents/ReviseFromMeetingDialog';
 import { JobHistoryPanel } from '@/features/documents/JobHistoryPanel';
@@ -20,415 +19,42 @@ import type { DocumentRow } from '@/api/types';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useIsAdmin } from '@/hooks/useAuth';
 import { documentsApi } from '@/api/endpoints/documents';
+import { connectorsApi } from '@/api/endpoints/connectors';
 import { formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
-const DOCUMENT_SOURCE_LABELS: Record<string, string> = {
-  FILE: '업로드 파일',
-  MANUAL_TEXT: '직접 입력',
-  MEETING_TRANSCRIPT: '회의 녹음 기록',
-  LOCAL_PC: '내 PC 파일',
-  GITHUB: 'GitHub',
-  GOOGLE_DRIVE: 'Google Drive',
-  SLACK: 'Slack',
-  NOTION: 'Notion',
-};
+const DOCUMENT_SOURCE_LABELS: Record<string, string> = { FILE: '업로드 파일', MANUAL_TEXT: '작성 문서', LOCAL_PC: '내 PC 파일', GITHUB: 'GitHub', GOOGLE_DRIVE: 'Google Drive', SLACK: 'Slack', NOTION: 'Notion' };
 
 function UploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [dueDate, setDueDate] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedVersionId, setUploadedVersionId] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
   const queryClient = useQueryClient();
-  const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
-
-  const upload = useMutation({
-    mutationFn: (file: File) =>
-      documentsApi.upload(projectId, file, {
-        dueDate: dueDate || undefined,
-        assigneeId: assigneeId ? Number(assigneeId) : undefined,
-      }),
-    onSuccess: (result) => {
-      toast.success('업로드했습니다. AI 분석이 진행됩니다.');
-      onJobStarted(result.jobId);
-      queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
-      setSelectedFile(null);
-      setDueDate('');
-      setAssigneeId('');
-      if (fileRef.current) fileRef.current.value = '';
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>파일 업로드</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-64 flex-col gap-1">
-          <Label htmlFor="document-file">파일 선택</Label>
-          <input
-            id="document-file"
-            ref={fileRef}
-            type="file"
-            className="sr-only"
-            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-          />
-          <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="justify-start">
-            파일 선택
-          </Button>
-          <span className="max-w-64 truncate text-xs text-ink-400">
-            {selectedFile ? selectedFile.name : '선택된 파일 없음'}
-          </span>
-        </div>
-        <div>
-          <Label htmlFor="doc-due-date">후속 할 일 기한 (선택)</Label>
-          <Input id="doc-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" />
-        </div>
-        <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
-        <p className={followUpIncomplete ? 'w-full text-xs text-red-600' : 'w-full text-xs text-ink-400'}>
-          {followUpIncomplete
-            ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
-            : '담당자와 기한을 함께 선택하면 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
-        </p>
-        <Button
-          disabled={!selectedFile || upload.isPending || followUpIncomplete}
-          onClick={() => {
-            if (!selectedFile) {
-              toast.error('업로드할 파일을 먼저 선택해주세요.');
-              return;
-            }
-            upload.mutate(selectedFile);
-          }}
-        >
-          <Upload size={14} /> 업로드
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ManualEntryPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
-  const queryClient = useQueryClient();
-  const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
-
-  const submit = useMutation({
-    mutationFn: () =>
-      documentsApi.manual(projectId, {
-        title,
-        text,
-        dueDate: dueDate || undefined,
-        assigneeId: assigneeId ? Number(assigneeId) : undefined,
-      }),
-    onSuccess: (result) => {
-      toast.success('저장했습니다. AI 분석이 진행됩니다.');
-      onJobStarted(result.jobId);
-      setTitle('');
-      setText('');
-      setDueDate('');
-      setAssigneeId('');
-      queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>직접 입력</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="문서 제목" />
-        <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="내용을 입력하세요" />
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <Label htmlFor="manual-due-date">후속 할 일 기한 (선택)</Label>
-            <Input id="manual-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" />
-          </div>
-          <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
-        </div>
-        <p className={followUpIncomplete ? 'text-xs text-red-600' : 'text-xs text-ink-400'}>
-          {followUpIncomplete
-            ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
-            : '담당자와 기한을 함께 선택하면 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
-        </p>
-        <Button disabled={!title.trim() || !text.trim() || submit.isPending || followUpIncomplete} onClick={() => submit.mutate()} className="self-start">
-          저장 및 분석 요청
-        </Button>
-      </CardContent>
-    </Card>
-  );
+  const upload = useMutation({ mutationFn: (file: File) => documentsApi.upload(projectId, file), onSuccess: (r) => { setUploadedVersionId(r.versionId); toast.success('업로드했습니다. 내용을 확인한 뒤 AI 요약을 시작해 주세요.'); queryClient.invalidateQueries({ queryKey: ['documents', projectId] }); }, onError: (e) => toast.error(errorMessage(e)) });
+  const analyze = useMutation({ mutationFn: (versionId: number) => documentsApi.analyze(projectId, versionId), onSuccess: (r) => { if (r.jobId) onJobStarted(r.jobId); toast.success('AI 요약을 시작했습니다. 다른 화면으로 이동해도 백그라운드에서 계속 진행됩니다.'); setSelectedFile(null); setUploadedVersionId(null); if (fileRef.current) fileRef.current.value = ''; }, onError: (e) => toast.error(errorMessage(e)) });
+  const choose = (file: File | null) => { setSelectedFile(file); setUploadedVersionId(null); };
+  return <Card><CardHeader><CardTitle>문서 업로드</CardTitle></CardHeader><CardContent className="flex flex-col gap-3">
+    <input id="document-file" ref={fileRef} type="file" className="sr-only" onChange={(e) => choose(e.target.files?.[0] ?? null)} />
+    <button type="button" className={'flex min-h-36 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 text-center transition ' + (dragging ? 'border-accent-500 bg-accent-50' : 'border-ink-200 hover:border-accent-400')} onClick={() => fileRef.current?.click()} onDragEnter={(e) => { e.preventDefault(); setDragging(true); }} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { e.preventDefault(); setDragging(false); }} onDrop={(e) => { e.preventDefault(); setDragging(false); choose(e.dataTransfer.files?.[0] ?? null); }}><Upload size={24} /><span className="text-sm font-medium">파일을 여기에 끌어놓거나 눌러서 선택하세요</span><span className="text-xs text-ink-400">{selectedFile ? selectedFile.name : '업로드만으로 AI 분석은 시작되지 않습니다.'}</span></button>
+    {!uploadedVersionId ? <Button className="self-start" disabled={!selectedFile || upload.isPending} onClick={() => selectedFile && upload.mutate(selectedFile)}><Upload size={14} /> {upload.isPending ? '업로드 중…' : '파일 업로드'}</Button> : <div className="flex flex-wrap items-center gap-2"><Badge variant="outline">업로드 완료</Badge><Button disabled={analyze.isPending} onClick={() => analyze.mutate(uploadedVersionId)}><Sparkles size={14} /> {analyze.isPending ? '요약 요청 중…' : '확인하고 AI 요약 시작'}</Button></div>}
+  </CardContent></Card>;
 }
 
 export function DocumentsPage() {
-  const { currentProject } = useCurrentProject();
-  const isAdmin = useIsAdmin();
-  const queryClient = useQueryClient();
-  const [activeJobId, setActiveJobId] = useState<number | null>(null);
-  const [compareDocId, setCompareDocId] = useState<number | null>(null);
-  const [revising, setRevising] = useState<DocumentRow | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [nameFilter, setNameFilter] = useState('');
-  const [archiveFilter, setArchiveFilter] = useState<'ACTIVE' | 'ARCHIVED' | 'ALL'>('ACTIVE');
-  const [cursor, setCursor] = useState(() => new Date());
-
-  const { data: documents, isLoading } = useQuery({
-    queryKey: ['documents', currentProject?.id],
-    queryFn: () => documentsApi.list(currentProject!.id),
-    enabled: !!currentProject,
-  });
-
-  const archive = useMutation({
-    mutationFn: (documentId: number) => documentsApi.archive(documentId),
-    onSuccess: () => {
-      toast.success('문서를 보관 처리했습니다.');
-      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  const restore = useMutation({
-    mutationFn: (documentId: number) => documentsApi.restore(documentId),
-    onSuccess: () => {
-      toast.success('문서를 다시 사용 중으로 복원했습니다.');
-      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  const permanentDelete = useMutation({
-    mutationFn: (documentId: number) => documentsApi.deletePermanently(documentId),
-    onSuccess: () => {
-      toast.success('문서를 영구 삭제했습니다.');
-      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  const download = useMutation({
-    mutationFn: async (doc: DocumentRow) => {
-      const { blob, filename } = await documentsApi.download(doc.id);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename ?? doc.original_name;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  const filtered = useMemo(
-    () =>
-      (documents ?? []).filter((doc) => {
-        if (!doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())) return false;
-        if (archiveFilter === 'ACTIVE') return !doc.archived;
-        if (archiveFilter === 'ARCHIVED') return doc.archived;
-        return true;
-      }),
-    [documents, nameFilter, archiveFilter],
-  );
-  const pages = usePagination(filtered);
-
-  if (!currentProject) return <NoProjectState />;
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth() + 1;
-
-  const documentItem = (doc: DocumentRow, compact?: boolean) => (
-    <div
-      className={
-        compact
-          ? 'truncate rounded border border-ink-100 bg-white px-1.5 py-1 text-[11px] text-ink-700 dark:bg-ink-100'
-          : 'flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2'
-      }
-      title={compact ? doc.original_name : undefined}
-    >
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-ink-800">{doc.original_name}</p>
-        {!compact && (
-          <p className="text-xs text-ink-400">
-            {DOCUMENT_SOURCE_LABELS[doc.source_type] ?? '등록 자료'} · 버전 {doc.latest_version} · {formatDateTime(doc.created_at)}
-          </p>
-        )}
-      </div>
-      {!compact && (
-        <div className="flex shrink-0 items-center gap-2">
-          {doc.archived && <Badge variant="outline">보관됨</Badge>}
-          {doc.content_purged && <Badge variant="warning">본문 보존기간 만료</Badge>}
-          {doc.has_original && (
-            <Button variant="ghost" size="sm" disabled={download.isPending} onClick={() => download.mutate(doc)}>
-              <Download size={13} /> 원본 다운로드
-            </Button>
-          )}
-          {doc.source_type === 'MANUAL_TEXT' && !doc.archived && (
-            <Button variant="ghost" size="sm" onClick={() => setRevising(doc)}>
-              <Sparkles size={13} /> 회의 내용으로 수정
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => setCompareDocId(doc.id)}>
-            <GitCompare size={13} /> 버전 비교
-          </Button>
-          {isAdmin && !doc.archived && (
-            <Button variant="ghost" size="sm" disabled={archive.isPending} onClick={() => archive.mutate(doc.id)}>
-              <Archive size={13} /> 보관
-            </Button>
-          )}
-          {isAdmin && doc.archived && !doc.content_purged && (
-            <Button variant="ghost" size="sm" disabled={restore.isPending} onClick={() => restore.mutate(doc.id)}>
-              <RotateCcw size={13} /> 복원
-            </Button>
-          )}
-          {isAdmin && doc.archived && doc.content_purged && (
-            <span className="max-w-44 text-xs text-amber-700">
-              본문 보존기간이 지나 바로 복원할 수 없습니다. 원본 자료를 다시 등록해 주세요.
-            </span>
-          )}
-          {isAdmin && doc.archived && (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={permanentDelete.isPending}
-              className="text-red-600 hover:text-red-700"
-              onClick={() => {
-                const fromConnector = ['GITHUB', 'GOOGLE_DRIVE', 'SLACK', 'NOTION'].includes(doc.source_type);
-                const connectorNotice = fromConnector
-                  ? '\n\n연결 서비스에서 가져온 자료이므로 이후 동기화에서도 같은 원본을 다시 가져오지 않습니다.'
-                  : '';
-                const ok = window.confirm(
-                  `'${doc.original_name}' 문서를 영구 삭제할까요?\n\n원본 파일과 모든 버전, 이 문서에 연결된 근거가 삭제됩니다. 이미 확정된 할 일·결정은 남지만 이 문서와의 연결은 제거됩니다.${connectorNotice}\n\n이 작업은 되돌릴 수 없습니다.`,
-                );
-                if (ok) permanentDelete.mutate(doc.id);
-              }}
-            >
-              <Trash2 size={13} /> 영구 삭제
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <div>
-      <PageHeader title="문서 요약" description="문서를 업로드하거나 직접 입력하면 AI가 내용을 요약하고 할 일·담당자·기한 후보를 정리합니다." />
-
-      <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <UploadPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
-        <ManualEntryPanel projectId={currentProject.id} onJobStarted={setActiveJobId} />
-      </div>
-
-      {activeJobId && (
-        <div className="mb-5">
-          <AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id} />
-        </div>
-      )}
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>문서 목록</CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex gap-1">
-                {([
-                  ['ACTIVE', '사용 중'],
-                  ['ARCHIVED', '보관함'],
-                  ['ALL', '전체'],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setArchiveFilter(value)}
-                    className={
-                      'rounded-full px-2.5 py-1 text-xs font-medium ' +
-                      (archiveFilter === value ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <Input
-                value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
-                placeholder="이름으로 찾기"
-                className="w-40"
-              />
-              <ViewModeToggle value={viewMode} onChange={setViewMode} />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <LoadingBlock />
-          ) : viewMode === 'calendar' ? (
-            <div>
-              <div className="mb-3 flex items-center justify-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCursor(new Date(year, month - 2, 1))}>
-                  이전 달
-                </Button>
-                <span className="text-sm font-medium text-ink-700">
-                  {year}년 {month}월
-                </span>
-                <Button variant="outline" size="sm" onClick={() => setCursor(new Date(year, month, 1))}>
-                  다음 달
-                </Button>
-              </div>
-              <CalendarGrid
-                items={filtered}
-                getDate={(doc) => doc.created_at.slice(0, 10)}
-                renderItem={(doc) => documentItem(doc, true)}
-                year={year}
-                month={month}
-              />
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState title="등록된 문서가 없습니다." />
-          ) : (
-            <>
-              <ul className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'flex flex-col gap-2'}>
-                {pages.pageItems.map((doc) => (
-                  <li key={doc.id}>{documentItem(doc)}</li>
-                ))}
-              </ul>
-              <PaginationControls
-                page={pages.page}
-                totalPages={pages.totalPages}
-                pageSize={pages.pageSize}
-                onPageChange={pages.setPage}
-                onPageSizeChange={pages.setPageSize}
-                totalCount={filtered.length}
-              />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="mt-4">
-        <JobHistoryPanel projectId={currentProject.id} />
-      </div>
-
-      <VersionCompareDialog
-        documentId={compareDocId}
-        projectId={currentProject.id}
-        open={compareDocId != null}
-        onOpenChange={(open) => !open && setCompareDocId(null)}
-      />
-
-      <ReviseFromMeetingDialog
-        projectId={currentProject.id}
-        document={revising}
-        meetingDocuments={(documents ?? []).filter((d) => d.source_type === 'MEETING_TRANSCRIPT')}
-        open={revising != null}
-        onOpenChange={(open) => !open && setRevising(null)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['documents', currentProject.id] })}
-      />
-    </div>
-  );
+  const { currentProject } = useCurrentProject(); const isAdmin = useIsAdmin(); const queryClient = useQueryClient();
+  const [activeJobId, setActiveJobId] = useState<number | null>(null); const [compareDocId, setCompareDocId] = useState<number | null>(null); const [revising, setRevising] = useState<DocumentRow | null>(null); const [viewMode, setViewMode] = useState<ViewMode>('list'); const [nameFilter, setNameFilter] = useState(''); const [archiveFilter, setArchiveFilter] = useState<'ACTIVE' | 'ARCHIVED' | 'ALL'>('ACTIVE'); const [cursor, setCursor] = useState(() => new Date());
+  const { data: documents, isLoading } = useQuery({ queryKey: ['documents', currentProject?.id], queryFn: () => documentsApi.list(currentProject!.id), enabled: !!currentProject });
+  const { data: meetingDocuments } = useQuery({ queryKey: ['meeting-transcript-documents', currentProject?.id], queryFn: () => documentsApi.meetingTranscripts(currentProject!.id), enabled: !!currentProject });
+  const { data: connectorStatuses } = useQuery({ queryKey: ['connector-status', currentProject?.id], queryFn: () => connectorsApi.status(currentProject!.id), enabled: !!currentProject });
+  const analyzeExisting = useMutation({ mutationFn: async (doc: DocumentRow) => { const versions = await documentsApi.versions(doc.id); const latest = [...versions].sort((a,b) => b.version_no - a.version_no)[0]; if (!latest) throw new Error('분석할 문서 버전을 찾을 수 없습니다.'); const alreadySummarized = Boolean(latest.summary?.trim()); if (alreadySummarized && !window.confirm(`'${doc.original_name}'의 현재 버전은 이미 요약되어 있습니다. 다시 요약할까요?`)) return null; return documentsApi.analyze(currentProject!.id, latest.id, undefined, alreadySummarized); }, onSuccess: (r) => { if (!r) return; if (r.jobId) setActiveJobId(r.jobId); toast.success('AI 요약을 요청했습니다. 진행 상태는 아래 작업 기록에서 다시 확인할 수 있습니다.'); }, onError: (e) => toast.error(errorMessage(e)) });
+  const archive = useMutation({ mutationFn: (id:number) => documentsApi.archive(id), onSuccess: () => queryClient.invalidateQueries({ queryKey:['documents',currentProject?.id] }), onError:(e)=>toast.error(errorMessage(e)) });
+  const restore = useMutation({ mutationFn: (id:number) => documentsApi.restore(id), onSuccess: () => queryClient.invalidateQueries({ queryKey:['documents',currentProject?.id] }), onError:(e)=>toast.error(errorMessage(e)) });
+  const permanentDelete = useMutation({ mutationFn: (id:number) => documentsApi.deletePermanently(id), onSuccess: () => queryClient.invalidateQueries({ queryKey:['documents',currentProject?.id] }), onError:(e)=>toast.error(errorMessage(e)) });
+  const download = useMutation({ mutationFn: async (doc:DocumentRow) => { const {blob,filename}=await documentsApi.download(doc.id); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename??doc.original_name; a.click(); URL.revokeObjectURL(url); }, onError:(e)=>toast.error(errorMessage(e)) });
+  const filtered=useMemo(()=>(documents??[]).filter((doc)=>{ if(doc.source_type==='MEETING_TRANSCRIPT') return false; if(!doc.original_name.toLowerCase().includes(nameFilter.trim().toLowerCase())) return false; if(archiveFilter==='ACTIVE') return !doc.archived; if(archiveFilter==='ARCHIVED') return doc.archived; return true; }),[documents,nameFilter,archiveFilter]); const pages=usePagination(filtered);
+  if(!currentProject) return <NoProjectState/>; const year=cursor.getFullYear(); const month=cursor.getMonth()+1;
+  const documentItem=(doc:DocumentRow,compact?:boolean)=><div className={compact?'truncate rounded border border-ink-100 bg-white px-1.5 py-1 text-[11px] text-ink-700 dark:bg-ink-100':'flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2'} title={compact?doc.original_name:undefined}><div className="min-w-0"><p className="truncate text-sm font-medium text-ink-800">{doc.original_name}</p>{!compact&&<p className="text-xs text-ink-400">{DOCUMENT_SOURCE_LABELS[doc.source_type]??'등록 문서'} · 버전 {doc.latest_version} · {formatDateTime(doc.created_at)}</p>}</div>{!compact&&<div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{doc.archived&&<Badge variant="outline">보관됨</Badge>}{doc.content_purged&&<Badge variant="warning">본문 보존기간 만료</Badge>}{!doc.archived&&!doc.content_purged&&<Button variant="ghost" size="sm" disabled={analyzeExisting.isPending} onClick={()=>analyzeExisting.mutate(doc)}><Sparkles size={13}/> 요약/확인</Button>}{doc.has_original&&<Button variant="ghost" size="sm" disabled={download.isPending} onClick={()=>download.mutate(doc)}><Download size={13}/> 원본 다운로드</Button>}{['FILE','MANUAL','MANUAL_TEXT','LOCAL_PC'].includes(doc.source_type)&&!doc.archived&&<Button variant="ghost" size="sm" onClick={()=>setRevising(doc)}><Sparkles size={13}/> 회의 내용으로 수정</Button>}<Button variant="ghost" size="sm" onClick={()=>setCompareDocId(doc.id)}><GitCompare size={13}/> 버전 비교</Button>{isAdmin&&!doc.archived&&<Button variant="ghost" size="sm" disabled={archive.isPending} onClick={()=>archive.mutate(doc.id)}><Archive size={13}/> 보관</Button>}{isAdmin&&doc.archived&&!doc.content_purged&&<Button variant="ghost" size="sm" disabled={restore.isPending} onClick={()=>restore.mutate(doc.id)}><RotateCcw size={13}/> 복원</Button>}{isAdmin&&doc.archived&&<Button variant="ghost" size="sm" disabled={permanentDelete.isPending} className="text-red-600 hover:text-red-700" onClick={()=>{if(window.confirm(`'${doc.original_name}' 문서를 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) permanentDelete.mutate(doc.id);}}><Trash2 size={13}/> 영구 삭제</Button>}</div>}</div>;
+  return <div><PageHeader title="문서 요약" description="문서를 올린 뒤 내용을 확인하고 AI 요약을 시작할 수 있습니다. 기존 문서도 다시 선택해 요약할 수 있습니다."/><div className="mb-5"><UploadPanel projectId={currentProject.id} onJobStarted={setActiveJobId}/></div>{(connectorStatuses??[]).some((s)=>s.lastStatus==='FAILED')&&<Card className="mb-5"><CardHeader><CardTitle>알림</CardTitle></CardHeader><CardContent><ul className="flex flex-col gap-2">{(connectorStatuses??[]).filter((s)=>s.lastStatus==='FAILED').map((s)=><li key={s.connectorType+'-'+s.externalScope} className="rounded-md border border-red-200 px-3 py-2 text-sm"><p className="font-medium text-red-700">{s.connectorType} 자료 가져오기 실패</p><p className="text-xs text-ink-500">{s.lastError||'연결 상태를 확인해 주세요.'}</p></li>)}</ul></CardContent></Card>}{activeJobId&&<div className="mb-5"><AnalysisResultPanel jobId={activeJobId} projectId={currentProject.id}/></div>}<Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>문서 목록</CardTitle><div className="flex flex-wrap items-center gap-2"><div className="flex gap-1">{([['ACTIVE','사용 중'],['ARCHIVED','보관함'],['ALL','전체']] as const).map(([value,label])=><button key={value} type="button" onClick={()=>setArchiveFilter(value)} className={'rounded-full px-2.5 py-1 text-xs font-medium '+(archiveFilter===value?'bg-accent-600 text-white':'bg-ink-100 text-ink-500 hover:bg-ink-200')}>{label}</button>)}</div><Input value={nameFilter} onChange={(e)=>setNameFilter(e.target.value)} placeholder="이름으로 찾기" className="w-40"/><ViewModeToggle value={viewMode} onChange={setViewMode}/></div></div></CardHeader><CardContent>{isLoading?<LoadingBlock/>:viewMode==='calendar'?<div><div className="mb-3 flex items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={()=>setCursor(new Date(year,month-2,1))}>이전 달</Button><span className="text-sm font-medium text-ink-700">{year}년 {month}월</span><Button variant="outline" size="sm" onClick={()=>setCursor(new Date(year,month,1))}>다음 달</Button></div><CalendarGrid items={filtered} getDate={(doc)=>doc.created_at.slice(0,10)} renderItem={(doc)=>documentItem(doc,true)} year={year} month={month}/></div>:filtered.length===0?<EmptyState title="등록된 문서가 없습니다."/>:<><ul className={viewMode==='grid'?'grid grid-cols-1 gap-3 sm:grid-cols-2':'flex flex-col gap-2'}>{pages.pageItems.map((doc)=><li key={doc.id}>{documentItem(doc)}</li>)}</ul><PaginationControls page={pages.page} totalPages={pages.totalPages} pageSize={pages.pageSize} onPageChange={pages.setPage} onPageSizeChange={pages.setPageSize} totalCount={filtered.length}/></>}</CardContent></Card><div className="mt-4"><JobHistoryPanel projectId={currentProject.id}/></div><VersionCompareDialog documentId={compareDocId} projectId={currentProject.id} open={compareDocId!=null} onOpenChange={(open)=>!open&&setCompareDocId(null)}/><ReviseFromMeetingDialog projectId={currentProject.id} document={revising} meetingDocuments={meetingDocuments ?? []} open={revising!=null} onOpenChange={(open)=>!open&&setRevising(null)} onSaved={()=>queryClient.invalidateQueries({queryKey:['documents',currentProject.id]})}/></div>;
 }

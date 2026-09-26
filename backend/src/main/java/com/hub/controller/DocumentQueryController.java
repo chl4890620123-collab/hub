@@ -46,12 +46,27 @@ public class DocumentQueryController {
     public List<Map<String, Object>> list(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         projectAccess.requireAccess(projectId, user);
-        // Meeting transcripts are internal searchable evidence, not user-managed documents.
-        // Filter by the stable source type rather than a title so existing transcript rows remain
-        // intact for audit/search/revision while no longer appearing in the document-summary list.
+        // Document summary is for user-managed documents only. Connector/system snapshots and meeting
+        // transcripts keep their DB/audit/search records but do not masquerade as editable documents.
         return documents.listDocuments(projectId).stream()
-                .filter(row -> !"MEETING_TRANSCRIPT".equalsIgnoreCase(stringValue(row, "source_type")))
+                .filter(row -> isUserManagedSource(stringValue(row, "source_type")))
                 .toList();
+    }
+
+    @GetMapping("/api/projects/{projectId}/documents/meeting-transcripts")
+    public List<Map<String, Object>> meetingTranscripts(@PathVariable long projectId, Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        projectAccess.requireAccess(projectId, user);
+        return documents.listDocuments(projectId).stream()
+                .filter(row -> "MEETING_TRANSCRIPT".equalsIgnoreCase(stringValue(row, "source_type")))
+                .toList();
+    }
+
+    private static boolean isUserManagedSource(String sourceType) {
+        return switch (sourceType == null ? "" : sourceType.toUpperCase(java.util.Locale.ROOT)) {
+            case "FILE", "MANUAL", "MANUAL_TEXT", "LOCAL_PC" -> true;
+            default -> false;
+        };
     }
 
     private static String stringValue(Map<String, Object> row, String key) {

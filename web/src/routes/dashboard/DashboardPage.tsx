@@ -13,7 +13,8 @@ import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
 import { materialsApi } from '@/api/endpoints/materials';
 import { documentsApi } from '@/api/endpoints/documents';
-import { adminSignupApi, adminReassignmentApi, adminUsersApi } from '@/api/endpoints/admin';
+import { adminSignupApi, adminReassignmentApi } from '@/api/endpoints/admin';
+import { projectsApi } from '@/api/endpoints/projects';
 import { connectorsApi } from '@/api/endpoints/connectors';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
@@ -55,10 +56,7 @@ function ConnectorSyncChips({ projectId }: { projectId: number }) {
   return (
     <div className="mb-4 flex flex-wrap gap-2">
       {successes.map((s) => (
-        <span
-          key={s.connectorType}
-          className="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-500 dark:bg-ink-100"
-        >
+        <span key={s.connectorType} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-500 dark:bg-ink-100">
           {CONNECTOR_LABELS[s.connectorType] ?? s.connectorType} · 가져오기 완료
           {s.lastSyncedAt ? ` · 마지막 가져오기 ${formatDateTime(s.lastSyncedAt)}` : ''}
         </span>
@@ -69,83 +67,18 @@ function ConnectorSyncChips({ projectId }: { projectId: number }) {
 
 function AdminOverviewCards({ projectId }: { projectId: number }) {
   const { data: signups } = useQuery({ queryKey: ['admin-signups'], queryFn: adminSignupApi.list });
-  const { data: reassignments } = useQuery({
-    queryKey: ['admin-reassignments', projectId],
-    queryFn: () => adminReassignmentApi.pending(projectId),
-  });
-  const { data: users } = useQuery({ queryKey: ['admin-users'], queryFn: adminUsersApi.list });
-
-  return (
-    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-ink-500">대기 중인 가입 신청</p>
-          <p className="mt-1 text-2xl font-bold text-ink-900">{signups?.length ?? '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-ink-500">대기 중인 재배정</p>
-          <p className="mt-1 text-2xl font-bold text-ink-900">{reassignments?.length ?? '-'}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-ink-500">전체 사용자 수</p>
-          <p className="mt-1 text-2xl font-bold text-ink-900">{users?.length ?? '-'}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const { data: reassignments } = useQuery({ queryKey: ['admin-reassignments', projectId], queryFn: () => adminReassignmentApi.pending(projectId) });
+  const { data: members } = useQuery({ queryKey: ['project-members', projectId], queryFn: () => projectsApi.members(projectId) });
+  return <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">{[['대기 중인 가입 신청', signups?.length], ['대기 중인 재배정', reassignments?.length], ['프로젝트 참여자', members?.length]].map(([label, value]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs text-ink-500">{label}</p><p className="mt-1 text-2xl font-bold text-ink-900">{value ?? '-'}</p></CardContent></Card>)}</div>;
 }
 
 function DashboardTodos({ projectId, userId }: { projectId: number; userId: number }) {
   const navigate = useNavigate();
   const now = new Date();
   const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
-  const { data: todos, isLoading } = useQuery({
-    queryKey: ['todos-due-through', projectId, todayKey],
-    queryFn: () => todosApi.dueThrough(projectId, todayKey),
-  });
-
-  const myTop5 = useMemo(() => {
-    return (todos ?? [])
-      .filter((t) => t.assigneeId === userId && t.taskStatus !== 'DONE' && t.dueDate != null && t.dueDate <= todayKey)
-      .sort((a, b) => (a.dueDate ?? todayKey).localeCompare(b.dueDate ?? todayKey))
-      .slice(0, 5);
-  }, [todos, userId, todayKey]);
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle>오늘 할 일</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/todos?view=calendar')}>
-            캘린더에서 보기
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <LoadingBlock />
-        ) : myTop5.length === 0 ? (
-          <EmptyState title="오늘까지 처리할 할 일이 없습니다." />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {myTop5.map((todo) => (
-              <li key={todo.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium text-ink-800">{todo.title}</p>
-                  <p className="text-xs text-ink-400">{todo.dueDate && todo.dueDate < todayKey ? `기한 지남 · ${formatDate(todo.dueDate)}` : `오늘 · ${formatDate(todo.dueDate)}`}</p>
-                </div>
-                <Badge variant={todo.taskStatus === 'IN_PROGRESS' ? 'accent' : 'neutral'}>{TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
+  const { data: todos, isLoading } = useQuery({ queryKey: ['todos-due-through', projectId, todayKey], queryFn: () => todosApi.dueThrough(projectId, todayKey) });
+  const myTop5 = useMemo(() => (todos ?? []).filter((t) => t.assigneeId === userId && t.taskStatus !== 'DONE' && t.dueDate != null && t.dueDate <= todayKey).sort((a, b) => (a.dueDate ?? todayKey).localeCompare(b.dueDate ?? todayKey)).slice(0, 5), [todos, userId, todayKey]);
+  return <Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>오늘 할 일</CardTitle><Button variant="ghost" size="sm" onClick={() => navigate('/todos?view=calendar')}>캘린더에서 보기</Button></div></CardHeader><CardContent>{isLoading ? <LoadingBlock /> : myTop5.length === 0 ? <EmptyState title="오늘까지 처리할 할 일이 없습니다." /> : <ul className="flex flex-col gap-2">{myTop5.map((todo) => <li key={todo.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2"><div><p className="text-sm font-medium text-ink-800">{todo.title}</p><p className="text-xs text-ink-400">{todo.dueDate && todo.dueDate < todayKey ? `기한 지남 · ${formatDate(todo.dueDate)}` : `오늘 · ${formatDate(todo.dueDate)}`}</p></div><Badge variant={todo.taskStatus === 'IN_PROGRESS' ? 'accent' : 'neutral'}>{TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</Badge></li>)}</ul>}</CardContent></Card>;
 }
 
 function localDate() {
@@ -161,141 +94,28 @@ function QuickManualNoteForm({ projectId }: { projectId: number }) {
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const followUpIncomplete = Boolean(dueDate) !== Boolean(assigneeId);
-
   const submit = useMutation({
-    mutationFn: () =>
-      documentsApi.manual(projectId, {
-        title,
-        text,
-        sourceDate: localDate(),
-        dueDate: dueDate || undefined,
-        assigneeId: assigneeId ? Number(assigneeId) : undefined,
-      }),
+    mutationFn: () => documentsApi.manual(projectId, { title, text, sourceDate: localDate(), dueDate: dueDate || undefined, assigneeId: assigneeId ? Number(assigneeId) : undefined }),
     onSuccess: (result) => {
       toast.success('업무 메모를 저장했습니다. AI가 내용을 정리하고 있습니다.');
-      setActiveJobId(result.jobId);
-      setTitle('');
-      setText('');
-      setDueDate('');
-      setAssigneeId('');
+      setActiveJobId(result.jobId ?? null);
+      setTitle(''); setText(''); setDueDate(''); setAssigneeId('');
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>빠른 업무 메모</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!title.trim() || !text.trim()) return;
-            submit.mutate();
-          }}
-        >
-          <div>
-            <Label htmlFor="quick-title">제목</Label>
-            <Input id="quick-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 주간 스탠드업" />
-          </div>
-          <div>
-            <Label htmlFor="quick-text">내용</Label>
-            <Textarea
-              id="quick-text"
-              rows={4}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="회의나 업무 메모를 붙여넣으면 AI가 할 일과 결정 사항 후보를 정리합니다."
-            />
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <Label htmlFor="quick-due-date">완료 기한 (선택)</Label>
-              <Input
-                id="quick-due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                onClick={(e) => e.currentTarget.showPicker?.()}
-                className="w-48 cursor-pointer [color-scheme:dark]"
-                aria-label="완료 기한 선택"
-              />
-            </div>
-            <AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} />
-          </div>
-          <p className={followUpIncomplete ? 'text-xs text-red-600' : 'text-xs text-ink-400'}>
-            {followUpIncomplete
-              ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.'
-              : '담당자와 기한을 함께 선택하면 메모 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}
-          </p>
-          <Button type="submit" disabled={submit.isPending || followUpIncomplete} className="self-start">
-            {submit.isPending ? '저장 중...' : '저장하고 AI로 정리'}
-          </Button>
-        </form>
-        {activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={projectId} />}
-      </CardContent>
-    </Card>
-  );
+  return <Card><CardHeader><CardTitle>빠른 업무 메모</CardTitle></CardHeader><CardContent><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (!title.trim() || !text.trim()) return; submit.mutate(); }}><div><Label htmlFor="quick-title">제목</Label><Input id="quick-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 주간 스탠드업" /></div><div><Label htmlFor="quick-text">내용</Label><Textarea id="quick-text" rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="회의나 업무 메모를 붙여넣으면 AI가 할 일과 결정 사항 후보를 정리합니다." /></div><div className="flex flex-wrap items-end gap-3"><div><Label htmlFor="quick-due-date">완료 기한 (선택)</Label><Input id="quick-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()} className="w-48 cursor-pointer [color-scheme:dark]" aria-label="완료 기한 선택" /></div><AssigneeField projectId={projectId} value={assigneeId} onChange={setAssigneeId} /></div><p className={followUpIncomplete ? 'text-xs text-red-600' : 'text-xs text-ink-400'}>{followUpIncomplete ? '후속 할 일을 만들려면 담당자와 기한을 함께 선택해 주세요.' : '담당자와 기한을 함께 선택하면 메모 저장과 동시에 확정된 후속 할 일이 만들어집니다.'}</p><Button type="submit" disabled={submit.isPending || followUpIncomplete} className="self-start">{submit.isPending ? '저장 중...' : '저장하고 AI로 정리'}</Button></form>{activeJobId && <AnalysisResultPanel jobId={activeJobId} projectId={projectId} />}</CardContent></Card>;
 }
 
 function WorkflowTimeline({ projectId }: { projectId: number }) {
-  const { data: events, isLoading } = useQuery({
-    queryKey: ['timeline', projectId],
-    queryFn: () => materialsApi.timeline(projectId),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>최근 활동</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <LoadingBlock />
-        ) : !events || events.length === 0 ? (
-          <EmptyState title="아직 활동 기록이 없습니다." />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {events.slice(0, 10).map((event) => (
-              <li key={event.id} className="flex items-start gap-3 border-b border-ink-100 pb-2 last:border-0">
-                <Badge variant="outline" className="mt-0.5 shrink-0">
-                  {timelineLabel(event.eventType)}
-                </Badge>
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-ink-800">{activityTitle(event)}</p>
-                  <p className="text-xs text-ink-400">{formatDateTime(event.happenedAt)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
+  const { data: events, isLoading } = useQuery({ queryKey: ['timeline', projectId], queryFn: () => materialsApi.timeline(projectId) });
+  return <Card><CardHeader><CardTitle>최근 활동</CardTitle></CardHeader><CardContent>{isLoading ? <LoadingBlock /> : !events || events.length === 0 ? <EmptyState title="아직 활동 기록이 없습니다." /> : <ul className="flex flex-col gap-2">{events.slice(0, 10).map((event) => <li key={event.id} className="flex items-start gap-3 border-b border-ink-100 pb-2 last:border-0"><Badge variant="outline" className="mt-0.5 shrink-0">{timelineLabel(event.eventType)}</Badge><div className="min-w-0"><p className="truncate text-sm text-ink-800">{activityTitle(event)}</p><p className="text-xs text-ink-400">{formatDateTime(event.happenedAt)}</p></div></li>)}</ul>}</CardContent></Card>;
 }
 
 export function DashboardPage() {
   const { currentProject } = useCurrentProject();
   const { data: user } = useCurrentUser();
   const isAdmin = useIsAdmin();
-
   if (!currentProject || !user) return <NoProjectState />;
-
-  return (
-    <div>
-      <PageHeader title="대시보드" description={`${currentProject.name} 프로젝트 현황입니다.`} />
-      <ConnectorSyncChips projectId={currentProject.id} />
-      {isAdmin && <AdminOverviewCards projectId={currentProject.id} />}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DashboardTodos projectId={currentProject.id} userId={user.id} />
-        <QuickManualNoteForm projectId={currentProject.id} />
-        <div className="lg:col-span-2">
-          <WorkflowTimeline projectId={currentProject.id} />
-        </div>
-      </div>
-    </div>
-  );
+  return <div><PageHeader title="대시보드" description={`${currentProject.name} 프로젝트 현황입니다.`} /><ConnectorSyncChips projectId={currentProject.id} />{isAdmin && <AdminOverviewCards projectId={currentProject.id} />}<div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><DashboardTodos projectId={currentProject.id} userId={user.id} /><QuickManualNoteForm projectId={currentProject.id} /><div className="lg:col-span-2"><WorkflowTimeline projectId={currentProject.id} /></div></div></div>;
 }

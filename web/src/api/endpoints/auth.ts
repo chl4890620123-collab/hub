@@ -1,5 +1,5 @@
 import { apiGet, apiPatch, apiPost } from '@/api/client';
-import type { GlobalRole, User } from '@/api/types';
+import type { GlobalRole, OrganizationDepartment, OrganizationTeam, User } from '@/api/types';
 
 export interface LoginResponse {
   user: User;
@@ -20,6 +20,8 @@ export const authApi = {
       `/api/auth/check-login-id?loginId=${encodeURIComponent(loginId)}`,
     ),
 
+  signupOrganization: () => apiGet<{ departments: OrganizationDepartment[]; teams: OrganizationTeam[] }>('/api/auth/signup/organization'),
+
   signupProjects: () =>
     apiGet<{ id: number; name: string; departmentName: string | null; teamName: string | null }[]>('/api/auth/signup/projects'),
 
@@ -31,6 +33,8 @@ export const authApi = {
     companyName: string | null;
     departmentName: string | null;
     teamName: string | null;
+    departmentId?: number | null;
+    teamId?: number | null;
     requestedProjectId: number | null;
     jobTitle: string | null;
     signupNote: string | null;
@@ -45,6 +49,8 @@ export const authApi = {
     companyName: string | null;
     departmentName: string | null;
     teamName: string | null;
+    departmentId?: number | null;
+    teamId?: number | null;
     privacyConsent: boolean;
   }) =>
     apiPost<{ status: string; requestedRole: GlobalRole; reopened: boolean; firstAdminCreated: boolean; message: string }>(

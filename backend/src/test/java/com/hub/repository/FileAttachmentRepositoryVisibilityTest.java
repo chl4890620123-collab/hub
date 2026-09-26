@@ -37,6 +37,7 @@ class FileAttachmentRepositoryVisibilityTest {
                   storage_path VARCHAR(2000) NOT NULL,
                   note VARCHAR(1000),
                   read_at TIMESTAMP,
+                  recipient_hidden_at TIMESTAMP,
                   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
@@ -72,6 +73,21 @@ class FileAttachmentRepositoryVisibilityTest {
         assertEquals(List.of(1L), repository.listForTodoVisible(77L, 22L).stream()
                 .map(FileAttachmentRepository.Attachment::id).toList());
         assertTrue(repository.searchVisible(9L, 22L, "secret", 20).isEmpty());
+    }
+
+    @Test
+    void recipientCanHideDirectTransferWithoutDeletingSendersCopy() {
+        insert(2L, 9L, null, 33L, 44L, "handoff.txt", "private handoff");
+
+        assertEquals(List.of(2L), repository.listForUser(9L, 44L).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
+        assertTrue(repository.hideForRecipient(2L, 44L));
+        assertTrue(repository.listForUser(9L, 44L).isEmpty());
+        assertEquals(List.of(2L), repository.listForUser(9L, 33L).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
+        assertTrue(repository.searchVisible(9L, 44L, "handoff", 20).isEmpty());
+        assertEquals(List.of(2L), repository.searchVisible(9L, 33L, "handoff", 20).stream()
+                .map(FileAttachmentRepository.Attachment::id).toList());
     }
 
     @Test

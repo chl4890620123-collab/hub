@@ -25,6 +25,7 @@ const AdminLayout = lazy(() => import('@/routes/admin/AdminLayout').then((m) => 
 const AdminMembersPage = lazy(() => import('@/routes/admin/AdminMembersPage').then((m) => ({ default: m.AdminMembersPage })));
 const AdminReassignPage = lazy(() => import('@/routes/admin/AdminReassignPage').then((m) => ({ default: m.AdminReassignPage })));
 const AdminUsersPage = lazy(() => import('@/routes/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
+const AdminOrganizationPage = lazy(() => import('@/routes/admin/AdminOrganizationPage').then((m) => ({ default: m.AdminOrganizationPage })));
 const AdminSearchRulesPage = lazy(() =>
   import('@/routes/admin/AdminSearchRulesPage').then((m) => ({ default: m.AdminSearchRulesPage })),
 );
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
                   { path: 'members', element: <AdminMembersPage /> },
                   { path: 'reassign', element: <AdminReassignPage /> },
                   { path: 'users', element: <AdminUsersPage /> },
+                  { path: 'organization', element: <AdminOrganizationPage /> },
                   { path: 'search', element: <AdminSearchRulesPage /> },
                   { path: 'security', element: <AdminSecurityPage /> },
                   { path: 'history', element: <AdminHistoryPage /> },

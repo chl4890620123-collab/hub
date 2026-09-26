@@ -6,6 +6,7 @@ const TABS = [
   { to: '/admin/members', label: '가입 승인' },
   { to: '/admin/reassign', label: '재배정' },
   { to: '/admin/users', label: '사용자 관리' },
+  { to: '/admin/organization', label: '부서·팀' },
   { to: '/admin/search', label: '검색 규칙' },
   { to: '/admin/security', label: '보안' },
   { to: '/admin/history', label: '이력' },

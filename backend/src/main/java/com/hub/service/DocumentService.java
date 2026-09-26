@@ -96,23 +96,29 @@ public class DocumentService {
     }
 
     /**
-     * Edits a specific manually-entered document in place: same document, a new immutable version.
-     * Unlike manualText(), this is keyed by documentId rather than by title, so renaming a note
-     * updates it instead of quietly creating a second document next to it.
+     * Creates a new immutable text version for a user-managed document. Original uploaded bytes stay
+     * attached to the document row; the revision changes searchable/AI text only and is fully visible
+     * through version comparison.
      */
-    public long manualEdit(long projectId, long documentId, String title, String text, User user) {
+    public long edit(long projectId, long documentId, String title, String text, User user) {
         var meta = documents.findMeta(documentId)
                 .filter(m -> m.projectId() == projectId)
                 .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
-        if (!"MANUAL_TEXT".equals(meta.sourceType()))
-            throw new IllegalArgumentException("직접 입력한 자료만 수정할 수 있습니다.");
-        if (meta.createdBy() != user.id())
-            throw new AccessDeniedException("직접 입력한 자료는 만든 사람만 수정할 수 있습니다.");
+        if (!isUserEditableSource(meta.sourceType()))
+            throw new IllegalArgumentException("사용자가 관리하는 문서만 새 버전으로 수정할 수 있습니다.");
+        if (meta.createdBy() != user.id() && !user.isAdmin())
+            throw new AccessDeniedException("문서를 등록한 사람이나 관리자만 새 버전을 저장할 수 있습니다.");
         String safeTitle = safeTitle(title, meta.originalName());
         validateExtractedText(text);
         String stripped = text.strip();
         byte[] bytes = stripped.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        return createVersionForDocument(projectId, documentId, safeTitle, null, stripped, bytes, user.id());
+        String originalStorage = documents.findFile(documentId).map(DocumentRepository.DocumentFile::storagePath).orElse(null);
+        return createVersionForDocument(projectId, documentId, safeTitle, originalStorage, stripped, bytes, user.id());
+    }
+
+    /** Backward-compatible service entry for existing tests/legacy callers. */
+    public long manualEdit(long projectId, long documentId, String title, String text, User user) {
+        return edit(projectId, documentId, title, text, user);
     }
 
     /**
@@ -133,19 +139,16 @@ public class DocumentService {
     }
 
     /**
-     * Proposes a revised version of a manually-entered document, grounded in another document that is
-     * itself a meeting transcript (see importMeetingTranscript) - nothing is saved yet. The caller edits
-     * the draft further and saves it through the existing manualEdit(), which is what actually creates
-     * the new version; the existing 두 문서의 달라진 내용 비교 (version compare) feature then shows the diff
-     * against the original with no extra plumbing.
+     * Proposes a revision of a user-managed document grounded in a meeting transcript. Nothing is
+     * saved until the user reviews the draft and explicitly stores a new immutable version.
      */
     public String reviseDraftFromMeeting(long projectId, long documentId, Long meetingDocumentId, User user) {
         var meta = documents.findMeta(documentId).filter(m -> m.projectId() == projectId)
                 .orElseThrow(() -> new IllegalArgumentException("자료를 찾을 수 없습니다."));
-        if (!"MANUAL_TEXT".equals(meta.sourceType()))
-            throw new IllegalArgumentException("직접 입력한 자료만 회의 내용으로 수정할 수 있습니다.");
-        if (meta.createdBy() != user.id())
-            throw new AccessDeniedException("직접 입력한 자료는 만든 사람만 수정안을 만들 수 있습니다.");
+        if (!isUserEditableSource(meta.sourceType()))
+            throw new IllegalArgumentException("사용자가 관리하는 문서만 회의 내용으로 수정할 수 있습니다.");
+        if (meta.createdBy() != user.id() && !user.isAdmin())
+            throw new AccessDeniedException("문서를 등록한 사람이나 관리자만 수정안을 만들 수 있습니다.");
         if (meetingDocumentId == null) throw new IllegalArgumentException("참고할 회의 기록을 선택해 주세요.");
         var meetingMeta = documents.findMeta(meetingDocumentId).filter(m -> m.projectId() == projectId)
                 .orElseThrow(() -> new IllegalArgumentException("회의 기록을 찾을 수 없습니다."));
@@ -338,7 +341,7 @@ public class DocumentService {
 
     /**
      * Appends one new immutable version to an already-known document. Shared by first-time
-     * find-or-create imports and by manualEdit(), which already knows the exact document to update.
+     * find-or-create imports and explicit document revisions that already know the exact document.
      */
     private long createVersionForDocument(long projectId,
                                           long documentId,
@@ -427,6 +430,11 @@ public class DocumentService {
     }
 
     private record EmbeddingAttempt(List<List<Float>> vectors, boolean ready, String error) {}
+
+    private static boolean isUserEditableSource(String sourceType) {
+        String type = sourceType == null ? "" : sourceType.toUpperCase(Locale.ROOT);
+        return type.equals("FILE") || type.equals("MANUAL") || type.equals("MANUAL_TEXT") || type.equals("LOCAL_PC");
+    }
 
     private static void validateExternalIdentity(String sourceType, String sourceIdentifier) {
         if (sourceType == null || sourceType.isBlank()) throw new IllegalArgumentException("자료 출처 종류가 필요합니다.");

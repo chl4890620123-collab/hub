@@ -47,7 +47,7 @@ public class SecurityConfig {
             "/login", "/signup", "/signup/member", "/signup/admin",
             "/search", "/ask", "/context", "/todos", "/review",
             "/documents", "/meetings", "/sheets", "/connectors", "/account",
-            "/admin", "/admin/members", "/admin/reassign", "/admin/users",
+            "/admin", "/admin/members", "/admin/reassign", "/admin/users", "/admin/organization",
             "/admin/search", "/admin/security", "/admin/history",
     };
 
@@ -104,7 +104,7 @@ public class SecurityConfig {
             if ("/".equals(path) || java.util.Arrays.asList(SPA_PAGE_PATHS).contains(path)
                     || "/api/auth/login".equals(path)
                     || "/api/auth/signup/member".equals(path) || "/api/auth/signup/admin".equals(path)
-                    || "/api/auth/signup/projects".equals(path)
+                    || "/api/auth/signup/projects".equals(path) || "/api/auth/signup/organization".equals(path)
                     || "/api/auth/setup-status".equals(path) || "/api/auth/check-login-id".equals(path)
                     || "/api/auth/refresh".equals(path) || "/api/auth/logout".equals(path)
                     || "/api/connectors/google/callback".equals(path)
@@ -148,7 +148,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/css/**", "/js/**", "/assets/**", "/favicon.ico", "/actuator/health").permitAll()
                         .requestMatchers(SPA_PAGE_PATHS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/setup-status", "/api/auth/check-login-id", "/api/auth/signup/projects").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/setup-status", "/api/auth/check-login-id", "/api/auth/signup/projects", "/api/auth/signup/organization").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup/member", "/api/auth/signup/admin", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/connectors/google/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/connectors/oauth/callback").permitAll()

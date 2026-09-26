@@ -1,4 +1,4 @@
-import { apiDelete, apiDownload, apiGet, apiUpload } from '@/api/client';
+import { apiDelete, apiDownload, apiGet, apiPatch, apiUpload } from '@/api/client';
 import type { AttachmentView, FileTransferRecipient } from '@/api/types';
 
 export const attachmentsApi = {
@@ -23,5 +23,7 @@ export const attachmentsApi = {
   },
 
   download: (attachmentId: number) => apiDownload(`/api/attachments/${attachmentId}/download`),
+  update: (attachmentId: number, fileName: string, note?: string) => apiPatch<{ status: string }>(`/api/attachments/${attachmentId}`, { fileName, note: note ?? null }),
+  hideFromInbox: (attachmentId: number) => apiDelete<{ status: string }>(`/api/attachments/${attachmentId}/inbox`),
   delete: (attachmentId: number) => apiDelete<{ status: string }>(`/api/attachments/${attachmentId}`),
 };

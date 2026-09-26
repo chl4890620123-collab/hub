@@ -4,6 +4,7 @@ package com.hub.service;
 import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
+import com.hub.repository.OrganizationRepository;
 import com.hub.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,9 +29,11 @@ public class SignupService {
     private final ProjectRepository projects;
     private final ProjectAccessService projectAccess;
     private final MembershipService memberships;
+    private final OrganizationRepository organizations;
 
     public SignupService(UserRepository users, PasswordEncoder encoder, PasswordPolicy passwordPolicy, AuditRepository audit,
-                         ProjectRepository projects, ProjectAccessService projectAccess, MembershipService memberships) {
+                         ProjectRepository projects, ProjectAccessService projectAccess, MembershipService memberships,
+                         OrganizationRepository organizations) {
         this.users = users;
         this.encoder = encoder;
         this.passwordPolicy = passwordPolicy;
@@ -38,6 +41,7 @@ public class SignupService {
         this.projects = projects;
         this.projectAccess = projectAccess;
         this.memberships = memberships;
+        this.organizations = organizations;
     }
 
     /**
@@ -48,7 +52,15 @@ public class SignupService {
      */
     public record RegisterCommand(String loginId, String email, String password, String displayName,
                                   String companyName, String departmentName, String teamName,
-                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {}
+                                  String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent,
+                                  Long departmentId, Long teamId) {
+        public RegisterCommand(String loginId, String email, String password, String displayName,
+                               String companyName, String departmentName, String teamName,
+                               String jobTitle, String signupNote, Long requestedProjectId, boolean privacyConsent) {
+            this(loginId, email, password, displayName, companyName, departmentName, teamName,
+                    jobTitle, signupNote, requestedProjectId, privacyConsent, null, null);
+        }
+    }
     public record RegisterResult(long id, String status, String requestedRole, boolean reopened, boolean firstAdminCreated) {}
     public record LoginIdAvailability(String loginId, boolean available, String message) {}
 
@@ -89,6 +101,7 @@ public class SignupService {
         try {
             long id = users.createBootstrapAdmin(v.loginId(), v.email(), encoder.encode(command.password()), v.name(),
                     v.company(), v.department(), v.team(), false);
+            if (v.organization() != null) organizations.assignUser(id, v.organization());
             audit.add(id, null, "FIRST_ADMIN_SIGNUP", "USER", id, "{\"role\":\"ADMIN\"}");
             return new RegisterResult(id, "APPROVED", "ADMIN", false, true);
         } catch (DataIntegrityViolationException conflict) {
@@ -110,6 +123,7 @@ public class SignupService {
                 boolean reopened = users.reopenRejectedSignup(id, byLogin.get().passwordHash(), v.name(), v.company(),
                         v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
                 if (!reopened) throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
+                if (v.organization() != null) organizations.assignUser(id, v.organization());
                 audit.add(null, null, "SIGNUP_REOPEN", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
                 return new RegisterResult(id, "PENDING", requestedRole, true, false);
             }
@@ -119,6 +133,7 @@ public class SignupService {
         try {
             long id = users.createSignup(v.loginId(), v.email(), encoder.encode(command.password()), v.name(), v.company(),
                     v.department(), v.team(), v.jobTitle(), v.note(), v.requestedProjectId(), requestedRole);
+            if (v.organization() != null) organizations.assignUser(id, v.organization());
             audit.add(null, null, "SIGNUP_REQUEST", "USER", id, "{\"role\":\"" + requestedRole + "\"}");
             return new RegisterResult(id, "PENDING", requestedRole, false, false);
         } catch (DataIntegrityViolationException conflict) {
@@ -128,12 +143,21 @@ public class SignupService {
 
     @Transactional
     public void approve(long userId, User admin, Long projectId) {
+        approve(userId, admin, projectId, null, null);
+    }
+
+    @Transactional
+    public void approve(long userId, User admin, Long projectId, Long departmentId, Long teamId) {
         UserRepository.AuthUser pending = users.findAuthById(userId)
                 .filter(u -> "PENDING".equals(u.approvalStatus()))
                 .orElseThrow(() -> new StateConflictException("이미 처리되었거나 대기 중인 가입 신청이 아닙니다."));
         if ("ADMIN".equals(pending.requestedRole()) && projectId != null)
             throw new IllegalArgumentException("관리자는 모든 프로젝트에 접근할 수 있어 일반 팀원으로 중복 배정하지 않습니다.");
         if (projectId != null) projectAccess.requireAdmin(projectId, admin);
+        if (departmentId != null || teamId != null) {
+            OrganizationRepository.Selection selection = validateOrganization(departmentId, teamId);
+            organizations.assignUser(userId, selection);
+        }
         if (!users.approveSignup(userId, admin.id()))
             throw new StateConflictException("가입 신청 상태가 변경되었습니다. 화면을 새로고침해 주세요.");
         audit.add(admin.id(), null, "SIGNUP_APPROVE", "USER", userId, "{\"role\":\"" + pending.requestedRole() + "\"}");
@@ -157,15 +181,23 @@ public class SignupService {
         String email = normalizeEmail(command.email());
         String name = required(command.displayName(), "이름", MAX_NAME);
         String company = optional(command.companyName(), MAX_COMPANY);
+        OrganizationRepository.Selection organization = null;
         String department = optional(command.departmentName(), MAX_PROFILE);
         String team = optional(command.teamName(), MAX_PROFILE);
+        if (command.departmentId() != null || command.teamId() != null) {
+            organization = validateOrganization(command.departmentId(), command.teamId());
+            department = organization.departmentName();
+            team = organization.teamName();
+        } else if (!organizations.departments(true).isEmpty()) {
+            throw new IllegalArgumentException("부서와 팀을 선택해 주세요.");
+        }
         String jobTitle = allowMemberExtras ? optional(command.jobTitle(), MAX_PROFILE) : null;
         String note = allowMemberExtras ? optional(command.signupNote(), MAX_NOTE) : null;
         Long requestedProjectId = allowMemberExtras ? validateRequestedProject(command.requestedProjectId()) : null;
         validateLoginId(loginId);
         validateEmail(email);
         passwordPolicy.validate(command.password());
-        return new Validated(loginId, email, name, company, department, team, jobTitle, note, requestedProjectId);
+        return new Validated(loginId, email, name, company, department, team, jobTitle, note, requestedProjectId, organization);
     }
 
     /** A stale or made-up project id must not silently attach to the application. */
@@ -175,8 +207,16 @@ public class SignupService {
         return requestedProjectId;
     }
 
+    private OrganizationRepository.Selection validateOrganization(Long departmentId, Long teamId) {
+        if (departmentId == null || teamId == null)
+            throw new IllegalArgumentException("부서와 팀을 함께 선택해 주세요.");
+        return organizations.activeSelection(departmentId, teamId)
+                .orElseThrow(() -> new IllegalArgumentException("현재 사용할 수 있는 부서와 팀을 선택해 주세요."));
+    }
+
     private record Validated(String loginId, String email, String name, String company, String department,
-                             String team, String jobTitle, String note, Long requestedProjectId) {}
+                             String team, String jobTitle, String note, Long requestedProjectId,
+                             OrganizationRepository.Selection organization) {}
 
     private static void validateLoginId(String loginId) {
         if (!LOGIN_ID.matcher(loginId).matches()) throw new IllegalArgumentException("아이디는 영문/숫자/._- 조합 4~40자로 입력해 주세요.");

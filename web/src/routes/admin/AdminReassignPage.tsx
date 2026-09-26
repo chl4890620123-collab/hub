@@ -74,7 +74,7 @@ export function AdminReassignPage() {
                   ) : (
                     members?.map((m) => (
                       <SelectItem key={m.id} value={String(m.id)}>
-                        {m.displayName}
+                        {m.displayName} · @{m.loginId}
                       </SelectItem>
                     ))
                   )}
@@ -125,7 +125,7 @@ function SingleResolveControl({
   members,
   onResolve,
 }: {
-  members: { id: number; displayName: string }[];
+  members: { id: number; displayName: string; loginId: string }[];
   onResolve: (assigneeId: number) => void;
 }) {
   const [value, setValue] = useState('');
@@ -143,7 +143,7 @@ function SingleResolveControl({
           ) : (
             members.map((m) => (
               <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+                {m.displayName} · @{m.loginId}
               </SelectItem>
             ))
           )}

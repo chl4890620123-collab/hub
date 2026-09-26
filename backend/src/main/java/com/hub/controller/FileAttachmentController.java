@@ -81,6 +81,22 @@ public class FileAttachmentController {
                 .body(file.data());
     }
 
+    public record UpdateAttachment(String fileName, String note) {}
+
+    @PatchMapping("/api/attachments/{id}")
+    public Map<String, Object> update(@PathVariable long id, @RequestBody UpdateAttachment request, Authentication auth) {
+        User user = currentUser.requireOperational(auth);
+        service.update(id, request.fileName(), request.note(), user);
+        return Map.of("status", "UPDATED");
+    }
+
+    @DeleteMapping("/api/attachments/{id}/inbox")
+    public Map<String, Object> hideFromInbox(@PathVariable long id, Authentication auth) {
+        User user = currentUser.requireOperational(auth);
+        service.removeFromInbox(id, user);
+        return Map.of("status", "HIDDEN");
+    }
+
     @DeleteMapping("/api/attachments/{id}")
     public Map<String, Object> delete(@PathVariable long id, Authentication auth) {
         User user = currentUser.requireOperational(auth);
