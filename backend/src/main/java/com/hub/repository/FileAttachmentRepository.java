@@ -49,7 +49,6 @@ public class FileAttachmentRepository {
                 .stream().findFirst();
     }
 
-    /** Internal lifecycle lookup used before permanent todo deletion; never exposed directly to clients. */
     public List<Attachment> listForTodoAll(long todoId) {
         return jdbc.query(selectColumns() + " " + """
                 FROM file_attachment
@@ -58,7 +57,6 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), todoId);
     }
 
-    /** Todo attachments are private to the sender and the assignee captured as recipient_id. */
     public List<Attachment> listForTodoVisible(long todoId, long userId) {
         return jdbc.query(selectColumns() + " " + """
                 FROM file_attachment
@@ -67,7 +65,6 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), todoId, userId, userId);
     }
 
-    /** Sent or received within the project - a small personal inbox, newest first. */
     public List<Attachment> listForUser(long projectId, long userId) {
         return jdbc.query(selectColumns() + " " + """
                  FROM file_attachment
@@ -77,28 +74,28 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), projectId, userId, userId);
     }
 
-    /** Filename/note lookup uses the same private visibility rule as download:
-     * only the sender or the explicitly recorded recipient may discover the file. */
+    /** Filename/note lookup uses the same private visibility rule as download. */
     public List<Attachment> searchVisible(long projectId, long userId, String query, int limit) {
         String term = "%" + (query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT)) + "%";
         int bounded = Math.max(1, Math.min(limit, 100));
-        return jdbc.query(selectColumns() + " " + """
-                 FROM file_attachment
-                 WHERE project_id=?
-                   AND (sender_id=? OR (recipient_id=? AND recipient_hidden_at IS NULL))
+        return jdbc.query("""
+                 SELECT fa.id,fa.project_id,fa.todo_id,fa.sender_id,fa.recipient_id,fa.file_name,fa.content_type,
+                        fa.size_bytes,fa.storage_path,fa.note,fa.read_at,fa.created_at
+                 FROM file_attachment fa
+                 WHERE fa.project_id=?
+                   AND (fa.sender_id=? OR (fa.recipient_id=? AND fa.recipient_hidden_at IS NULL))
                    AND (
-                     todo_id IS NULL
+                     fa.todo_id IS NULL
                      OR EXISTS (
                        SELECT 1 FROM todo t
-                       WHERE t.id=file_attachment.todo_id AND t.deleted_at IS NULL
+                       WHERE t.id=fa.todo_id AND t.deleted_at IS NULL
                      )
                    )
-                   AND (LOWER(file_name) LIKE ? OR LOWER(COALESCE(note,'')) LIKE ?)
-                 ORDER BY id DESC LIMIT ?
+                   AND (LOWER(fa.file_name) LIKE ? OR LOWER(COALESCE(fa.note,'')) LIKE ?)
+                 ORDER BY fa.id DESC LIMIT ?
                 """, (rs, n) -> map(rs), projectId, userId, userId, term, term, bounded);
     }
 
-    /** Move private todo files to the new assignee when ownership of the todo changes. */
     public int reassignTodoRecipient(long todoId, long newRecipientId) {
         return jdbc.update("UPDATE file_attachment SET recipient_id=? WHERE todo_id=?", newRecipientId, todoId);
     }
