@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
-import { adminSignupApi, adminProjectApi } from '@/api/endpoints/admin';
+import { adminSignupApi, adminProjectApi, adminOrganizationApi } from '@/api/endpoints/admin';
 import { projectsApi } from '@/api/endpoints/projects';
 import { useCurrentProject, useProjects } from '@/hooks/useProjects';
 import type { SignupApplication } from '@/api/types';
@@ -148,6 +148,9 @@ export function AdminMembersPage() {
   const { data: applications, isLoading } = useQuery({ queryKey: ['admin-signups'], queryFn: adminSignupApi.list });
   const { data: projects = [] } = useProjects();
   const [projectChoice, setProjectChoice] = useState<Record<number, string>>({});
+  const [departmentChoice, setDepartmentChoice] = useState<Record<number, string>>({});
+  const [teamChoice, setTeamChoice] = useState<Record<number, string>>({});
+  const { data: organization } = useQuery({ queryKey: ['admin-organization'], queryFn: adminOrganizationApi.get });
   const [addMemberUserId, setAddMemberUserId] = useState('');
   const [addMemberProjectId, setAddMemberProjectId] = useState('');
   const { data: addableUsers } = useQuery({
@@ -166,8 +169,12 @@ export function AdminMembersPage() {
     return app.requestedProjectId ?? null;
   };
 
+  const resolveDepartmentId = (app: SignupApplication) => Number(departmentChoice[app.id] ?? app.departmentId ?? 0) || undefined;
+  const resolveTeamId = (app: SignupApplication) => Number(teamChoice[app.id] ?? app.teamId ?? 0) || undefined;
+
   const approve = useMutation({
-    mutationFn: ({ userId, projectId }: { userId: number; projectId?: number }) => adminSignupApi.approve(userId, projectId),
+    mutationFn: ({ userId, projectId, departmentId, teamId }: { userId: number; projectId?: number; departmentId?: number; teamId?: number }) =>
+      adminSignupApi.approve(userId, projectId, departmentId, teamId),
     onSuccess: (result) => {
       if (result.projectAssigned) toast.success('가입을 승인하고 프로젝트에 배정했습니다.');
       else toast.info('가입을 승인했습니다. 다만 프로젝트에 배정되지 않아 아직 아무 프로젝트도 볼 수 없습니다 - 아래 "기존 사용자를 프로젝트에 추가"에서 배정해 주세요.');
@@ -227,6 +234,28 @@ export function AdminMembersPage() {
                       </p>
                     )}
                     {app.requestedProjectName && <Badge variant="outline">희망: {app.requestedProjectName}</Badge>}
+                    {organization && organization.departments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Select
+                          value={departmentChoice[app.id] ?? (app.departmentId ? String(app.departmentId) : '')}
+                          onValueChange={(value) => {
+                            setDepartmentChoice((prev) => ({ ...prev, [app.id]: value }));
+                            setTeamChoice((prev) => ({ ...prev, [app.id]: '' }));
+                          }}
+                        >
+                          <SelectTrigger className="w-36"><SelectValue placeholder="부서 선택" /></SelectTrigger>
+                          <SelectContent>{organization.departments.filter((d) => d.active).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select
+                          value={teamChoice[app.id] ?? (app.teamId ? String(app.teamId) : '')}
+                          onValueChange={(value) => setTeamChoice((prev) => ({ ...prev, [app.id]: value }))}
+                          disabled={!resolveDepartmentId(app)}
+                        >
+                          <SelectTrigger className="w-36"><SelectValue placeholder="팀 선택" /></SelectTrigger>
+                          <SelectContent>{organization.teams.filter((t) => t.active && t.departmentId === resolveDepartmentId(app)).map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {app.requestedRole === 'MEMBER' && (
@@ -253,6 +282,8 @@ export function AdminMembersPage() {
                         approve.mutate({
                           userId: app.id,
                           projectId: resolveProjectId(app) ?? undefined,
+                          departmentId: resolveDepartmentId(app),
+                          teamId: resolveTeamId(app),
                         })
                       }
                     >
