@@ -29,10 +29,10 @@ const now = new Date();
 const iso = (daysAgo = 0) => new Date(now.getTime() - daysAgo * 86_400_000).toISOString();
 const date = (daysFromNow: number) => new Date(now.getTime() + daysFromNow * 86_400_000).toISOString().slice(0, 10);
 
-export const mockUser: User = {
+export const mockAdminUser: User = {
   id: 1,
-  loginId: 'dev-user',
-  email: 'dev@example.com',
+  loginId: 'demo-admin',
+  email: 'admin@hub-demo.local',
   displayName: '이승현',
   companyName: 'Hub Demo',
   departmentName: '프로덕트팀',
@@ -44,10 +44,38 @@ export const mockUser: User = {
   approvalStatus: 'APPROVED',
 };
 
+export const mockMemberUser: User = {
+  id: 3,
+  loginId: 'demo-member',
+  email: 'member@hub-demo.local',
+  displayName: '박준호',
+  companyName: 'Hub Demo',
+  departmentName: '개발부',
+  teamName: '플랫폼팀',
+  jobTitle: '프론트엔드 엔지니어',
+  globalRole: 'MEMBER',
+  accountStatus: 'ACTIVE',
+  mustChangePassword: false,
+  approvalStatus: 'APPROVED',
+};
+
+/** Development-only filming identity. Never used by production builds. */
+export const mockUser = mockAdminUser;
+
+export function getMockUser(): User {
+  if (typeof window === 'undefined') return mockAdminUser;
+  return localStorage.getItem('hub.mock.role') === 'MEMBER' ? mockMemberUser : mockAdminUser;
+}
+
 const projects: Project[] = [
   { id: 101, name: 'Atlas 리뉴얼', description: '고객용 업무 허브 리뉴얼 프로젝트', departmentName: '개발부', teamName: '플랫폼팀', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
   { id: 202, name: 'Northstar 런칭', description: '신규 분석 기능의 베타 런칭 준비', departmentName: '사업부', teamName: '런칭팀', createdBy: 1, projectRole: 'ADMIN', canConfirm: true },
 ];
+
+function projectsFor(user: User): Project[] {
+  if (user.globalRole === 'ADMIN') return projects;
+  return projects.map((project) => ({ ...project, projectRole: 'MEMBER', canConfirm: false }));
+}
 
 const members: ProjectMember[] = [
   { id: 1, displayName: '이승현', loginId: 'dev-user', jobTitle: '프로덕트 매니저', projectRole: 'ADMIN', canConfirm: true },
@@ -114,8 +142,8 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   const method = (opts.method ?? 'GET').toUpperCase();
   const projectId = projectIdFrom(path);
 
-  if (pathname === '/api/me') return result(mockUser as T);
-  if (pathname === '/api/projects' && method === 'GET') return result(projects as T);
+  if (pathname === '/api/me') return result(getMockUser() as T);
+  if (pathname === '/api/projects' && method === 'GET') return result(projectsFor(getMockUser()) as T);
   if (pathname === '/api/auth/signup/projects') return result(projects.map(({ id, name, departmentName, teamName }) => ({ id, name, departmentName, teamName })) as T);
   if (pathname.includes('/members') && method === 'GET') return result(members as T);
   if (pathname.endsWith('/review/todos')) return result(activeProjectTodos(projectId).filter((todo) => todo.reviewStatus === 'AI_GENERATED') as T);
@@ -183,6 +211,19 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
 
   if (method !== 'GET') {
     const body = jsonBody(opts);
+
+    if (pathname === '/api/auth/login' && method === 'POST') {
+      const identifier = String(body.identifier ?? '').trim().toLowerCase();
+      const role = identifier.includes('member') || identifier.includes('junho') ? 'MEMBER' : 'ADMIN';
+      localStorage.setItem('hub.mock.role', role);
+      const user = role === 'MEMBER' ? mockMemberUser : mockAdminUser;
+      return result({
+        status: 'SUCCESS',
+        message: '촬영용 개발 계정으로 로그인했습니다.',
+        user,
+        accessExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      } as T);
+    }
     const documentMatch = pathname.match(/^\/api\/documents\/(\d+)(?:\/(restore|permanent))?$/);
     if (documentMatch) {
       const documentId = Number(documentMatch[1]);
