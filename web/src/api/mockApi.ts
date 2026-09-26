@@ -88,6 +88,7 @@ const todos: TodoItem[] = [
   { id: 1002, projectId: 101, title: '검색 결과 카드에 출처 배지 추가', description: '원문 유형과 최신 동기화 시간을 함께 노출한다.', assigneeId: 3, assigneeText: '박준호', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(5), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'BLOCKED', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(3), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: '디자인 시스템 배지 컴포넌트 확정이 필요합니다.', deletedAt: null, deletedBy: null },
   { id: 1003, projectId: 101, title: '온보딩 인터뷰 3건 예약', description: '신규 팀원과 기존 사용자 그룹을 나눠 진행한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: null, dueDateSuggestion: null, confidence: 'MEDIUM', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(6), updatedAt: iso(6), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
   { id: 1004, projectId: 101, title: '회의록에서 추출된 예산 검토', description: '2분기 인프라 비용안을 재무팀과 확인한다.', assigneeId: null, assigneeText: null, assigneeSuggestionId: null, assigneeSuggestionText: '이승현', dueDate: date(8), dueDateSuggestion: date(8), confidence: 'MEDIUM', reviewStatus: 'AI_GENERATED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(1), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
+  { id: 1005, projectId: 101, title: '검색 결과 출처 표시 최종 점검', description: '박준호님이 구현을 마치고 관리자 검토를 요청한 업무입니다.', assigneeId: 3, assigneeText: '박준호', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(1), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(2), updatedAt: iso(0), googleCalendarEventId: null, pendingApproval: true, statusNote: null, deletedAt: null, deletedBy: null },
   { id: 2001, projectId: 202, title: '베타 사용자 초대 리스트 정리', description: '초기 사용성 테스트 그룹 20명을 확정한다.', assigneeId: 2, assigneeText: '이서윤', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(3), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'IN_PROGRESS', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(5), updatedAt: iso(1), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
   { id: 2002, projectId: 202, title: '런칭 체크리스트 최종 리뷰', description: '마케팅, CS, 기술 운영 항목을 한 번에 점검한다.', assigneeId: 1, assigneeText: '이승현', assigneeSuggestionId: null, assigneeSuggestionText: null, dueDate: date(7), dueDateSuggestion: null, confidence: 'HIGH', reviewStatus: 'CONFIRMED', taskStatus: 'TODO', assignmentStatus: 'ACTIVE', possibleDuplicateOfId: null, duplicateReason: null, createdAt: iso(2), updatedAt: iso(2), googleCalendarEventId: null, pendingApproval: false, statusNote: null, deletedAt: null, deletedBy: null },
 ];
@@ -141,12 +142,18 @@ const organization = {
     { id: 23, departmentId: 13, name: '고객경험팀', active: true },
   ],
 };
+const reassignmentRequests: ReassignmentRequest[] = [
+  { id: 1101, project_id: 101, todo_id: 1003, title: '온보딩 인터뷰 3건 예약', former_assignee_name: '퇴사자 김민수', due_date: date(4), old_assignee_id: 9, reason: '기존 담당자가 프로젝트에서 빠져 새 담당자가 필요합니다.', created_at: iso(2) },
+];
 
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
 const activeProjectTodos = (projectId: number) => projectTodos(projectId).filter((todo) => !todo.deletedAt);
 const jsonBody = (opts: RequestInit) => typeof opts.body === 'string' ? JSON.parse(opts.body) as Record<string, unknown> : {};
-const result = <T>(value: T) => Promise.resolve(value);
+const result = <T>(value: T, delayMs = 1100) =>
+  new Promise<T>((resolve) => window.setTimeout(() => resolve(value), delayMs));
+
+const findTodo = (id: number) => todos.find((todo) => todo.id === id);
 
 export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const url = new URL(path, 'http://mock.local');
@@ -177,11 +184,11 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname.endsWith('/materials/search')) {
     const query = (searchParams.get('q') ?? '').toLowerCase();
     const projectHits = projectId === 101 ? hits.filter((hit) => hit.evidenceId !== 403) : hits.filter((hit) => hit.evidenceId === 403);
-    return result(projectHits.filter((hit) => `${hit.title} ${hit.snippet} ${hit.author ?? ''}`.toLowerCase().includes(query)) as T);
+    return result(projectHits.filter((hit) => `${hit.title} ${hit.snippet} ${hit.author ?? ''}`.toLowerCase().includes(query)) as T, 1900);
   }
   if (pathname.endsWith('/search/top')) return result([{ query_text: '베타 일정', search_count: 12 }, { query_text: '사용자 피드백', search_count: 8 }] as T);
-  if (pathname.endsWith('/materials/ask')) return result({ answer: '현재 프로젝트에서는 초대 팀 대상 베타를 먼저 진행하고, 검색 결과와 원문 근거를 함께 제공하는 방향으로 정리되어 있습니다.', sources: hits } as MaterialAskResponse as T);
-  if (pathname.endsWith('/context')) return result({ query: searchParams.get('q') ?? '', summary: '최근 회의와 문서에서 확인된 프로젝트의 핵심 맥락입니다. 베타 범위, 검색 근거, 사용자 인터뷰 후속 작업이 연결되어 있습니다.', sources: hits, todos: activeProjectTodos(projectId), decisions: reviewDecisions, changes: reviewChanges, timeline } as T);
+  if (pathname.endsWith('/materials/ask')) return result({ answer: '현재 프로젝트에서는 초대 팀 대상 베타를 먼저 진행하고, 검색 결과와 원문 근거를 함께 제공하는 방향으로 정리되어 있습니다.', sources: hits } as MaterialAskResponse as T, 2300);
+  if (pathname.endsWith('/context')) return result({ query: searchParams.get('q') ?? '', summary: '최근 회의와 문서에서 확인된 프로젝트의 핵심 맥락입니다. 베타 범위, 검색 근거, 사용자 인터뷰 후속 작업이 연결되어 있습니다.', sources: hits, todos: activeProjectTodos(projectId), decisions: reviewDecisions, changes: reviewChanges, timeline } as T, 2100);
   if (pathname.endsWith('/review/todos') || pathname.includes('/evidence')) return result([{ id: 4101, versionId: 3021, chunkId: 1, quote: '다음 베타에서는 초대 팀을 대상으로 검색 근거 연결 경험을 검증한다.', contentHash: 'mock-hash', documentName: '주간 제품 회의록 - 09월 2주차.md', paragraphRef: 'p.2', pageNo: 2, meetingTitle: null, startMs: null, endMs: null, speaker: '이승현' }] as EvidenceView[] as T);
   if (pathname.endsWith('/connectors/status')) {
     const linked = JSON.parse(localStorage.getItem('hub.mock.connectors') ?? '[]') as string[];
@@ -195,7 +202,7 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname === '/api/admin/organization' || pathname === '/api/auth/signup/organization') return result(organization as T);
   if (pathname.endsWith('/admin/users')) return result(users as T);
   if (pathname.endsWith('/signup-applications')) return result(applications as T);
-  if (pathname.endsWith('/reassignments')) return result([{ id: 1101, project_id: projectId, old_assignee_id: 3, reason: '팀 이동으로 담당자 변경 필요', created_at: iso(2) }] as ReassignmentRequest[] as T);
+  if (pathname.endsWith('/reassignments')) return result(reassignmentRequests.filter((request) => request.project_id === projectId) as T);
   if (pathname.endsWith('/sensitive-terms')) return result(terms as T);
   if (pathname.endsWith('/search/rules')) return result(rules.filter((rule) => rule.projectId === projectId) as T);
   if (pathname.endsWith('/embedding-status')) return result({ status: 'READY', indexed: projectTodos(projectId).length + documents.length, pending: 0, lastIndexedAt: iso(1) } as T);
@@ -235,8 +242,98 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
         message: '촬영용 개발 계정으로 로그인했습니다.',
         user,
         accessExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
-      } as T);
+      } as T, 1500);
     }
+    const signupApproveMatch = pathname.match(/^\/api\/admin\/signup-applications\/(\d+)\/approve$/);
+    if (signupApproveMatch && method === 'POST') {
+      const userId = Number(signupApproveMatch[1]);
+      const index = applications.findIndex((application) => application.id === userId);
+      if (index >= 0) applications.splice(index, 1);
+      return result({ status: 'APPROVED', projectAssigned: true } as T, 1800);
+    }
+
+    const reassignResolveMatch = pathname.match(/^\/api\/admin\/reassignments\/(\d+)\/resolve$/);
+    if (reassignResolveMatch && method === 'POST') {
+      const requestId = Number(reassignResolveMatch[1]);
+      const requestIndex = reassignmentRequests.findIndex((request) => request.id === requestId);
+      if (requestIndex >= 0) {
+        const request = reassignmentRequests[requestIndex];
+        const todo = request.todo_id ? findTodo(request.todo_id) : undefined;
+        const assigneeId = Number(body.newAssigneeId);
+        const member = members.find((candidate) => candidate.id === assigneeId);
+        if (todo && member) {
+          todo.assigneeId = member.id;
+          todo.assigneeText = member.displayName;
+          todo.assignmentStatus = 'ACTIVE';
+          todo.updatedAt = new Date().toISOString();
+        }
+        reassignmentRequests.splice(requestIndex, 1);
+      }
+      return result({ status: 'RESOLVED' } as T, 1800);
+    }
+
+    const todoStatusMatch = pathname.match(/^\/api\/todos\/(\d+)\/status$/);
+    if (todoStatusMatch && method === 'PATCH') {
+      const todo = findTodo(Number(todoStatusMatch[1]));
+      if (todo) {
+        todo.taskStatus = String(body.status ?? todo.taskStatus) as TodoItem['taskStatus'];
+        todo.updatedAt = new Date().toISOString();
+      }
+      return result({ status: todo?.taskStatus ?? 'TODO' } as T, 1600);
+    }
+
+    const todoHelpMatch = pathname.match(/^\/api\/todos\/(\d+)\/(request-help|resolve-help)$/);
+    if (todoHelpMatch && method === 'POST') {
+      const todo = findTodo(Number(todoHelpMatch[1]));
+      if (todo) {
+        if (todoHelpMatch[2] === 'request-help') {
+          todo.taskStatus = 'BLOCKED';
+          todo.statusNote = String(body.note ?? '도움이 필요합니다.');
+        } else {
+          todo.taskStatus = 'IN_PROGRESS';
+          todo.statusNote = null;
+        }
+        todo.updatedAt = new Date().toISOString();
+      }
+      return result({ status: 'SUCCESS' } as T, 1800);
+    }
+
+    const todoCompletionMatch = pathname.match(/^\/api\/todos\/(\d+)\/(request-completion|approve-completion|reject-completion)$/);
+    if (todoCompletionMatch && method === 'POST') {
+      const todo = findTodo(Number(todoCompletionMatch[1]));
+      if (todo) {
+        const action = todoCompletionMatch[2];
+        if (action === 'request-completion') {
+          todo.pendingApproval = true;
+        } else if (action === 'approve-completion') {
+          todo.pendingApproval = false;
+          todo.taskStatus = 'DONE';
+          todo.statusNote = null;
+        } else {
+          todo.pendingApproval = false;
+          todo.taskStatus = 'IN_PROGRESS';
+          todo.statusNote = String(body.reason ?? '추가 확인이 필요합니다.');
+        }
+        todo.updatedAt = new Date().toISOString();
+      }
+      return result({ status: 'SUCCESS' } as T, 1800);
+    }
+
+    const todoConfirmMatch = pathname.match(/^\/api\/todos\/(\d+)\/confirm$/);
+    if (todoConfirmMatch && method === 'POST') {
+      const todo = findTodo(Number(todoConfirmMatch[1]));
+      if (todo) {
+        const assigneeId = Number(body.assigneeId);
+        const member = members.find((candidate) => candidate.id === assigneeId);
+        todo.assigneeId = member?.id ?? null;
+        todo.assigneeText = member?.displayName ?? null;
+        todo.dueDate = typeof body.dueDate === 'string' ? body.dueDate : null;
+        todo.reviewStatus = 'CONFIRMED';
+        todo.updatedAt = new Date().toISOString();
+      }
+      return result({ status: 'CONFIRMED' } as T, 1800);
+    }
+
     const documentMatch = pathname.match(/^\/api\/documents\/(\d+)(?:\/(restore|permanent))?$/);
     if (documentMatch) {
       const documentId = Number(documentMatch[1]);
