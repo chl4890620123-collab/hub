@@ -40,8 +40,11 @@ export const documentsApi = {
       meetingDocumentId,
     }),
 
-  analyze: (projectId: number, versionId: number, sourceDate?: string) =>
-    apiPost<UploadResult>(
-      `/api/projects/${projectId}/documents/${versionId}/analyze${sourceDate ? `?sourceDate=${sourceDate}` : ''}`,
-    ),
+  analyze: (projectId: number, versionId: number, sourceDate?: string, force = false) => {
+    const params = new URLSearchParams();
+    if (sourceDate) params.set('sourceDate', sourceDate);
+    if (force) params.set('force', 'true');
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return apiPost<UploadResult>(`/api/projects/${projectId}/documents/${versionId}/analyze${suffix}`);
+  },
 };
