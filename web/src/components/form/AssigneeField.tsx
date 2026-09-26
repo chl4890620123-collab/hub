@@ -33,7 +33,7 @@ export function AssigneeField({
           ) : (
             members?.map((m) => (
               <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+                {m.displayName} · @{m.loginId}
               </SelectItem>
             ))
           )}
