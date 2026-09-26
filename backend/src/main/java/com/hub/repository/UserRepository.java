@@ -38,7 +38,7 @@ public class UserRepository {
     /** ADMIN review row; requestedRole is visible, password data never is. */
     public record SignupApplication(
             long id, String loginId, String email, String displayName, String companyName,
-            String departmentName, String teamName, String jobTitle, String signupNote,
+            String departmentName, String teamName, Long departmentId, Long teamId, String jobTitle, String signupNote,
             Long requestedProjectId, String requestedProjectName,
             String requestedRole, String approvalStatus, String rejectionReason, Instant createdAt
     ) {}
@@ -64,7 +64,7 @@ public class UserRepository {
 
     public List<SignupApplication> listPendingApplications() {
         return jdbc.query("""
-                SELECT u.id,u.login_id,u.email,u.display_name,u.company_name,u.department_name,u.team_name,u.job_title,u.signup_note,
+                SELECT u.id,u.login_id,u.email,u.display_name,u.company_name,u.department_name,u.team_name,u.department_id,u.team_id,u.job_title,u.signup_note,
                        u.requested_project_id,p.name AS requested_project_name,
                        u.requested_role,u.approval_status,u.rejection_reason,u.created_at
                 FROM app_user u LEFT JOIN project p ON p.id=u.requested_project_id
@@ -74,6 +74,7 @@ public class UserRepository {
             return new SignupApplication(
                 rs.getLong("id"), rs.getString("login_id"), rs.getString("email"), rs.getString("display_name"),
                 rs.getString("company_name"), rs.getString("department_name"), rs.getString("team_name"),
+                nullableLong(rs, "department_id"), nullableLong(rs, "team_id"),
                 rs.getString("job_title"), rs.getString("signup_note"),
                 rs.wasNull() ? null : requestedProjectId, rs.getString("requested_project_name"),
                 rs.getString("requested_role"), rs.getString("approval_status"), rs.getString("rejection_reason"),
@@ -272,6 +273,11 @@ public class UserRepository {
                 rs.getString("display_name"), rs.getString("company_name"), rs.getString("department_name"),
                 rs.getString("team_name"), rs.getString("job_title"), rs.getString("global_role"), rs.getString("account_status"),
                 rs.getBoolean("must_change_password"), rs.getString("approval_status"));
+    }
+
+    private static Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 
     private static String normalizeLoginId(String value) {
