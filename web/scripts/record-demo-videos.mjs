@@ -52,7 +52,7 @@ async function navigateLikeUser(page, path) {
   const current = new URL(page.url()).pathname;
   if (current === path) return;
 
-  const link = page.locator(`a[href="${path}"]`).filter({ visible: true }).first();
+  const link = page.locator(`a[href="${path}"]:visible`).first();
   if (await link.count()) {
     await link.scrollIntoViewIfNeeded();
     await sleep(500);
