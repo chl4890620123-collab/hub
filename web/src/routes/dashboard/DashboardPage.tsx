@@ -13,7 +13,8 @@ import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
 import { materialsApi } from '@/api/endpoints/materials';
 import { documentsApi } from '@/api/endpoints/documents';
-import { adminSignupApi, adminReassignmentApi, adminUsersApi } from '@/api/endpoints/admin';
+import { adminSignupApi, adminReassignmentApi } from '@/api/endpoints/admin';
+import { projectsApi } from '@/api/endpoints/projects';
 import { connectorsApi } from '@/api/endpoints/connectors';
 import { AnalysisResultPanel } from '@/features/jobs/AnalysisResultPanel';
 import { AssigneeField } from '@/components/form/AssigneeField';
@@ -67,8 +68,8 @@ function ConnectorSyncChips({ projectId }: { projectId: number }) {
 function AdminOverviewCards({ projectId }: { projectId: number }) {
   const { data: signups } = useQuery({ queryKey: ['admin-signups'], queryFn: adminSignupApi.list });
   const { data: reassignments } = useQuery({ queryKey: ['admin-reassignments', projectId], queryFn: () => adminReassignmentApi.pending(projectId) });
-  const { data: users } = useQuery({ queryKey: ['admin-users'], queryFn: adminUsersApi.list });
-  return <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">{[['대기 중인 가입 신청', signups?.length], ['대기 중인 재배정', reassignments?.length], ['전체 사용자 수', users?.length]].map(([label, value]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs text-ink-500">{label}</p><p className="mt-1 text-2xl font-bold text-ink-900">{value ?? '-'}</p></CardContent></Card>)}</div>;
+  const { data: members } = useQuery({ queryKey: ['project-members', projectId], queryFn: () => projectsApi.members(projectId) });
+  return <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">{[['대기 중인 가입 신청', signups?.length], ['대기 중인 재배정', reassignments?.length], ['프로젝트 참여자', members?.length]].map(([label, value]) => <Card key={String(label)}><CardContent className="p-4"><p className="text-xs text-ink-500">{label}</p><p className="mt-1 text-2xl font-bold text-ink-900">{value ?? '-'}</p></CardContent></Card>)}</div>;
 }
 
 function DashboardTodos({ projectId, userId }: { projectId: number; userId: number }) {
