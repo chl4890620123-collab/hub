@@ -25,8 +25,14 @@ public class ProcessingJobService {
     }
 
     public long queueDocument(long projectId, long versionId, LocalDate sourceDate) {
+        return queueDocument(projectId, versionId, sourceDate, false);
+    }
+
+    public long queueDocument(long projectId, long versionId, LocalDate sourceDate, boolean force) {
         String requestKey = "DOCUMENT_ANALYSIS:" + versionId;
-        var lease = jobs.createOrReuse(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey);
+        var lease = force
+                ? jobs.createOrReuseRerunnable(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey)
+                : jobs.createOrReuse(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey);
         if (lease.shouldRun()) executor.document(lease.id(), projectId, versionId, sourceDate);
         return lease.id();
     }
