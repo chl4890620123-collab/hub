@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search as SearchIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
@@ -11,6 +11,7 @@ import { MaterialResultList } from '@/features/materials/MaterialResultList';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { materialsApi } from '@/api/endpoints/materials';
+import { attachmentsApi } from '@/api/endpoints/attachments';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const MAX_RECENT = 8;
@@ -24,6 +25,7 @@ const SOURCE_FILTERS = [
 export function SearchPage() {
   const { currentProject } = useCurrentProject();
   const { data: user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<(typeof SOURCE_FILTERS)[number]['value']>('ALL');
@@ -53,6 +55,34 @@ export function SearchPage() {
       return pages.flat().filter((hit) => hit.sourceType !== 'ATTACHMENT').length;
     },
     staleTime: 60_000,
+  });
+
+  const { data: transfers } = useQuery({
+    queryKey: ['file-transfers', currentProject?.id],
+    queryFn: () => attachmentsApi.inbox(currentProject!.id),
+    enabled: !!currentProject,
+  });
+  const ownedAttachmentIds = new Set((transfers ?? []).filter((row) => row.senderId === user?.id).map((row) => row.id));
+  const editAttachment = useMutation({
+    mutationFn: async (hit: import('@/api/types').MaterialHit) => {
+      const row = (transfers ?? []).find((item) => item.id === hit.evidenceId);
+      const fileName = window.prompt('파일 이름', row?.fileName ?? hit.title);
+      if (fileName == null || !fileName.trim()) return;
+      const note = window.prompt('메모', row?.note ?? hit.snippet ?? '');
+      if (note == null) return;
+      await attachmentsApi.update(hit.evidenceId, fileName.trim(), note);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['file-transfers', currentProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['material-search', currentProject?.id] });
+    },
+  });
+  const deleteAttachment = useMutation({
+    mutationFn: (hit: import('@/api/types').MaterialHit) => attachmentsApi.delete(hit.evidenceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['file-transfers', currentProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['material-search', currentProject?.id] });
+    },
   });
 
   const { data: topSearches } = useQuery({
@@ -119,7 +149,17 @@ export function SearchPage() {
 
       {search.isFetching && hits.length === 0 ? <LoadingBlock label="검색 중..." /> : submittedQuery ? (
         <>
-          <MaterialResultList hits={filteredHits} emptyLabel="선택한 범위에서 검색 결과가 없습니다." />
+          <MaterialResultList
+            hits={filteredHits}
+            emptyLabel="선택한 범위에서 검색 결과가 없습니다."
+            actions={{
+              canManageAttachment: (hit) => ownedAttachmentIds.has(hit.evidenceId),
+              onEditAttachment: (hit) => editAttachment.mutate(hit),
+              onDeleteAttachment: (hit) => {
+                if (window.confirm(`'${hit.title}' 파일을 삭제할까요? 받는 사람의 목록에서도 사라집니다.`)) deleteAttachment.mutate(hit);
+              },
+            }}
+          />
           {search.hasNextPage && <div className="mt-3 flex justify-center">
             <Button variant="outline" disabled={search.isFetchingNextPage} onClick={() => search.fetchNextPage()}>
               {search.isFetchingNextPage ? '불러오는 중...' : '더 보기'}
