@@ -54,10 +54,19 @@ async function navigateLikeUser(page, path) {
 
   const link = page.locator(`a[href="${path}"]:visible`).first();
   if (await link.count()) {
-    await link.scrollIntoViewIfNeeded();
-    await sleep(500);
-    await link.click();
-    await page.waitForURL((url) => url.pathname === path, { timeout: 10_000 });
+    // Radix menus can briefly keep a pointer-event shield during their close animation.
+    // Close any transient popup first, then try a real sidebar/tab click; direct navigation is
+    // only a fallback so one animation cannot abort the otherwise continuous recording.
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(700);
+    try {
+      await link.scrollIntoViewIfNeeded();
+      await sleep(500);
+      await link.click({ timeout: 5000 });
+      await page.waitForURL((url) => url.pathname === path, { timeout: 10_000 });
+    } catch {
+      await page.goto(baseURL + path, { waitUntil: 'domcontentloaded' });
+    }
   } else {
     await page.goto(baseURL + path, { waitUntil: 'domcontentloaded' });
   }
