@@ -70,13 +70,13 @@ public class UserRepository {
                 FROM app_user u LEFT JOIN project p ON p.id=u.requested_project_id
                 WHERE u.approval_status='PENDING' ORDER BY u.created_at ASC,u.id ASC
                 """, (rs,n)->{
-            long requestedProjectId = rs.getLong("requested_project_id");
+            Long requestedProjectId = nullableLong(rs, "requested_project_id");
             return new SignupApplication(
                 rs.getLong("id"), rs.getString("login_id"), rs.getString("email"), rs.getString("display_name"),
                 rs.getString("company_name"), rs.getString("department_name"), rs.getString("team_name"),
                 nullableLong(rs, "department_id"), nullableLong(rs, "team_id"),
                 rs.getString("job_title"), rs.getString("signup_note"),
-                rs.wasNull() ? null : requestedProjectId, rs.getString("requested_project_name"),
+                requestedProjectId, rs.getString("requested_project_name"),
                 rs.getString("requested_role"), rs.getString("approval_status"), rs.getString("rejection_reason"),
                 rs.getTimestamp("created_at").toInstant());
         });
