@@ -116,6 +116,11 @@ public class DocumentService {
         return createVersionForDocument(projectId, documentId, safeTitle, originalStorage, stripped, bytes, user.id());
     }
 
+    /** Backward-compatible service entry for existing tests/legacy callers. */
+    public long manualEdit(long projectId, long documentId, String title, String text, User user) {
+        return edit(projectId, documentId, title, text, user);
+    }
+
     /**
      * Browser recordings keep their original meeting/evidence rows, but also create one searchable
      * transcript snapshot in the shared document index. This makes a recorded meeting discoverable
