@@ -12,6 +12,9 @@ export type ReviewStatus = 'AI_GENERATED' | 'REVIEWING' | 'CONFIRMED' | 'REJECTE
 export type AssignmentStatus = 'ACTIVE' | 'REASSIGNMENT_REQUIRED';
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
+export interface OrganizationDepartment { id: number; name: string; active: boolean; }
+export interface OrganizationTeam { id: number; departmentId: number; name: string; active: boolean; }
+
 export interface User {
   id: number;
   loginId: string;
@@ -258,6 +261,8 @@ export interface SignupApplication {
   companyName: string | null;
   departmentName: string | null;
   teamName: string | null;
+  departmentId: number | null;
+  teamId: number | null;
   jobTitle: string | null;
   signupNote: string | null;
   requestedProjectId: number | null;
