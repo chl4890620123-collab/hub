@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 const baseURL = process.env.HUB_VIDEO_BASE_URL ?? 'http://127.0.0.1:5173';
 const outDir = process.env.HUB_VIDEO_OUT_DIR ?? 'demo-videos';
 await mkdir(outDir, { recursive: true });
+await mkdir(`${outDir}/raw`, { recursive: true });
 
 const ADMIN_ROUTES = [
   '/',
@@ -107,7 +108,7 @@ async function record(role, routes, filename) {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
     recordVideo: {
-      dir: outDir,
+      dir: `${outDir}/raw`,
       size: { width: 1440, height: 900 },
     },
   });
