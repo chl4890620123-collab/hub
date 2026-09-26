@@ -104,6 +104,19 @@ public class FileAttachmentService {
         return new Download(data, attachment.fileName(), attachment.contentType());
     }
 
+    public void update(long id, String fileName, String note, User actor) {
+        var attachment = attachments.find(id).orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
+        access.requireAccess(attachment.projectId(), actor);
+        if (attachment.senderId() != actor.id())
+            throw new AccessDeniedException("보낸 사람만 파일 이름과 메모를 수정할 수 있습니다.");
+        String safeFileName = fileName == null || fileName.isBlank() ? attachment.fileName() : java.nio.file.Path.of(fileName.trim()).getFileName().toString();
+        if (safeFileName.length() > 500) throw new IllegalArgumentException("파일 이름은 500자 이하여야 합니다.");
+        String safeNote = blankToNull(note);
+        if (safeNote != null && safeNote.length() > 1000) throw new IllegalArgumentException("메모는 1000자 이하여야 합니다.");
+        if (!attachments.updateMetadata(id, safeFileName, safeNote))
+            throw new IllegalArgumentException("수정할 파일을 찾을 수 없습니다.");
+    }
+
     public void delete(long id, User actor) {
         var attachment = attachments.find(id).orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
         // Sender ownership alone is not enough after the sender leaves the project. Download already
