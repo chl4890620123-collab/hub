@@ -188,6 +188,8 @@ public class SignupService {
             organization = validateOrganization(command.departmentId(), command.teamId());
             department = organization.departmentName();
             team = organization.teamName();
+        } else if (!organizations.departments(true).isEmpty()) {
+            throw new IllegalArgumentException("부서와 팀을 선택해 주세요.");
         }
         String jobTitle = allowMemberExtras ? optional(command.jobTitle(), MAX_PROFILE) : null;
         String note = allowMemberExtras ? optional(command.signupNote(), MAX_NOTE) : null;
