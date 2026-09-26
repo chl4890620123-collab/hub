@@ -129,6 +129,18 @@ const rules: SearchRule[] = [
 ];
 const terms: SensitiveTerm[] = [{ id: 901, term: '개인정보' }, { id: 902, term: '계약 금액' }];
 const applications: SignupApplication[] = [{ id: 10001, loginId: 'minji', email: 'minji@example.com', displayName: '최민지', companyName: 'Hub Demo', departmentName: 'CS팀', teamName: null, departmentId: null, teamId: null, jobTitle: 'CS 매니저', signupNote: '프로젝트 자료를 함께 검토하고 싶습니다.', requestedProjectId: 101, requestedProjectName: 'Atlas 리뉴얼', requestedRole: 'MEMBER', approvalStatus: 'PENDING', rejectionReason: null, createdAt: iso(1) }];
+const organization = {
+  departments: [
+    { id: 11, name: '개발부', active: true },
+    { id: 12, name: '프로덕트팀', active: true },
+    { id: 13, name: 'CS팀', active: true },
+  ],
+  teams: [
+    { id: 21, departmentId: 11, name: '플랫폼팀', active: true },
+    { id: 22, departmentId: 12, name: '플랫폼 스쿼드', active: true },
+    { id: 23, departmentId: 13, name: '고객경험팀', active: true },
+  ],
+};
 
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
@@ -180,6 +192,7 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   }
   if (pathname.endsWith('/connector-policy')) return result({ GITHUB: true, GOOGLE_DRIVE: true, SLACK: true, NOTION: true } as T);
   if (pathname.endsWith('/targets')) return result({ connected: true, linkedByUser: true, account: 'demo@hub.local', targets: [{ id: 'repo-hub-front', name: 'hub-front', description: '제품 허브 프론트엔드 저장소', url: 'https://github.com' }, { id: 'repo-design-system', name: 'design-system', description: '공용 컴포넌트와 토큰', url: 'https://github.com' }] } as ConnectorTargetsResponse as T);
+  if (pathname === '/api/admin/organization' || pathname === '/api/auth/signup/organization') return result(organization as T);
   if (pathname.endsWith('/admin/users')) return result(users as T);
   if (pathname.endsWith('/signup-applications')) return result(applications as T);
   if (pathname.endsWith('/reassignments')) return result([{ id: 1101, project_id: projectId, old_assignee_id: 3, reason: '팀 이동으로 담당자 변경 필요', created_at: iso(2) }] as ReassignmentRequest[] as T);
