@@ -90,6 +90,13 @@ public class FileAttachmentController {
         return Map.of("status", "UPDATED");
     }
 
+    @DeleteMapping("/api/attachments/{id}/inbox")
+    public Map<String, Object> hideFromInbox(@PathVariable long id, Authentication auth) {
+        User user = currentUser.requireOperational(auth);
+        service.removeFromInbox(id, user);
+        return Map.of("status", "HIDDEN");
+    }
+
     @DeleteMapping("/api/attachments/{id}")
     public Map<String, Object> delete(@PathVariable long id, Authentication auth) {
         User user = currentUser.requireOperational(auth);
