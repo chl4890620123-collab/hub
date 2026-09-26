@@ -47,7 +47,7 @@ public class SecurityConfig {
             "/login", "/signup", "/signup/member", "/signup/admin",
             "/search", "/ask", "/context", "/todos", "/review",
             "/documents", "/meetings", "/sheets", "/connectors", "/account",
-            "/admin", "/admin/members", "/admin/reassign", "/admin/users",
+            "/admin", "/admin/members", "/admin/reassign", "/admin/users", "/admin/organization",
             "/admin/search", "/admin/security", "/admin/history",
     };
 
