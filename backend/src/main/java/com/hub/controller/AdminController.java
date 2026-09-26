@@ -4,6 +4,7 @@ package com.hub.controller;
 import com.hub.model.User;
 import com.hub.repository.AuditRepository;
 import com.hub.repository.ProjectRepository;
+import com.hub.repository.OrganizationRepository;
 import com.hub.repository.RefreshTokenRepository;
 import com.hub.repository.SensitiveTermRepository;
 import com.hub.repository.UserRepository;
@@ -28,15 +29,16 @@ public class AdminController {
     private final AuditRepository audit;private final RefreshTokenRepository refreshTokens;private final SignupService signup;
     private final MembershipService memberships;private final AccountLifecycleService accounts;private final TodoReassignmentService reassignments;
     private final SensitiveTermRepository sensitiveTerms;
+    private final OrganizationRepository organizations;
 
     public AdminController(CurrentUserService current,UserRepository users,ProjectRepository projects,PasswordEncoder encoder,
                            PasswordPolicy passwordPolicy,ProjectAccessService access,AuditRepository audit,
                            RefreshTokenRepository refreshTokens,SignupService signup,MembershipService memberships,
                            AccountLifecycleService accounts,TodoReassignmentService reassignments,
-                           SensitiveTermRepository sensitiveTerms){
+                           SensitiveTermRepository sensitiveTerms, OrganizationRepository organizations){
         this.current=current;this.users=users;this.projects=projects;this.encoder=encoder;this.passwordPolicy=passwordPolicy;
         this.access=access;this.audit=audit;this.refreshTokens=refreshTokens;this.signup=signup;this.memberships=memberships;
-        this.accounts=accounts;this.reassignments=reassignments;this.sensitiveTerms=sensitiveTerms;
+        this.accounts=accounts;this.reassignments=reassignments;this.sensitiveTerms=sensitiveTerms;this.organizations=organizations;
     }
 
     private User requireAdmin(Authentication authentication){User user=current.requireOperational(authentication);if(!user.isAdmin())throw new AccessDeniedException("관리자 권한이 필요합니다.");return user;}
@@ -109,6 +111,16 @@ public class AdminController {
         if("ADMIN".equals(role)&&!target.isAdmin())memberships.removeFromAllProjects(userId,actor,"ROLE_PROMOTED_ADMIN");
         users.setRole(userId,role);refreshTokens.revokeAllForUser(userId,"ROLE_CHANGED");
         audit.add(actor.id(),null,"USER_ROLE_CHANGE","USER",userId,"{\"role\":\""+role+"\"}");return Map.of("status","UPDATED");
+    }
+
+    public record UserOrganization(Long departmentId, Long teamId){}
+    @PatchMapping("/users/{userId}/organization")
+    public Map<String,Object> organization(@PathVariable long userId,@RequestBody UserOrganization request,Authentication authentication){
+        requireAdmin(authentication); requireTarget(userId);
+        var selection=organizations.activeSelection(request.departmentId(),request.teamId())
+                .orElseThrow(()->new IllegalArgumentException("현재 사용할 수 있는 부서와 팀을 선택해 주세요."));
+        organizations.assignUser(userId,selection);
+        return Map.of("status","UPDATED");
     }
 
     public record ResetPassword(String temporaryPassword){}
