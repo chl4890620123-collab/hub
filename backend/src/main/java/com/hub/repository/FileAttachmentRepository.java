@@ -104,6 +104,10 @@ public class FileAttachmentRepository {
         jdbc.update("UPDATE file_attachment SET read_at=CURRENT_TIMESTAMP WHERE id=? AND read_at IS NULL", id);
     }
 
+    public boolean updateMetadata(long id, String fileName, String note) {
+        return jdbc.update("UPDATE file_attachment SET file_name=?,note=? WHERE id=?", fileName, note, id) == 1;
+    }
+
     public boolean delete(long id) {
         return jdbc.update("DELETE FROM file_attachment WHERE id=?", id) == 1;
     }
