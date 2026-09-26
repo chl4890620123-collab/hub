@@ -67,7 +67,13 @@ public class OrganizationRepository {
             ps.setString(1, clean(name)); return ps;
         }, key);
         if (key.getKey()==null) throw new IllegalStateException("부서 ID를 만들지 못했습니다.");
-        return key.getKey().longValue();
+        long id = key.getKey().longValue();
+        jdbc.update("""
+                UPDATE app_user SET department_id=?
+                WHERE department_id IS NULL AND department_name IS NOT NULL
+                  AND lower(trim(department_name))=lower(?)
+                """, id, clean(name));
+        return id;
     }
 
     public long createTeam(long departmentId, String name) {
@@ -79,7 +85,14 @@ public class OrganizationRepository {
             ps.setLong(1, departmentId); ps.setString(2, clean(name)); return ps;
         }, key);
         if (key.getKey()==null) throw new IllegalStateException("팀 ID를 만들지 못했습니다.");
-        return key.getKey().longValue();
+        long id = key.getKey().longValue();
+        String departmentName = jdbc.queryForObject("SELECT name FROM organization_department WHERE id=?", String.class, departmentId);
+        jdbc.update("""
+                UPDATE app_user SET department_id=?,team_id=?
+                WHERE team_id IS NULL AND department_name IS NOT NULL AND team_name IS NOT NULL
+                  AND lower(trim(department_name))=lower(?) AND lower(trim(team_name))=lower(?)
+                """, departmentId, id, departmentName, clean(name));
+        return id;
     }
 
     public void renameDepartment(long id, String name) {
