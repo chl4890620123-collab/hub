@@ -35,6 +35,7 @@ class DocumentRepositoryRetentionRestoreTest {
                   storage_path VARCHAR(2000),
                   archived BOOLEAN NOT NULL DEFAULT FALSE,
                   source_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+                  retention_protected BOOLEAN NOT NULL DEFAULT FALSE,
                   archived_at TIMESTAMP,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -66,6 +67,28 @@ class DocumentRepositoryRetentionRestoreTest {
         Object flag = row.get("content_purged");
         if (flag == null) flag = row.get("CONTENT_PURGED");
         assertTrue(Boolean.parseBoolean(String.valueOf(flag)));
+    }
+
+    @Test
+    void protectedArchivedDocumentIsExcludedFromRetentionCleanup() {
+        insertDocument(4L, true);
+        jdbc.update("UPDATE document SET archived_at=DATEADD('MONTH',-24,CURRENT_TIMESTAMP),retention_protected=TRUE WHERE id=4");
+        jdbc.update("INSERT INTO document_version(id,document_id,version_no,sha256,full_text,parse_status) VALUES(41,4,1,'protected-hash','important text','READY')");
+
+        repository.purgeArchivedContentOlderThan(10L, java.time.LocalDate.now().minusMonths(12));
+
+        assertFalse(repository.isVersionContentPurged(41L));
+    }
+
+    @Test
+    void unprotectedArchivedDocumentIsPurgedByProjectPolicy() {
+        insertDocument(5L, true);
+        jdbc.update("UPDATE document SET archived_at=DATEADD('MONTH',-24,CURRENT_TIMESTAMP),retention_protected=FALSE WHERE id=5");
+        jdbc.update("INSERT INTO document_version(id,document_id,version_no,sha256,full_text,parse_status) VALUES(51,5,1,'old-hash','old text','READY')");
+
+        repository.purgeArchivedContentOlderThan(10L, java.time.LocalDate.now().minusMonths(12));
+
+        assertTrue(repository.isVersionContentPurged(51L));
     }
 
     @Test
