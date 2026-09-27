@@ -104,6 +104,22 @@ export async function apiDownload(
   headers?: Record<string, string>,
   retried = false,
 ): Promise<{ blob: Blob; filename: string | null }> {
+  if (mockMode) {
+    const filename = path.includes('/attachments/')
+      ? (path.includes('15002') ? '검색결과_화면캡처.pdf' : path.includes('15003') ? 'Atlas_베타_검수요청.pdf' : '검색_UI_검수체크리스트.xlsx')
+      : path.includes('/sheets/')
+        ? 'Atlas_출시_체크리스트.xlsx'
+        : '주간_제품_회의록_09월_2주차.md';
+    const body = [
+      'Hub 촬영용 데모 파일',
+      '',
+      '프로젝트: Atlas 리뉴얼',
+      '담당자: 박준호',
+      '검수 항목: 출처 배지 / 원문 열기 / 모바일 화면 / 완료 승인 흐름',
+      '상태: 검수 중',
+    ].join('\n');
+    return { blob: new Blob([body], { type: 'text/plain;charset=utf-8' }), filename };
+  }
   const res = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers });
   if (res.status === 401 && !retried && !path.startsWith('/api/auth/')) {
     const recovered = await refreshSession();
