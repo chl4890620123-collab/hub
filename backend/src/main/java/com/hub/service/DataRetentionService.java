@@ -38,26 +38,23 @@ public class DataRetentionService {
     private final ConnectorRepository connectors;
     private final DocumentRepository documents;
     private final MeetingRepository meetings;
+    private final ProjectRepository projects;
     private final boolean enabled;
-    private final int retentionMonths;
-    private final int sttRetentionMonths;
 
     public DataRetentionService(RefreshTokenRepository refreshTokens,
                                 SearchLogRepository searchLogs,
                                 ConnectorRepository connectors,
                                 DocumentRepository documents,
                                 MeetingRepository meetings,
-                                @Value("${hub.data-retention-enabled:true}") boolean enabled,
-                                @Value("${hub.data-retention-months:12}") int retentionMonths,
-                                @Value("${hub.stt-retention-months:6}") int sttRetentionMonths) {
+                                ProjectRepository projects,
+                                @Value("${hub.data-retention-enabled:true}") boolean enabled) {
         this.refreshTokens = refreshTokens;
         this.searchLogs = searchLogs;
         this.connectors = connectors;
         this.documents = documents;
         this.meetings = meetings;
+        this.projects = projects;
         this.enabled = enabled;
-        this.retentionMonths = retentionMonths;
-        this.sttRetentionMonths = sttRetentionMonths;
     }
 
     @Scheduled(fixedDelayString = "${hub.data-retention-interval-ms:86400000}",
@@ -66,18 +63,22 @@ public class DataRetentionService {
         if (!enabled) return;
         refreshTokens.deleteExpired();
 
-        LocalDate cutoff = LocalDate.now().minusMonths(Math.max(1, retentionMonths));
-        int searchLogsRemoved = searchLogs.purgeOlderThan(cutoff);
-        if (searchLogsRemoved > 0) log.info("Data retention cleanup removed {} search log row(s) before {}", searchLogsRemoved, cutoff);
+        for (ProjectRepository.RetentionPolicy policy : projects.listRetentionPolicies()) {
+            int months = policy.retentionMonths();
+            LocalDate cutoff = LocalDate.now().minusMonths(months);
+            long projectId = policy.projectId();
 
-        int orphanedItemsRemoved = connectors.purgeOrphanedItemsOlderThan(cutoff);
-        if (orphanedItemsRemoved > 0) log.info("Data retention cleanup removed {} orphaned external_item row(s) before {}", orphanedItemsRemoved, cutoff);
+            int searchLogsRemoved = searchLogs.purgeOlderThan(projectId, cutoff);
+            if (searchLogsRemoved > 0) log.info("Project {} retention removed {} search log row(s) before {}", projectId, searchLogsRemoved, cutoff);
 
-        int archivedVersionsCleared = documents.purgeArchivedContentOlderThan(cutoff);
-        if (archivedVersionsCleared > 0) log.info("Data retention cleanup cleared content for {} archived document version(s) before {}", archivedVersionsCleared, cutoff);
+            int orphanedItemsRemoved = connectors.purgeOrphanedItemsOlderThan(projectId, cutoff);
+            if (orphanedItemsRemoved > 0) log.info("Project {} retention removed {} orphaned external_item row(s) before {}", projectId, orphanedItemsRemoved, cutoff);
 
-        LocalDate sttCutoff = LocalDate.now().minusMonths(Math.max(1, sttRetentionMonths));
-        int meetingsCleared = meetings.purgeTranscriptsOlderThan(sttCutoff);
-        if (meetingsCleared > 0) log.info("Data retention cleanup cleared STT transcript text for {} meeting(s) before {}", meetingsCleared, sttCutoff);
+            int archivedVersionsCleared = documents.purgeArchivedContentOlderThan(projectId, cutoff);
+            if (archivedVersionsCleared > 0) log.info("Project {} retention cleared content for {} archived document version(s) before {}", projectId, archivedVersionsCleared, cutoff);
+
+            int meetingsCleared = meetings.purgeTranscriptsOlderThan(projectId, cutoff);
+            if (meetingsCleared > 0) log.info("Project {} retention cleared STT transcript text for {} meeting(s) before {}", projectId, meetingsCleared, cutoff);
+        }
     }
 }
