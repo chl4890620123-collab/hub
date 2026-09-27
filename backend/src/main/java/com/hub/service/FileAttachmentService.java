@@ -39,7 +39,10 @@ public class FileAttachmentService {
         var todo = todos.find(todoId);
         access.requireAccess(todo.projectId(), actor);
         if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null) {
-            throw new IllegalArgumentException("담당자가 지정된 확정 할 일에만 파일을 보낼 수 있습니다.");
+            throw new IllegalArgumentException("담당자가 지정된 확정 할 일에만 파일을 제출할 수 있습니다.");
+        }
+        if (todo.assigneeId() != actor.id()) {
+            throw new AccessDeniedException("할 일 제출 파일은 담당자 본인만 첨부할 수 있습니다.");
         }
         String path = save(todo.projectId(), file);
         return attachments.create(todo.projectId(), todoId, actor.id(), todo.assigneeId(),
@@ -86,7 +89,7 @@ public class FileAttachmentService {
     public List<FileAttachmentRepository.Attachment> listForTodo(long todoId, User actor) {
         var todo = todos.find(todoId);
         access.requireAccess(todo.projectId(), actor);
-        return attachments.listForTodoVisible(todoId, actor.id());
+        return actor.isAdmin() ? attachments.listForTodoAll(todoId) : attachments.listForTodoVisible(todoId, actor.id());
     }
 
     public List<FileAttachmentRepository.Attachment> inbox(long projectId, User actor) {
@@ -140,9 +143,10 @@ public class FileAttachmentService {
 
     private void requireCanSee(FileAttachmentRepository.Attachment attachment, User actor) {
         access.requireAccess(attachment.projectId(), actor);
+        boolean adminTodoReview = actor.isAdmin() && attachment.todoId() != null;
         boolean direct = attachment.senderId() == actor.id()
                 || (attachment.recipientId() != null && attachment.recipientId() == actor.id());
-        if (!direct) throw new AccessDeniedException("이 파일은 보낸 사람과 받는 담당자만 볼 수 있습니다.");
+        if (!direct && !adminTodoReview) throw new AccessDeniedException("이 파일은 보낸 사람, 받는 담당자 또는 검토 관리자만 볼 수 있습니다.");
     }
 
     private String save(long projectId, MultipartFile file) {
