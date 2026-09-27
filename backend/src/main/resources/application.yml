@@ -43,6 +43,10 @@ hub:
   storage-root: ${HUB_STORAGE_ROOT:./data/storage}
   ai-base-url: ${HUB_AI_BASE_URL:http://localhost:8000}
   demo-mode: ${HUB_DEMO_MODE:false}
+  demo-admin-login-id: ${HUB_DEMO_ADMIN_LOGIN_ID:video-admin}
+  demo-admin-password: ${HUB_DEMO_ADMIN_PASSWORD:}
+  demo-member-login-id: ${HUB_DEMO_MEMBER_LOGIN_ID:video-member}
+  demo-member-password: ${HUB_DEMO_MEMBER_PASSWORD:}
   # Background AI jobs run one at a time so a folder import cannot outrun the Gemini per-minute quota.
   ai-job-concurrency: ${HUB_AI_JOB_CONCURRENCY:1}
   # Browser file upload is the normal web path. The server-side local reader remains disabled
@@ -164,7 +168,7 @@ server:
   error:
     include-message: never
 hub:
-  demo-mode: false
+  demo-mode: ${HUB_DEMO_MODE:false}
   jwt:
     secure-cookies: true
     enforce-secure-config: true
