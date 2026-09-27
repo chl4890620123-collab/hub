@@ -2,7 +2,7 @@ import { useJobPolling } from '@/hooks/useJobPolling';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 
-const JOB_STATUS_LABELS: Record<string, string> = { PENDING: '준비 중', RUNNING: '처리 중', SUCCESS: '완료', FAILED: '처리 실패' };
+const JOB_STATUS_LABELS: Record<string, string> = { PENDING: '준비 중', PROCESSING: '처리 중', RUNNING: '처리 중', SUCCESS: '완료', FAILED: '처리 실패' };
 
 export function JobStatusPanel({ jobId, label = 'AI가 자료를 확인하고 있습니다' }: { jobId: number | null; label?: string }) {
   const { data: job } = useJobPolling(jobId);
