@@ -2,6 +2,7 @@ import type { TaskStatusUpdate, TodoDisplayStatus, TodoItem } from '@/api/types'
 import { cn } from '@/lib/cn';
 
 export const HOLD_STATUS_NOTE = '__HUB_HOLD__';
+export const REJECTED_STATUS_NOTE = '__HUB_REJECTED__';
 
 export const LABELS: Record<TodoDisplayStatus, string> = {
   TODO: '시작 전',
@@ -32,7 +33,7 @@ export function getTodoDisplayStatus(todo: Pick<TodoItem, 'taskStatus' | 'status
   if (todo.taskStatus === 'DONE') return 'DONE';
   if (todo.taskStatus === 'BLOCKED') return 'BLOCKED';
   if (todo.statusNote === HOLD_STATUS_NOTE) return 'HOLD';
-  if (!todo.pendingApproval && todo.statusNote) return 'REJECTED';
+  if (todo.statusNote === REJECTED_STATUS_NOTE || (!todo.pendingApproval && todo.statusNote)) return 'REJECTED';
   return todo.taskStatus === 'TODO' ? 'TODO' : 'IN_PROGRESS';
 }
 
