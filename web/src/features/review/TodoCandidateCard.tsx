@@ -49,16 +49,16 @@ export function TodoCandidateCard({
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             {onEdit ? (
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="할 일 제목" className="min-w-64 flex-1" />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="할 일 제목" className="min-w-0 flex-1 sm:min-w-64" />
             ) : (
-              <p className="text-sm font-medium text-ink-900">{todo.title}</p>
+              <p className="break-words text-sm font-medium text-ink-900">{todo.title}</p>
             )}
             <Badge variant={todo.confidence === 'HIGH' ? 'accent' : 'outline'}>{CONFIDENCE_LABELS[todo.confidence]}</Badge>
             {todo.possibleDuplicateOfId && <Badge variant="warning">중복 의심</Badge>}
           </div>
           {onEdit ? (
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="할 일 설명" aria-label="할 일 설명" className="mb-2" />
-          ) : todo.description ? <p className="mb-2 text-xs text-ink-500">{todo.description}</p> : null}
+          ) : todo.description ? <p className="mb-2 break-words text-xs text-ink-500">{todo.description}</p> : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="rounded-md bg-ink-50 px-3 py-2 dark:bg-ink-200/60">
               <p className="text-[11px] font-medium text-ink-400">AI 추천 담당자</p>
