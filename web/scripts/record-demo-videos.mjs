@@ -353,11 +353,11 @@ async function memberCollaboration(page, path) {
 
 async function exerciseSearchAndAi(page, path) {
   if (path === '/search') {
-    const input = page.locator('input:visible').first();
+    const input = page.getByPlaceholder(/계약서, 전달받은 파일 이름, API 변경/);
     if (await input.count()) {
       await input.fill('검색');
       await sleep(900);
-      const button = page.getByRole('button', { name: /찾기|검색/ }).first();
+      const button = page.getByRole('button', { name: '검색', exact: true });
       await clickVisible(page, button, 3500);
       await scrollWholePage(page);
       await showSearchFilePreview(page);
@@ -365,22 +365,22 @@ async function exerciseSearchAndAi(page, path) {
   }
 
   if (path === '/ask') {
-    const input = page.locator('input:visible').first();
+    const input = page.getByPlaceholder(/지난주 결정된 API 스펙 변경 사항/);
     if (await input.count()) {
       await input.fill('베타 일정이 왜 바뀌었어?');
       await sleep(900);
-      const button = page.getByRole('button', { name: /답변|질문|묻기/ }).first();
+      const button = page.getByRole('button', { name: '질문하기', exact: true });
       await clickVisible(page, button, 4200);
       await scrollWholePage(page);
     }
   }
 
   if (path === '/context') {
-    const input = page.locator('input:visible').first();
+    const input = page.getByPlaceholder(/결제 모듈, 신규 거래처, 9월 회의/);
     if (await input.count()) {
-      await input.fill('로그인 방식 개선');
+      await input.fill('검색 원문 연결');
       await sleep(900);
-      const button = page.getByRole('button', { name: /찾기|모아보기|검색/ }).first();
+      const button = page.getByRole('button', { name: '관련 업무 찾기', exact: true });
       await clickVisible(page, button, 3900);
       await scrollWholePage(page);
     }
