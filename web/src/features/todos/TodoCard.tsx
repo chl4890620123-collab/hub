@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, FileText, HelpCircle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
-import type { TodoItem } from '@/api/types';
-import { StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
+import type { TaskStatusUpdate, TodoItem } from '@/api/types';
+import { getTodoDisplayStatus, StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
 import { TodoAttachmentsPanel } from '@/features/todos/TodoAttachmentsPanel';
 import { NotePromptDialog } from '@/features/todos/NotePromptDialog';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ export function TodoCard({
   todo,
   isAssignee,
   canConfirm,
+  canRequestHelp,
   onStatusChange,
   onRequestCompletion,
   onApproveCompletion,
@@ -33,7 +34,9 @@ export function TodoCard({
   isAssignee: boolean;
   /** Decision-maker or ADMIN - the only one who can turn a completion request into DONE. */
   canConfirm: boolean;
-  onStatusChange: (status: TodoItem['taskStatus']) => void;
+  /** Help requests must come from the confirmed assignee themself, never an admin acting for them. */
+  canRequestHelp: boolean;
+  onStatusChange: (status: TaskStatusUpdate) => void;
   onRequestCompletion: () => void;
   onApproveCompletion: () => void;
   onRejectCompletion: (reason: string) => void;
@@ -53,7 +56,13 @@ export function TodoCard({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
   const needsReassignment = todo.assignmentStatus === 'REASSIGNMENT_REQUIRED';
-  const canCycle = !isDeleted && !needsReassignment && isAssignee && !todo.pendingApproval && (todo.taskStatus === 'TODO' || todo.taskStatus === 'IN_PROGRESS');
+  const displayStatus = getTodoDisplayStatus(todo);
+  const canCycle =
+    !isDeleted &&
+    !needsReassignment &&
+    isAssignee &&
+    !todo.pendingApproval &&
+    (displayStatus === 'TODO' || displayStatus === 'IN_PROGRESS' || displayStatus === 'HOLD' || displayStatus === 'REJECTED');
 
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
@@ -66,10 +75,10 @@ export function TodoCard({
         ) : todo.pendingApproval ? (
           <Badge variant="warning">완료 승인 대기</Badge>
         ) : canCycle ? (
-          <StatusCycleButton status={todo.taskStatus} disabled={false} onCycle={onStatusChange} />
+          <StatusCycleButton status={displayStatus} disabled={false} onCycle={onStatusChange} />
         ) : (
-          <Badge variant={todo.taskStatus === 'DONE' ? 'accent' : todo.taskStatus === 'BLOCKED' ? 'danger' : 'outline'}>
-            {STATUS_LABELS[todo.taskStatus]}
+          <Badge variant={displayStatus === 'DONE' ? 'accent' : displayStatus === 'BLOCKED' || displayStatus === 'REJECTED' ? 'danger' : 'outline'}>
+            {STATUS_LABELS[displayStatus]}
           </Badge>
         )}
       </div>
@@ -79,11 +88,14 @@ export function TodoCard({
           기존 담당자가 프로젝트에서 빠져 새 담당자를 정해야 합니다. 관리자가 재배정하면 다시 진행할 수 있습니다.
         </p>
       )}
-      {todo.taskStatus === 'BLOCKED' && todo.statusNote && (
+      {displayStatus === 'BLOCKED' && todo.statusNote && (
         <p className="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">도움 요청: {todo.statusNote}</p>
       )}
-      {!todo.pendingApproval && todo.taskStatus !== 'BLOCKED' && todo.statusNote && (
+      {displayStatus === 'REJECTED' && todo.statusNote && (
         <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">반려 사유: {todo.statusNote}</p>
+      )}
+      {displayStatus === 'HOLD' && (
+        <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">현재 보류 중인 할 일입니다.</p>
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-400">
         <span>{todo.assigneeText ?? '담당자 미정'}</span>
@@ -105,23 +117,23 @@ export function TodoCard({
 
       {!compact && !isDeleted && !needsReassignment && (isAssignee || canConfirm) && todo.taskStatus !== 'DONE' && (
         <div className="mt-2 flex flex-wrap gap-2 border-t border-ink-100 pt-2">
-          {isAssignee && !todo.pendingApproval && todo.taskStatus === 'BLOCKED' && (
+          {isAssignee && !todo.pendingApproval && displayStatus === 'BLOCKED' && (
             <button onClick={onResolveHelp} className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200">
               도움 받음 · 재개
             </button>
           )}
-          {isAssignee && !todo.pendingApproval && todo.taskStatus !== 'BLOCKED' && (
-            <>
-              <button onClick={onRequestCompletion} className="rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
-                완료 요청
-              </button>
-              <button
-                onClick={() => setHelpDialogOpen(true)}
-                className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
-              >
-                <HelpCircle size={12} /> 도움 요청
-              </button>
-            </>
+          {isAssignee && !todo.pendingApproval && displayStatus === 'IN_PROGRESS' && (
+            <button onClick={onRequestCompletion} className="rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
+              완료 요청
+            </button>
+          )}
+          {canRequestHelp && !todo.pendingApproval && displayStatus !== 'BLOCKED' && displayStatus !== 'DONE' && (
+            <button
+              onClick={() => setHelpDialogOpen(true)}
+              className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+            >
+              <HelpCircle size={12} /> 도움 요청
+            </button>
           )}
           {canConfirm && todo.pendingApproval && (
             <>
