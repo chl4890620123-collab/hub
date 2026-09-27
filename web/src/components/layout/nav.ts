@@ -18,7 +18,7 @@ export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  /** Only shown when the current project grants confirm permission (or the user is ADMIN). */
+  /** Only shown to ADMIN decision-makers. */
   requiresConfirm?: boolean;
   adminOnly?: boolean;
 }
