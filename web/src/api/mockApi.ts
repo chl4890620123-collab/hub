@@ -1,4 +1,5 @@
 import type {
+  AttachmentView,
   AuditLogRow,
   ChangeItemRow,
   ConnectorSyncState,
@@ -18,6 +19,8 @@ import type {
   SearchRule,
   SensitiveTerm,
   SignupApplication,
+  SpreadsheetDataRow,
+  SpreadsheetFileRow,
   TimelineEvent,
   TodoItem,
   User,
@@ -105,6 +108,7 @@ const hits: MaterialHit[] = [
   { evidenceId: 401, sourceType: 'HUB', sourceLabel: 'Hub 회의록', itemType: 'DOCUMENT', title: '주간 제품 회의록 - 09월 2주차', location: '2페이지', snippet: '검색 결과와 원문 연결 경험을 첫 번째 베타 범위에 포함한다.', author: '이승현', sourceUrl: null, sourceCreatedAt: iso(1), recommendationRank: 1, matchType: 'SEMANTIC', recommendationReason: '현재 프로젝트의 핵심 결정과 직접 연결됩니다.' },
   { evidenceId: 402, sourceType: 'GOOGLE_DRIVE', sourceLabel: 'Google Drive', itemType: 'DOCUMENT', title: 'Atlas 사용자 인터뷰 요약', location: '인사이트 04', snippet: '팀은 최신 상태와 다음 액션을 한 화면에서 보고 싶어 한다.', author: '이서윤', sourceUrl: 'https://drive.google.com', sourceCreatedAt: iso(4), recommendationRank: 2, matchType: 'KEYWORD', recommendationReason: '관련 키워드가 반복해서 등장합니다.' },
   { evidenceId: 403, sourceType: 'HUB', sourceLabel: 'Hub 문서', itemType: 'DOCUMENT', title: 'Northstar 베타 런칭 플랜', location: '문서 원문', snippet: '마케팅, CS, 기술 운영 항목을 한 번에 점검하는 런칭 계획입니다.', author: '이승현', sourceUrl: null, sourceCreatedAt: iso(2), recommendationRank: 3, matchType: 'KEYWORD', recommendationReason: '프로젝트 문서에서 일치하는 내용입니다.' },
+  { evidenceId: 15001, sourceType: 'ATTACHMENT', sourceLabel: '업무 첨부파일', itemType: 'ATTACHMENT', title: '검색_UI_검수체크리스트.xlsx', location: '할 일 첨부파일', snippet: '출처 배지, 원문 연결, 모바일 줄바꿈, 최근 동기화 시간 표시를 최종 검수하는 체크리스트입니다.', author: '박준호', sourceUrl: '/api/attachments/15001/download', sourceCreatedAt: iso(1), recommendationRank: 4, matchType: 'KEYWORD', recommendationReason: '현재 검색 기능 검수 업무에 직접 첨부된 파일입니다.' },
 ];
 
 const timeline: TimelineEvent[] = [
@@ -146,6 +150,45 @@ const reassignmentRequests: ReassignmentRequest[] = [
   { id: 1101, project_id: 101, todo_id: 1003, title: '온보딩 인터뷰 3건 예약', former_assignee_name: '퇴사자 김민수', due_date: date(4), old_assignee_id: 9, reason: '기존 담당자가 프로젝트에서 빠져 새 담당자가 필요합니다.', created_at: iso(2) },
 ];
 
+const attachments: AttachmentView[] = [
+  { id: 15001, todoId: 1002, senderId: 1, recipientId: 3, fileName: '검색_UI_검수체크리스트.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', sizeBytes: 48231, note: '배지와 원문 링크까지 확인해 주세요.', read: false, createdAt: iso(1) },
+  { id: 15002, todoId: 1002, senderId: 3, recipientId: 1, fileName: '검색결과_화면캡처.pdf', contentType: 'application/pdf', sizeBytes: 328440, note: '수정한 화면 캡처본입니다.', read: true, createdAt: iso(0) },
+  { id: 15003, todoId: null, senderId: 1, recipientId: 3, fileName: 'Atlas_베타_검수요청.pdf', contentType: 'application/pdf', sizeBytes: 214900, note: '오늘 회의 전에 확인 부탁드립니다.', read: false, createdAt: iso(0) },
+];
+
+const sheetFiles: SpreadsheetFileRow[] = [
+  { id: 1601, projectId: 101, name: 'Atlas 출시 체크리스트', ownerId: 1, columns: [
+    { key: 'area', label: '구분' }, { key: 'task', label: '확인 항목' }, { key: 'owner', label: '담당자' }, { key: 'status', label: '상태' }, { key: 'note', label: '메모' }
+  ], passwordProtected: false, passwordHint: null, rowCount: 5, createdAt: iso(5), updatedAt: iso(0) },
+  { id: 1602, projectId: 101, name: '사용자 인터뷰 정리', ownerId: 2, columns: [
+    { key: 'user', label: '인터뷰 대상' }, { key: 'feedback', label: '주요 의견' }, { key: 'priority', label: '우선순위' }
+  ], passwordProtected: false, passwordHint: null, rowCount: 3, createdAt: iso(4), updatedAt: iso(1) },
+];
+
+const sheetRows: Record<number, SpreadsheetDataRow[]> = {
+  1601: [
+    { id: 1701, fileId: 1601, position: 1, cells: { area: '검색', task: '검색 결과 출처 배지 노출', owner: '박준호', status: '완료', note: '모바일 포함 확인' }, updatedAt: iso(0) },
+    { id: 1702, fileId: 1601, position: 2, cells: { area: '검색', task: '원문 열기 동작 검수', owner: '이승현', status: '검수 중', note: '첨부파일/Drive 모두 확인' }, updatedAt: iso(0) },
+    { id: 1703, fileId: 1601, position: 3, cells: { area: '회의', task: '회의 음성 업로드 및 AI 요약', owner: '박준호', status: '완료', note: '대기 화면 포함' }, updatedAt: iso(1) },
+    { id: 1704, fileId: 1601, position: 4, cells: { area: '문서', task: '버전 비교 변경 전후 검수', owner: '이서윤', status: '진행 중', note: '일정 변경 표시 확인' }, updatedAt: iso(1) },
+    { id: 1705, fileId: 1601, position: 5, cells: { area: '관리', task: '가입 승인/재배정 흐름 확인', owner: '이승현', status: '완료', note: '관리자 영상 포함' }, updatedAt: iso(2) },
+  ],
+  1602: [
+    { id: 1711, fileId: 1602, position: 1, cells: { user: '신입 사용자 A', feedback: '다음 행동이 바로 보여야 한다', priority: '높음' }, updatedAt: iso(1) },
+    { id: 1712, fileId: 1602, position: 2, cells: { user: '기존 사용자 B', feedback: '검색 결과에서 원문으로 바로 가고 싶다', priority: '높음' }, updatedAt: iso(1) },
+    { id: 1713, fileId: 1602, position: 3, cells: { user: '관리자 C', feedback: '담당자와 완료 승인 흐름이 명확해야 한다', priority: '보통' }, updatedAt: iso(2) },
+  ],
+};
+
+const analysisResult = JSON.stringify({
+  summary: '주간 제품 회의 내용을 분석했습니다. 검색 원문 연결과 모바일 검수, 출시 일정 재확인이 핵심입니다.',
+  todos: [{ id: 1004 }],
+  decisions: [
+    { statement: '검색 결과에서 원문 근거를 바로 열 수 있도록 유지한다.' },
+    { statement: '출시 전 모바일 화면과 관리자 승인 흐름을 함께 검수한다.' }
+  ]
+});
+
 const projectIdFrom = (path: string) => Number(path.match(/projects\/(\d+)/)?.[1] ?? 101);
 const projectTodos = (projectId: number) => todos.filter((todo) => todo.projectId === projectId);
 const activeProjectTodos = (projectId: number) => projectTodos(projectId).filter((todo) => !todo.deletedAt);
@@ -179,7 +222,23 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname.match(/\/todos$/) && method === 'GET') return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
   if (pathname.endsWith('/changes')) return result(reviewChanges as T);
   if (pathname.match(/\/documents$/)) return result(documents.filter((doc) => projectId === 101 ? doc.id !== 303 : doc.id === 303) as T);
-  if (pathname.match(/\/documents\/\d+\/versions/)) return result([{ id: 3021, version_no: 2, sha256: 'mock-sha-3021', parse_status: 'DONE', summary: '사용자 인터뷰 핵심 인사이트와 후속 액션을 정리한 버전입니다.', created_at: iso(1) }, { id: 3020, version_no: 1, sha256: 'mock-sha-3020', parse_status: 'DONE', summary: '초기 인터뷰 메모입니다.', created_at: iso(4) }] as DocumentVersionRow[] as T);
+  if (pathname.match(/\/documents\/\d+\/versions/)) return result([
+    { id: 3020, version_no: 1, sha256: 'mock-sha-3020', parse_status: 'DONE', summary: '초기 문서입니다. 베타 공개일은 9월 20일로 기록되어 있습니다.', created_at: iso(6) },
+    { id: 3021, version_no: 2, sha256: 'mock-sha-3021', parse_status: 'DONE', summary: '사용성 테스트를 반영해 베타 공개일을 9월 27일로 변경하고 원문 연결 검수를 추가했습니다.', created_at: iso(1) },
+  ] as DocumentVersionRow[] as T);
+  if (pathname.match(/^\/api\/todos\/\d+\/attachments$/)) {
+    const todoId = Number(pathname.match(/todos\/(\d+)/)?.[1]);
+    return result(attachments.filter((item) => item.todoId === todoId) as T);
+  }
+  if (pathname.match(/^\/api\/projects\/\d+\/sheets$/) && method === 'GET') {
+    return result(sheetFiles.filter((sheet) => sheet.projectId === projectId) as T);
+  }
+  const sheetOpen = pathname.match(/^\/api\/sheets\/(\d+)$/);
+  if (sheetOpen && method === 'GET') {
+    const sheetId = Number(sheetOpen[1]);
+    const file = sheetFiles.find((sheet) => sheet.id === sheetId);
+    return result({ file, rows: sheetRows[sheetId] ?? [] } as T, 1600);
+  }
   if (pathname.endsWith('/timeline')) return result(timeline.filter((event) => event.projectId === projectId) as T);
   if (pathname.endsWith('/materials/search')) {
     const query = (searchParams.get('q') ?? '').toLowerCase();
@@ -214,8 +273,11 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
     return result([
       { id: 1301, entity_type: 'DOCUMENT', entity_id: 301, action: 'DOCUMENT_UPDATED', before_json: null, after_json: null, actor_name: mockUser.displayName, created_at: iso(1) },
     ] as RevisionRow[] as T);
-  if (pathname.endsWith('/jobs')) return result([{ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) }] as ProcessingJob[] as T);
-  if (pathname.match(/\/jobs\/\d+$/)) return result({ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) } as ProcessingJob as T);
+  if (pathname.endsWith('/jobs')) return result([
+    { id: 1401, projectId, jobType: 'MEETING_ANALYSIS', targetType: 'MEETING', targetId: 501, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: analysisResult, createdAt: iso(0), updatedAt: iso(0) },
+    { id: 1402, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: analysisResult, createdAt: iso(1), updatedAt: iso(1) },
+  ] as ProcessingJob[] as T);
+  if (pathname.match(/\/jobs\/\d+$/)) return result({ id: 1401, projectId, jobType: 'MEETING_ANALYSIS', targetType: 'MEETING', targetId: 501, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: analysisResult, createdAt: iso(0), updatedAt: iso(0) } as ProcessingJob as T, 1500);
   if (pathname.endsWith('/file-transfer-recipients')) {
     const recipients: FileTransferRecipient[] = users.map((user) => ({
       id: user.id,
@@ -225,7 +287,10 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
     }));
     return result(recipients as T);
   }
-  if (pathname.endsWith('/file-transfers')) return result([] as T);
+  if (pathname.endsWith('/file-transfers')) {
+    const user = getMockUser();
+    return result(attachments.filter((item) => item.todoId == null && (item.senderId === user.id || item.recipientId === user.id)) as T);
+  }
   if (pathname.endsWith('/connector-policy')) return result({ GITHUB: true, GOOGLE_DRIVE: true, SLACK: true, NOTION: true } as T);
   if (pathname.endsWith('/check-login-id')) return result({ loginId: searchParams.get('loginId') ?? '', available: true, message: '사용할 수 있는 아이디입니다.' } as T);
 
