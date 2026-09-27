@@ -135,7 +135,7 @@ export function SheetWorkspace({
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft size={14} /> 목록으로
           </Button>
-          <h2 className="text-lg font-semibold text-ink-900">{file.name}</h2>
+          <h2 className="min-w-0 break-words text-lg font-semibold text-ink-900">{file.name}</h2>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={addColumn}>
