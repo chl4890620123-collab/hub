@@ -29,7 +29,8 @@ export const todosApi = {
   updateStatus: (todoId: number, status: TaskStatusUpdate) =>
     apiPatch<{ status: string }>(`/api/todos/${todoId}/status`, { status }),
 
-  requestCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/request-completion`),
+  requestCompletion: (todoId: number, url?: string) =>
+    apiPost<{ status: string }>(`/api/todos/${todoId}/request-completion`, { url: url?.trim() || null }),
   approveCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/approve-completion`),
   rejectCompletion: (todoId: number, reason?: string) =>
     apiPost<{ status: string }>(`/api/todos/${todoId}/reject-completion`, { reason }),
