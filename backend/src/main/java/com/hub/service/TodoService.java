@@ -166,8 +166,14 @@ public class TodoService {
     public void updateStatus(TodoItem before,String status,User actor){
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
             throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
-        if(status != null && status.equals(before.taskStatus())) return;
-        if(!todos.updateTaskStatus(before.id(),status))throw new StateConflictException("확정되어 담당자가 정상 배정된 할 일만 상태를 변경할 수 있습니다.");
+        boolean changed;
+        if("HOLD".equals(status)){
+            changed=todos.hold(before.id());
+        }else{
+            if(status != null && status.equals(before.taskStatus()) && before.statusNote()==null) return;
+            changed=todos.updateTaskStatus(before.id(),status);
+        }
+        if(!changed)throw new StateConflictException("확정되어 담당자가 정상 배정된 할 일만 상태를 변경할 수 있습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"STATUS_CHANGE",json.writeValueAsString(before),"{\"taskStatus\":\""+status+"\"}");}
         catch(Exception e){throw new IllegalStateException(e);}
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),status,LocalDateTime.now(),"TODO",before.id());
