@@ -44,6 +44,9 @@ public class FileAttachmentService {
         if (todo.assigneeId() != actor.id()) {
             throw new AccessDeniedException("할 일 제출 파일은 담당자 본인만 첨부할 수 있습니다.");
         }
+        if (todo.pendingApproval()) {
+            throw new StateConflictException("완료 승인 대기 중에는 제출 첨부파일을 변경할 수 없습니다.");
+        }
         String path = save(todo.projectId(), file);
         return attachments.create(todo.projectId(), todoId, actor.id(), todo.assigneeId(),
                 safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));
@@ -120,6 +123,7 @@ public class FileAttachmentService {
         access.requireAccess(attachment.projectId(), actor);
         if (attachment.senderId() != actor.id())
             throw new AccessDeniedException("보낸 사람만 파일 이름과 메모를 수정할 수 있습니다.");
+        requireMutableTodoEvidence(attachment);
         String safeFileName = fileName == null || fileName.isBlank() ? attachment.fileName() : java.nio.file.Path.of(fileName.trim()).getFileName().toString();
         if (safeFileName.length() > 500) throw new IllegalArgumentException("파일 이름은 500자 이하여야 합니다.");
         String safeNote = blankToNull(note);
@@ -136,6 +140,7 @@ public class FileAttachmentService {
         boolean owner = attachment.senderId() == actor.id();
         if (!owner)
             throw new AccessDeniedException("보낸 사람만 원본 파일을 지울 수 있습니다.");
+        requireMutableTodoEvidence(attachment);
         storage.deleteStrict(attachment.storagePath());
         if (!attachments.delete(id)) throw new IllegalArgumentException("삭제할 파일을 찾을 수 없습니다.");
     }
@@ -147,6 +152,14 @@ public class FileAttachmentService {
             throw new AccessDeniedException("받은 파일만 내 목록에서 숨길 수 있습니다.");
         if (!attachments.hideForRecipient(id, actor.id()))
             throw new IllegalArgumentException("이미 목록에서 숨긴 파일입니다.");
+    }
+
+    private void requireMutableTodoEvidence(FileAttachmentRepository.Attachment attachment) {
+        if (attachment.todoId() == null) return;
+        var todo = todos.find(attachment.todoId());
+        if (todo.pendingApproval()) {
+            throw new StateConflictException("완료 승인 대기 중에는 제출 첨부파일을 변경할 수 없습니다.");
+        }
     }
 
     private void requireCanSee(FileAttachmentRepository.Attachment attachment, User actor) {

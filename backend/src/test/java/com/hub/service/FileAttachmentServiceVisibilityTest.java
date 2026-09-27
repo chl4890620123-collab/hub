@@ -75,6 +75,38 @@ class FileAttachmentServiceVisibilityTest {
     }
 
     @Test
+    void pendingCompletionLocksTodoAttachmentChanges() {
+        FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
+        TodoRepository todos = mock(TodoRepository.class);
+        ProjectRepository projects = mock(ProjectRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        ProjectAccessService access = mock(ProjectAccessService.class);
+        FileStorageService storage = mock(FileStorageService.class);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+
+        User sender = member(11L);
+        TodoItem pending = todo(77L, 9L, 11L, "CONFIRMED", true);
+        when(todos.find(77L)).thenReturn(pending);
+
+        assertThrows(StateConflictException.class,
+                () -> service.attachToTodo(77L, mock(MultipartFile.class), null, sender));
+
+        FileAttachmentRepository.Attachment attachment = new FileAttachmentRepository.Attachment(
+                501L, 9L, 77L, 11L, 11L, "brief.txt", "text/plain", 4L,
+                "/trusted/brief.txt", null, null, LocalDateTime.now());
+        when(attachments.find(501L)).thenReturn(Optional.of(attachment));
+
+        assertThrows(StateConflictException.class,
+                () -> service.update(501L, "renamed.txt", null, sender));
+        assertThrows(StateConflictException.class,
+                () -> service.delete(501L, sender));
+
+        verify(storage, never()).save(anyLong(), anyString(), any(byte[].class));
+        verify(storage, never()).deleteStrict(anyString());
+        verify(attachments, never()).delete(anyLong());
+    }
+
+    @Test
     void administratorCanReviewTodoSubmissionAttachment() {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
@@ -99,10 +131,14 @@ class FileAttachmentServiceVisibilityTest {
     }
 
     private static TodoItem todo(long id, long projectId, Long assigneeId, String reviewStatus) {
+        return todo(id, projectId, assigneeId, reviewStatus, false);
+    }
+
+    private static TodoItem todo(long id, long projectId, Long assigneeId, String reviewStatus, boolean pendingApproval) {
         LocalDateTime now = LocalDateTime.now();
         return new TodoItem(id, projectId, "업무", null, assigneeId, assigneeId == null ? null : "담당자",
-                null, null, null, null, "HIGH", reviewStatus, "TODO", "ACTIVE",
-                null, null, now, now, null, false, null, null, null, null);
+                null, null, null, null, "HIGH", reviewStatus, "IN_PROGRESS", "ACTIVE",
+                null, null, now, now, null, pendingApproval, null, null, null, null);
     }
 
     private static User member(long id) {

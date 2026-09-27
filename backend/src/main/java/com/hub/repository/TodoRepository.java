@@ -144,16 +144,17 @@ public class TodoRepository {
 
     public boolean updateTaskStatus(long todoId,String status){
         return jdbc.update("""
-                UPDATE todo SET task_status=?,pending_approval=FALSE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND deleted_at IS NULL
+                UPDATE todo SET task_status=?,status_note=NULL,completion_url=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
+                  AND pending_approval=FALSE AND deleted_at IS NULL
                 """,status,todoId)==1;
     }
 
     public boolean hold(long todoId){
         return jdbc.update("""
-                UPDATE todo SET task_status='IN_PROGRESS',pending_approval=FALSE,status_note='__HUB_HOLD__',updated_at=CURRENT_TIMESTAMP
+                UPDATE todo SET task_status='IN_PROGRESS',status_note='__HUB_HOLD__',completion_url=NULL,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
-                  AND task_status<>'DONE' AND deleted_at IS NULL
+                  AND pending_approval=FALSE AND task_status<>'DONE' AND deleted_at IS NULL
                 """,todoId)==1;
     }
 
@@ -229,8 +230,9 @@ public class TodoRepository {
     /** Only from an active, non-DONE task - a BLOCKED todo already carries a help note. */
     public boolean requestHelp(long todoId,String note){
         return jdbc.update("""
-                UPDATE todo SET task_status='BLOCKED',status_note=?,updated_at=CURRENT_TIMESTAMP
-                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND task_status<>'DONE' AND deleted_at IS NULL
+                UPDATE todo SET task_status='BLOCKED',status_note=?,completion_url=NULL,updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
+                  AND pending_approval=FALSE AND task_status<>'DONE' AND deleted_at IS NULL
                 """,note,todoId)==1;
     }
 
