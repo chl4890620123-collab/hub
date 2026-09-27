@@ -62,7 +62,7 @@ export function ConnectorBrowserDialog({
   });
 
   useEffect(() => {
-    if (!job || job.status === 'PENDING' || job.status === 'RUNNING') return;
+    if (!job || job.status === 'PENDING' || job.status === 'PROCESSING' || job.status === 'RUNNING') return;
     queryClient.invalidateQueries({ queryKey: ['jobs-recent', projectId] });
     queryClient.invalidateQueries({ queryKey: ['connector-status', projectId] });
     if (job.status === 'SUCCESS') {
