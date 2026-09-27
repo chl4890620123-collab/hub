@@ -77,7 +77,7 @@ public class ProjectController {
     @GetMapping("/{projectId}/addable-users")
     public List<Map<String, Object>> addableUsers(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         return projects.listAddableUsers(projectId);
     }
 
@@ -86,7 +86,7 @@ public class ProjectController {
     @PostMapping("/{projectId}/members")
     public Map<String, Object> addMember(@PathVariable long projectId, @RequestBody AddMember body, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         memberships.add(projectId, body.userId(), user, "DECISION_MAKER_ADD");
         return Map.of("status", "ADDED");
     }
