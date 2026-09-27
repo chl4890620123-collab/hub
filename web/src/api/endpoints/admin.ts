@@ -45,8 +45,6 @@ export const adminProjectApi = {
       userId,
       toProjectId,
     }),
-  setConfirmPermission: (projectId: number, userId: number, granted: boolean) =>
-    apiPut<{ status: string }>(`/api/admin/projects/${projectId}/confirm-permission`, { userId, granted }),
   members: (projectId: number) => projectsApi.members(projectId),
 };
 
