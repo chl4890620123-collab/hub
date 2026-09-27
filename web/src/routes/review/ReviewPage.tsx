@@ -149,6 +149,13 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const allSelected = candidates != null && candidates.length > 0 && selected.size === candidates.length;
+
+  const toggleSelectAll = () => {
+    if (!candidates) return;
+    setSelected(allSelected ? new Set() : new Set(candidates.map((todo) => todo.id)));
+  };
+
   const showEvidence = async (todoId: number, title: string) => {
     try {
       const items = await todosApi.evidence(todoId);
@@ -163,6 +170,22 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
 
   return (
     <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-ink-200 bg-white px-3 py-2 dark:bg-ink-100">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleSelectAll}
+            aria-label="검토 대기 할 일 전체 선택"
+          />
+          <span className="text-sm font-medium text-ink-700">일괄 선택</span>
+          <span className="text-xs text-ink-400">{selected.size}/{candidates.length}개 선택</span>
+        </div>
+        <Button size="sm" variant="outline" onClick={toggleSelectAll}>
+          {allSelected ? '전체 선택 해제' : '전체 선택'}
+        </Button>
+      </div>
+
       <BulkSelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
         <Select value={bulkAssignee} onValueChange={setBulkAssignee}>
           <SelectTrigger className="w-36">
@@ -182,7 +205,14 @@ function TodoReviewTab({ projectId }: { projectId: number }) {
             )}
           </SelectContent>
         </Select>
-        <Input type="date" value={bulkDueDate} onChange={(e) => setBulkDueDate(e.target.value)} className="w-36" aria-label="선택한 할 일의 최종 기한 (선택)" />
+        <Input
+          type="date"
+          value={bulkDueDate}
+          onChange={(e) => setBulkDueDate(e.target.value)}
+          onClick={(e) => e.currentTarget.showPicker?.()}
+          className="w-40 cursor-pointer [color-scheme:dark]"
+          aria-label="선택한 할 일의 최종 기한 (선택)"
+        />
         <Button size="sm" disabled={!bulkAssignee || bulkConfirm.isPending} onClick={() => bulkConfirm.mutate()}>
           일괄 확정
         </Button>
