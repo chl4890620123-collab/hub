@@ -45,18 +45,64 @@ function RecordingPanel({ projectId, onJobStarted }: { projectId: number; onJobS
 function AudioUploadPanel({ projectId, onJobStarted }: { projectId: number; onJobStarted: (jobId: number) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
+  const [dragging, setDragging] = useState(false);
   const upload = useMutation({
     mutationFn: (file: File) => meetingsApi.upload(projectId, title || file.name, file),
     onSuccess: (result) => { toast.success('업로드했습니다. 음성 변환과 AI 분석이 진행됩니다.'); onJobStarted(result.jobId); if (fileRef.current) fileRef.current.value = ''; },
     onError: (error) => toast.error(errorMessage(error)),
   });
+  const submitFile = (file: File) => {
+    if (upload.isPending) return;
+    if (!file.type.startsWith('audio/')) {
+      toast.error('오디오 파일만 업로드할 수 있습니다.');
+      return;
+    }
+    upload.mutate(file);
+  };
+
   return (
-    <Card><CardHeader><CardTitle>오디오 파일 업로드</CardTitle></CardHeader><CardContent className="flex flex-wrap items-end gap-3">
-      <div><Label htmlFor="meeting-title">회의 제목</Label><Input id="meeting-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-56" /></div>
-      <div><Label htmlFor="meeting-file">오디오 파일</Label><label htmlFor="meeting-file" className={cn(buttonVariants({ variant: 'outline', size: 'md' }), upload.isPending && 'pointer-events-none opacity-50')}><Upload size={14} /> 선택하면 바로 업로드</label>
-        <input id="meeting-file" ref={fileRef} type="file" accept="audio/*" disabled={upload.isPending} className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload.mutate(file); }} /></div>
-      {upload.isPending && <span className="flex items-center gap-1 text-sm text-ink-400"><Upload size={13} className="animate-pulse" /> 업로드 중...</span>}
-    </CardContent></Card>
+    <Card>
+      <CardHeader><CardTitle>오디오 파일 업로드</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div><Label htmlFor="meeting-title">회의 제목</Label><Input id="meeting-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-56 max-w-full" /></div>
+        <div
+          onDragEnter={(e) => { e.preventDefault(); if (!upload.isPending) setDragging(true); }}
+          onDragOver={(e) => { e.preventDefault(); if (!upload.isPending) setDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragging(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) submitFile(file);
+          }}
+          className={cn(
+            'flex min-h-28 flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 py-5 text-center transition-colors',
+            dragging ? 'border-accent-500 bg-accent-50' : 'border-ink-200 bg-ink-50',
+            upload.isPending && 'opacity-60',
+          )}
+        >
+          <Upload size={22} className="text-ink-400" />
+          <p className="text-sm font-medium text-ink-700">오디오 파일을 여기로 끌어다 놓으세요</p>
+          <p className="text-xs text-ink-400">또는 아래 버튼으로 파일을 선택할 수 있습니다.</p>
+          <label htmlFor="meeting-file" className={cn(buttonVariants({ variant: 'outline', size: 'md' }), upload.isPending && 'pointer-events-none opacity-50')}>
+            <Upload size={14} /> 오디오 파일 선택
+          </label>
+          <input
+            id="meeting-file"
+            ref={fileRef}
+            type="file"
+            accept="audio/*"
+            disabled={upload.isPending}
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) submitFile(file);
+            }}
+          />
+        </div>
+        {upload.isPending && <span className="flex items-center gap-1 text-sm text-ink-400"><Upload size={13} className="animate-pulse" /> 업로드 중...</span>}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -66,6 +112,16 @@ export function MeetingsPage() {
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const projectId = currentProject?.id ?? 0;
   const { data: recentJobs } = useQuery({ queryKey: ['recent-jobs', projectId], queryFn: () => jobsApi.recent(projectId), enabled: projectId > 0 });
+
+  const removeFailedJob = useMutation({
+    mutationFn: (jobId: number) => jobsApi.deleteFailed(jobId),
+    onSuccess: (_result, jobId) => {
+      if (activeJobId === jobId) setActiveJobId(null);
+      toast.success('실패한 분석 기록을 삭제했습니다.');
+      queryClient.invalidateQueries({ queryKey: ['recent-jobs', projectId] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
 
   const removeMeeting = useMutation({
     mutationFn: ({ meetingId }: { meetingId: number; jobId: number }) => meetingsApi.deleteCompleted(projectId, meetingId),
@@ -101,6 +157,19 @@ export function MeetingsPage() {
               <button type="button" onClick={() => setActiveJobId(job.id)} className="flex min-w-0 flex-1 items-center justify-between text-left">
                 <span>회의 분석 #{job.id}</span><span className="mr-3 text-xs text-ink-400">{job.status === 'SUCCESS' ? '완료' : job.status === 'FAILED' ? '실패' : '처리 중'} · {job.progress}%</span>
               </button>
+              {job.status === 'FAILED' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-red-600 hover:text-red-700"
+                  disabled={removeFailedJob.isPending}
+                  onClick={() => {
+                    if (window.confirm('실패한 분석 기록을 삭제할까요?')) removeFailedJob.mutate(job.id);
+                  }}
+                >
+                  <Trash2 size={13} /> 삭제
+                </Button>
+              )}
               {job.status === 'SUCCESS' && job.targetId != null && (
                 <Button variant="ghost" size="sm" className="shrink-0 text-red-600 hover:text-red-700" disabled={removeMeeting.isPending} onClick={() => {
                   const ok = window.confirm('이 완료된 회의록을 삭제할까요?\n\n녹음 원본, 변환된 회의 내용과 회의에서 생성된 검색용 기록이 삭제됩니다. 이미 만들어진 할 일·결정의 내용은 유지되지만 회의 원문 근거 연결은 제거됩니다.\n\n이 작업은 되돌릴 수 없습니다.');

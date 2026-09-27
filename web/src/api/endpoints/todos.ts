@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from '@/api/client';
-import type { EvidenceView, TaskStatus, TodoItem } from '@/api/types';
+import type { EvidenceView, TaskStatusUpdate, TodoItem } from '@/api/types';
 
 export const todosApi = {
   month: (projectId: number, year: number, month: number) =>
@@ -26,8 +26,8 @@ export const todosApi = {
   permanentDelete: (todoId: number) => apiDelete<{ status: string }>(`/api/todos/${todoId}/permanent`),
   editCandidate: (todoId: number, title: string, description: string) =>
     apiPatch<{ status: string }>(`/api/todos/${todoId}`, { title, description }),
-  updateStatus: (todoId: number, status: TaskStatus) =>
-    apiPatch<{ status: TaskStatus }>(`/api/todos/${todoId}/status`, { status }),
+  updateStatus: (todoId: number, status: TaskStatusUpdate) =>
+    apiPatch<{ status: string }>(`/api/todos/${todoId}/status`, { status }),
 
   requestCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/request-completion`),
   approveCompletion: (todoId: number) => apiPost<{ status: string }>(`/api/todos/${todoId}/approve-completion`),

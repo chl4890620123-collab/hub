@@ -25,9 +25,9 @@ import java.util.Map;
 
 @RestController
 public class TodoController {
-    // DONE and BLOCKED are reachable only through the dedicated completion/help endpoints below, which
-    // capture the approval and the help-request note that a bare status PATCH can't carry.
-    private static final List<String> TASK_STATUSES = List.of("TODO", "IN_PROGRESS");
+    // DONE and BLOCKED are reached through dedicated completion/help endpoints. HOLD is a deliberate
+    // pause that keeps the underlying task unfinished while preserving a distinct UI state.
+    private static final List<String> TASK_STATUSES = List.of("TODO", "IN_PROGRESS", "HOLD");
 
     private final CurrentUserService currentUser;
     private final ProjectAccessService projectAccess;
@@ -208,12 +208,20 @@ public class TodoController {
         projectAccess.requireConfirmPermission(todo.projectId(), user);
     }
 
-    /** The assignee, or an ADMIN acting on their behalf - same rule the generic status PATCH already used. */
+    /** The assignee, or an ADMIN acting on their behalf - used for ordinary work-state changes. */
     private void requireAssigneeOrAdmin(TodoItem todo, User user) {
         projectAccess.requireAccess(todo.projectId(), user);
         if (projectAccess.isAdmin(todo.projectId(), user)) return;
         if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
             throw new AccessDeniedException("담당자 또는 관리자만 이 할 일의 상태를 변경할 수 있습니다.");
+        }
+    }
+
+    /** Help requests are personal: even an admin cannot create one in somebody else's name. */
+    private void requireAssignee(TodoItem todo, User user) {
+        projectAccess.requireAccess(todo.projectId(), user);
+        if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
+            throw new AccessDeniedException("도움 요청은 이 할 일의 담당자 본인만 할 수 있습니다.");
         }
     }
 
@@ -254,7 +262,7 @@ public class TodoController {
                                            Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        requireAssigneeOrAdmin(todo, user);
+        requireAssignee(todo, user);
         todoService.requestHelp(todo, request.note(), user);
         return Map.of("status", "BLOCKED");
     }

@@ -120,7 +120,8 @@ public class TodoRepository {
 
     public boolean confirm(long todoId,long actorId,long assigneeId,String assigneeText,LocalDate dueDate){
         int updated=jdbc.update("""
-            UPDATE todo SET assignee_id=?,assignee_text=?,due_date=?,review_status='CONFIRMED',assignment_status='ACTIVE',
+            UPDATE todo SET assignee_id=?,assignee_text=?,due_date=?,review_status='CONFIRMED',task_status='TODO',
+              assignment_status='ACTIVE',pending_approval=FALSE,status_note=NULL,
               confirmed_by=?,confirmed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
             WHERE id=? AND review_status IN ('AI_GENERATED','REVIEWING') AND deleted_at IS NULL
             """,assigneeId,assigneeText,dueDate==null?null:Date.valueOf(dueDate),actorId,todoId);
@@ -143,9 +144,17 @@ public class TodoRepository {
 
     public boolean updateTaskStatus(long todoId,String status){
         return jdbc.update("""
-                UPDATE todo SET task_status=?,updated_at=CURRENT_TIMESTAMP
+                UPDATE todo SET task_status=?,pending_approval=FALSE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE' AND deleted_at IS NULL
                 """,status,todoId)==1;
+    }
+
+    public boolean hold(long todoId){
+        return jdbc.update("""
+                UPDATE todo SET task_status='IN_PROGRESS',pending_approval=FALSE,status_note='__HUB_HOLD__',updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
+                  AND task_status<>'DONE' AND deleted_at IS NULL
+                """,todoId)==1;
     }
 
     /** Returns true only for the transaction that moved an ACTIVE assignment into the handoff state. */
@@ -198,7 +207,7 @@ public class TodoRepository {
         return jdbc.update("""
                 UPDATE todo SET pending_approval=TRUE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
-                  AND pending_approval=FALSE AND task_status<>'DONE' AND deleted_at IS NULL
+                  AND pending_approval=FALSE AND task_status='IN_PROGRESS' AND status_note IS NULL AND deleted_at IS NULL
                 """,todoId)==1;
     }
 
@@ -210,10 +219,11 @@ public class TodoRepository {
     }
 
     public boolean rejectCompletion(long todoId,String reason){
+        String note=(reason==null||reason.isBlank())?"__HUB_REJECTED__":reason.trim();
         return jdbc.update("""
                 UPDATE todo SET pending_approval=FALSE,status_note=?,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND pending_approval=TRUE AND deleted_at IS NULL
-                """,reason,todoId)==1;
+                """,note,todoId)==1;
     }
 
     /** Only from an active, non-DONE task - a BLOCKED todo already carries a help note. */
