@@ -226,7 +226,7 @@ export function TodosPage() {
       onRequestHelp={(note) => requestHelpMutation.mutate({ todoId: todo.id, note })}
       onResolveHelp={() => resolveHelpMutation.mutate(todo.id)}
       onShowEvidence={() => evidenceMutation.mutate(todo)}
-      canDelete={canDeleteTodo(todo)}
+      canDelete={canDeleteTodo()}
       isDeleted={showTrash}
       onDelete={() => {
         if (window.confirm(`"${todo.title}" 할 일을 삭제할까요? 휴지통에서 복원할 수 있습니다.`)) deleteMutation.mutate(todo.id);
