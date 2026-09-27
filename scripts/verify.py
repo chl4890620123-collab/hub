@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fast repository sanity check for the simplified v2.34 intranet-web VS Code layout."""
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,25 @@ app_yml = text("backend/src/main/resources/application.yml")
 check("default: local" in app_yml, "local profile must be the default")
 check("jdbc:h2:file:./data/hubdb" in app_yml, "local H2 file DB config missing")
 check("classpath:config/search-rules.yml" in app_yml, "search rules must use bundled classpath resource")
+
+# Flyway loads common + one profile-specific directory together. A duplicate version across those
+# two locations prevents the production backend from starting at all, even when compile/tests pass.
+migration_root = ROOT / "backend/src/main/resources/db/migration"
+version_pattern = re.compile(r"^V(\d+)__.+\.sql$")
+for profile in ("h2", "postgresql"):
+    seen: dict[str, Path] = {}
+    duplicates: list[str] = []
+    for directory in (migration_root / "common", migration_root / profile):
+        for migration in sorted(directory.glob("V*__*.sql")):
+            match = version_pattern.match(migration.name)
+            if not match:
+                continue
+            version = match.group(1)
+            if version in seen:
+                duplicates.append(f"V{version}: {seen[version].name} / {migration.name}")
+            else:
+                seen[version] = migration
+    check(not duplicates, f"duplicate Flyway version for {profile}: {', '.join(duplicates)}")
 
 # Desktop-web-first UI: no separate mobile client/PWA branch, and no compact bottom-nav pattern.
 # The single stylesheet may use @media to keep the same layout usable on a narrow browser window;
