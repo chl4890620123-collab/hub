@@ -148,7 +148,8 @@ export interface RuleInput { name: string; aliases: string[]; patterns: string[]
 export type ConnectorType = 'GITHUB' | 'GOOGLE_DRIVE' | 'SLACK' | 'NOTION';
 export interface ConnectorSyncState { connectorType: string; externalScope: string; lastSyncedAt: string | null; lastStatus: string | null; lastError: string | null; lastImportedCount: number; }
 export interface ConnectorTargetOption { id: string; name: string; description: string; url: string; }
-export interface ConnectorTargetsResponse { connected: boolean; linkedByUser: boolean; account: string | null; targets: ConnectorTargetOption[]; }
+export interface ConnectorConnectionResponse { connected: boolean; linkedByUser: boolean; account: string | null; }
+export interface ConnectorTargetsResponse extends ConnectorConnectionResponse { targets: ConnectorTargetOption[]; nextCursor: string; hasMore: boolean; pageSize: number; }
 export interface AuditLogRow { id: number; user_id: number | null; display_name: string | null; project_id: number | null; project_name: string | null; action: string; target_type: string | null; target_id: number | null; detail_json: string | null; created_at: string; }
 export interface RevisionRow { id: number; entity_type: string; entity_id: number; action: string; before_json: string | null; after_json: string | null; created_at: string; actor_name: string; }
 export interface SpreadsheetColumn { key: string; label: string; }
