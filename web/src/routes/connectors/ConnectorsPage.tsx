@@ -22,6 +22,7 @@ const CONNECTOR_STATUS_LABELS: Record<string, string> = {
   SUCCESS: '가져오기 완료',
   FAILED: '가져오기 실패',
   PENDING: '대기 중',
+  PROCESSING: '가져오는 중',
   RUNNING: '가져오는 중',
 };
 
