@@ -12,6 +12,7 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 
 const JOB_STATUS_LABELS: Record<string, string> = {
   PENDING: '준비 중',
+  PROCESSING: '처리 중',
   RUNNING: '처리 중',
   SUCCESS: '완료',
   FAILED: '처리 실패',
