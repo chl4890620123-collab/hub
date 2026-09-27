@@ -311,4 +311,10 @@ public class ConnectorRepository {
                 java.sql.Date.valueOf(cutoff));
     }
 
+    public int purgeOrphanedItemsOlderThan(long projectId, java.time.LocalDate cutoff) {
+        return jdbc.update(
+                "DELETE FROM external_item WHERE project_id=? AND connector_account_id IS NULL AND created_at<?",
+                projectId, java.sql.Date.valueOf(cutoff));
+    }
+
 }
