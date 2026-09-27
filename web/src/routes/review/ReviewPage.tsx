@@ -31,77 +31,6 @@ const CHANGE_CATEGORY_LABELS: Record<string, string> = {
 const changeReason = (reason: string) =>
   reason === 'Detected in the text diff' ? '문서의 변경된 부분에서 확인했습니다.' : reason;
 
-function AddTeammateCard({ projectId }: { projectId: number }) {
-  const queryClient = useQueryClient();
-  const [userId, setUserId] = useState('');
-
-  const { data: members, isLoading: membersLoading } = useQuery({
-    queryKey: ['project-members', projectId],
-    queryFn: () => projectsApi.members(projectId),
-  });
-  const { data: addable, isLoading } = useQuery({
-    queryKey: ['project-addable-users', projectId],
-    queryFn: () => projectsApi.addableUsers(projectId),
-  });
-
-  const addMember = useMutation({
-    mutationFn: () => projectsApi.addMember(projectId, Number(userId)),
-    onSuccess: () => {
-      toast.success('팀원을 추가했습니다.');
-      setUserId('');
-      queryClient.invalidateQueries({ queryKey: ['project-addable-users', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
-  return (
-    <Card className="mb-4">
-      <CardHeader>
-        <CardTitle>담당자로 배정할 팀원</CardTitle>
-        <p className="text-xs text-ink-400">필요한 경우에만 현재 프로젝트에 팀원을 추가하세요. 추가된 팀원은 할 일 담당자로 선택할 수 있습니다.</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-3">
-        <Select value={userId} onValueChange={setUserId} disabled={isLoading}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="추가할 사람 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {addable && addable.length === 0 ? (
-              <SelectItem value="__none" disabled>
-                추가할 수 있는 사람이 없습니다
-              </SelectItem>
-            ) : (
-              addable?.map((u) => (
-                <SelectItem key={u.id} value={String(u.id)}>
-                  {u.displayName} (@{u.loginId})
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
-        <Button disabled={!userId || addMember.isPending} onClick={() => addMember.mutate()}>
-          추가
-        </Button>
-        </div>
-        <div>
-          <p className="mb-2 text-sm font-medium text-ink-700">현재 팀원 {members?.length ?? 0}명</p>
-          {membersLoading ? <LoadingBlock /> : !members || members.length === 0 ? (
-            <p className="text-sm text-ink-400">아직 추가된 팀원이 없습니다.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {members.map((m) => (
-                <Badge key={m.id} variant="outline">{m.displayName}</Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function TodoReviewTab({ projectId }: { projectId: number }) {
   const queryClient = useQueryClient();
   const openEvidence = useEvidenceStore((s) => s.open);
@@ -377,9 +306,6 @@ export function ReviewPage() {
           <ChangeReviewTab projectId={currentProject.id} />
         </TabsContent>
       </Tabs>
-      <div className="mt-6">
-        <AddTeammateCard projectId={currentProject.id} />
-      </div>
     </div>
   );
 }
