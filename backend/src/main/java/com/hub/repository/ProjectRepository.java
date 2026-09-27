@@ -17,6 +17,7 @@ public class ProjectRepository {
     public ProjectRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public record ProjectOption(long id, String name, String departmentName, String teamName) {}
+    public record RetentionPolicy(long projectId, int retentionMonths) {}
 
     /** Names only, for the signup screen's project picker - shown before the visitor has any access. */
     public List<ProjectOption> listAll() {
@@ -33,6 +34,26 @@ public class ProjectRepository {
     public boolean exists(long projectId) {
         Long count = jdbc.queryForObject("SELECT COUNT(*) FROM project WHERE id=?", Long.class, projectId);
         return count != null && count > 0;
+    }
+
+    public int retentionMonths(long projectId) {
+        Integer value = jdbc.queryForObject("SELECT retention_months FROM project WHERE id=?", Integer.class, projectId);
+        if (value == null) throw new IllegalArgumentException("존재하지 않는 프로젝트입니다.");
+        return value;
+    }
+
+    public void setRetentionMonths(long projectId, int months) {
+        if (months != 3 && months != 6 && months != 12) {
+            throw new IllegalArgumentException("보관 기간은 3개월, 6개월, 12개월 중 하나여야 합니다.");
+        }
+        if (jdbc.update("UPDATE project SET retention_months=? WHERE id=?", months, projectId) != 1) {
+            throw new IllegalArgumentException("존재하지 않는 프로젝트입니다.");
+        }
+    }
+
+    public List<RetentionPolicy> listRetentionPolicies() {
+        return jdbc.query("SELECT id,retention_months FROM project ORDER BY id",
+                (rs, n) -> new RetentionPolicy(rs.getLong("id"), rs.getInt("retention_months")));
     }
 
     public List<Project> listForUser(long userId, boolean admin) {
