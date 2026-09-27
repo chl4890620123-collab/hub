@@ -165,4 +165,40 @@ public class NotionConnector implements ReadOnlyConnector {
         }
         return out;
     }
+
+    /** Fetches one Notion search page and keeps start_cursor opaque to the browser. */
+    @Override
+    public ConnectorTargetPage targetsPage(String token, String cursor, int pageSize) {
+        int size = Math.max(1, Math.min(pageSize, 100));
+        JsonNode body;
+        try {
+            String requestBody = cursor == null || cursor.isBlank()
+                    ? "{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":" + size + "}"
+                    : "{\"filter\":{\"value\":\"page\",\"property\":\"object\"},\"page_size\":" + size
+                            + ",\"start_cursor\":\"" + cursor.replace("\"", "\\\"") + "\"}";
+            String response = client.post().uri("/search")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header("Notion-Version", API_VERSION)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve().body(String.class);
+            body = ConnectorSupport.json(json, response, "Notion 응답을 처리하지 못했습니다.");
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Notion 자료 목록을 불러오지 못했습니다.", e);
+        }
+
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode results = body.path("results");
+        if (results.isArray()) {
+            for (JsonNode page : results) {
+                String id = page.path("id").asText("");
+                if (id.isBlank()) continue;
+                out.add(new ConnectorTarget(id, pageTitle(page), "Notion 페이지",
+                        page.path("url").asText("https://www.notion.so/" + id.replace("-", ""))));
+            }
+        }
+        String next = body.path("has_more").asBoolean(false) ? body.path("next_cursor").asText("") : "";
+        return new ConnectorTargetPage(out, next, !next.isBlank());
+    }
+
 }
