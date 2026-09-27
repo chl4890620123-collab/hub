@@ -35,7 +35,7 @@ class FileAttachmentServiceVisibilityTest {
         FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
 
         User sender = member(11L);
-        when(todos.find(77L)).thenReturn(todo(77L, 9L, 22L, "CONFIRMED"));
+        when(todos.find(77L)).thenReturn(todo(77L, 9L, 11L, "CONFIRMED"));
 
         MultipartFile file = mock(MultipartFile.class);
         when(file.isEmpty()).thenReturn(false);
@@ -45,13 +45,13 @@ class FileAttachmentServiceVisibilityTest {
         when(file.getBytes()).thenReturn(new byte[]{1,2,3,4});
         when(storage.save(org.mockito.ArgumentMatchers.eq(9L), org.mockito.ArgumentMatchers.eq("brief.txt"),
                 org.mockito.ArgumentMatchers.any(byte[].class))).thenReturn("/trusted/brief.txt");
-        when(attachments.create(9L, 77L, 11L, 22L, "brief.txt", "text/plain", 4L, "/trusted/brief.txt", null))
+        when(attachments.create(9L, 77L, 11L, 11L, "brief.txt", "text/plain", 4L, "/trusted/brief.txt", null))
                 .thenReturn(501L);
 
         long id = service.attachToTodo(77L, file, null, sender);
 
         assertEquals(501L, id);
-        verify(attachments).create(9L, 77L, 11L, 22L, "brief.txt", "text/plain", 4L, "/trusted/brief.txt", null);
+        verify(attachments).create(9L, 77L, 11L, 11L, "brief.txt", "text/plain", 4L, "/trusted/brief.txt", null);
     }
 
     @Test
@@ -75,7 +75,7 @@ class FileAttachmentServiceVisibilityTest {
     }
 
     @Test
-    void administratorWhoIsNotSenderOrRecipientCannotDownloadPrivateFile() {
+    void administratorCanReviewTodoSubmissionAttachment() {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
         ProjectRepository projects = mock(ProjectRepository.class);
@@ -90,17 +90,19 @@ class FileAttachmentServiceVisibilityTest {
                 501L, 9L, 77L, 11L, 22L, "brief.txt", "text/plain", 4L,
                 "/trusted/brief.txt", null, null, LocalDateTime.now());
         when(attachments.find(501L)).thenReturn(Optional.of(attachment));
+        when(storage.readTrusted("/trusted/brief.txt")).thenReturn(new byte[]{1,2,3,4});
 
-        assertThrows(AccessDeniedException.class, () -> service.download(501L, admin));
+        var downloaded = service.download(501L, admin);
 
-        verify(storage, never()).readTrusted(anyString());
+        assertEquals("brief.txt", downloaded.fileName());
+        verify(storage).readTrusted("/trusted/brief.txt");
     }
 
     private static TodoItem todo(long id, long projectId, Long assigneeId, String reviewStatus) {
         LocalDateTime now = LocalDateTime.now();
         return new TodoItem(id, projectId, "업무", null, assigneeId, assigneeId == null ? null : "담당자",
                 null, null, null, null, "HIGH", reviewStatus, "TODO", "ACTIVE",
-                null, null, now, now, null, false, null, null, null);
+                null, null, now, now, null, false, null, null, null, null);
     }
 
     private static User member(long id) {
