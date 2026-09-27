@@ -86,7 +86,7 @@ export function AdminUsersPage() {
           <EmptyState title="사용자가 없습니다." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-ink-200 text-left text-xs text-ink-400">
                   <th className="py-2 pr-3">ID</th>
@@ -102,9 +102,9 @@ export function AdminUsersPage() {
                 {users.map((u) => (
                   <tr key={u.id} className="border-b border-ink-100">
                     <td className="py-2 pr-3 text-ink-400">{u.id}</td>
-                    <td className="py-2 pr-3 font-medium text-ink-800">{u.displayName}</td>
-                    <td className="py-2 pr-3 text-ink-500">{u.loginId}</td>
-                    <td className="py-2 pr-3 text-xs text-ink-500">
+                    <td className="max-w-48 break-words py-2 pr-3 font-medium text-ink-800">{u.displayName}</td>
+                    <td className="max-w-48 break-all py-2 pr-3 text-ink-500">{u.loginId}</td>
+                    <td className="max-w-80 break-words py-2 pr-3 text-xs text-ink-500">
                       {[u.companyName || '회사 미입력', u.departmentName, u.teamName].filter(Boolean).join(' · ')}
                       <br />
                       {u.email} · {u.jobTitle || '직급 미입력'}
