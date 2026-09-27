@@ -16,7 +16,7 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-shell-900/40 data-[state=open]:animate-in data-[state=open]:fade-in" />
       <DialogPrimitive.Content
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-lg dark:bg-ink-100',
+          'fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-x-hidden rounded-lg bg-white p-6 shadow-lg sm:max-w-lg dark:bg-ink-100',
           className,
         )}
         {...props}
@@ -31,7 +31,7 @@ export function DialogContent({
 }
 
 export function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn('mb-3 text-base font-semibold text-ink-900', className)} {...props} />;
+  return <DialogPrimitive.Title className={cn('mb-3 break-words pr-8 text-base font-semibold text-ink-900', className)} {...props} />;
 }
 
 export const DialogDescription = DialogPrimitive.Description;
