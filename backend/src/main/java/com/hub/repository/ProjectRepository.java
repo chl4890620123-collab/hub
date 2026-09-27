@@ -42,7 +42,7 @@ public class ProjectRepository {
                             rs.getString("department_name"),rs.getString("team_name"),rs.getLong("created_by"),"ADMIN",true));
         }
         return jdbc.query("""
-                SELECT p.id,p.name,p.description,p.department_name,p.team_name,p.created_by,pm.can_confirm_todos
+                SELECT p.id,p.name,p.description,p.department_name,p.team_name,p.created_by
                 FROM project p JOIN project_member pm ON pm.project_id=p.id WHERE pm.user_id=? ORDER BY p.id
                 """,
                 (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),
@@ -83,7 +83,7 @@ public class ProjectRepository {
 
     public List<java.util.Map<String,Object>> listMembers(long projectId) {
         return jdbc.queryForList("""
-                SELECT u.id user_id,u.display_name,u.login_id,u.email,u.job_title,'MEMBER' project_role,u.account_status,pm.can_confirm_todos
+                SELECT u.id user_id,u.display_name,u.login_id,u.email,u.job_title,'MEMBER' project_role,u.account_status,FALSE can_confirm_todos
                 FROM project_member pm JOIN app_user u ON u.id=pm.user_id
                 WHERE pm.project_id=? AND u.account_status='ACTIVE' AND u.global_role='MEMBER'
                 ORDER BY u.display_name,u.id
@@ -101,20 +101,6 @@ public class ProjectRepository {
                   AND NOT EXISTS (SELECT 1 FROM project_member pm WHERE pm.project_id=? AND pm.user_id=u.id)
                 ORDER BY u.display_name,u.id
                 """, projectId);
-    }
-
-    /** Global ADMIN always passes independently of this - see ProjectAccessService.requireConfirmPermission. */
-    public boolean canConfirm(long projectId, long userId) {
-        Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM project_member WHERE project_id=? AND user_id=? AND can_confirm_todos=TRUE",
-                Integer.class, projectId, userId);
-        return count != null && count > 0;
-    }
-
-    /** Returns true only when the membership row exists (a non-member cannot be granted confirm permission). */
-    public boolean setConfirmPermission(long projectId, long userId, boolean granted) {
-        return jdbc.update("UPDATE project_member SET can_confirm_todos=? WHERE project_id=? AND user_id=?",
-                granted, projectId, userId) == 1;
     }
 
     public boolean removeMember(long projectId, long userId) {
