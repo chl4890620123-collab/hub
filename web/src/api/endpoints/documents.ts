@@ -18,6 +18,8 @@ export const documentsApi = {
   archive: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}`),
   restore: (documentId: number) => apiPost<{ status: string }>(`/api/documents/${documentId}/restore`),
   deletePermanently: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}/permanent`),
+  setRetentionProtected: (documentId: number, protectedFromRetention: boolean) =>
+    apiPut<{ status: string; protectedFromRetention: boolean }>(`/api/documents/${documentId}/retention-protection`, { protectedFromRetention }),
   download: (documentId: number) => apiDownload(`/api/documents/${documentId}/download`),
   exportToGitHub: (projectId: number, documentId: number, payload: { repository: string; path: string; mode: 'PR' | 'SAVE_AS'; branch?: string; commitMessage?: string; prTitle?: string }) =>
     apiPost<GitHubExportResponse>(`/api/projects/${projectId}/documents/${documentId}/github-export`, payload),
