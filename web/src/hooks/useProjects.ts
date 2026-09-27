@@ -34,6 +34,6 @@ export function useCurrentProject() {
 }
 
 export function useCanConfirm(): boolean {
-  const { currentProject } = useCurrentProject();
-  return currentProject?.canConfirm ?? false;
+  const { data: user } = useCurrentUser();
+  return user?.globalRole === 'ADMIN';
 }
