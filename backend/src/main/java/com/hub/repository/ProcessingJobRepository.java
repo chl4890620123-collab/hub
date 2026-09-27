@@ -95,6 +95,10 @@ public class ProcessingJobRepository {
         jdbc.update("UPDATE processing_job SET status='FAILED',error_code=?,error_message=?,finished_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?", code, safe(message), id);
     }
 
+    public boolean deleteFailed(long id) {
+        return jdbc.update("DELETE FROM processing_job WHERE id=? AND status='FAILED'", id) == 1;
+    }
+
     public ProcessingJob find(long id) {
         return rows("SELECT id,project_id,job_type,target_type,target_id,status,progress,error_code,error_message,result_json,created_at,updated_at FROM processing_job WHERE id=?", id)
                 .stream().findFirst().orElseThrow(() -> new IllegalArgumentException("처리 작업을 찾을 수 없습니다."));
