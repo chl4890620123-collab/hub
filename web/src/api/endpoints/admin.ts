@@ -46,6 +46,9 @@ export const adminProjectApi = {
       toProjectId,
     }),
   members: (projectId: number) => projectsApi.members(projectId),
+  retention: (projectId: number) => apiGet<{ months: 3 | 6 | 12 }>(`/api/admin/projects/${projectId}/retention`),
+  setRetention: (projectId: number, months: 3 | 6 | 12) =>
+    apiPut<{ status: string; months: number }>(`/api/admin/projects/${projectId}/retention`, { months }),
 };
 
 export const adminReassignmentApi = {
