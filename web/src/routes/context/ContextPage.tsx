@@ -124,7 +124,7 @@ export function ContextPage() {
                 <ul className="flex flex-col gap-2">
                   {bundle.todos.map((todo) => (
                     <li key={todo.id} className="rounded-md border border-ink-100 px-3 py-2 text-sm">
-                      <p className="font-medium text-ink-800">{todo.title}</p>
+                      <p className="break-words font-medium text-ink-800">{todo.title}</p>
                       <p className="text-xs text-ink-400">{formatDate(todo.dueDate)} · {TASK_STATUS_LABELS[todo.taskStatus] ?? todo.taskStatus}</p>
                     </li>
                   ))}
