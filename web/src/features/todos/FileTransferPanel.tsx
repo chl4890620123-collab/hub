@@ -4,6 +4,7 @@ import { Download, EyeOff, Pencil, Send, Trash2, UploadCloud, X } from 'lucide-r
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input, Textarea } from '@/components/ui/input';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
 import { attachmentsApi } from '@/api/endpoints/attachments';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -17,6 +18,10 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
   const [recipientId, setRecipientId] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [submissionTitle, setSubmissionTitle] = useState('');
+  const [submissionUrl, setSubmissionUrl] = useState('');
+  const [submissionNote, setSubmissionNote] = useState('');
+  const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
@@ -26,6 +31,10 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
     queryFn: () => attachmentsApi.recipients(projectId),
   });
   const { data: inbox, isLoading } = useQuery({ queryKey: ['file-transfers', projectId], queryFn: () => attachmentsApi.inbox(projectId) });
+  const { data: adminSubmissions, isLoading: submissionsLoading } = useQuery({
+    queryKey: ['admin-submissions', projectId],
+    queryFn: () => attachmentsApi.adminSubmissions(projectId),
+  });
 
   const personName = (id: number | null) => {
     if (id == null) return '알 수 없는 사용자';
@@ -64,6 +73,43 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
       toast.error(`전송하지 못한 파일은 선택 목록에 남겨뒀습니다. ${errorMessage(error)}`);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['file-transfers', projectId] }),
+  });
+
+  const submitToAdmin = useMutation({
+    mutationFn: () => attachmentsApi.submitToAdmin(
+      projectId,
+      submissionTitle.trim(),
+      submissionUrl.trim() || undefined,
+      submissionNote.trim() || undefined,
+      submissionFile,
+    ),
+    onSuccess: () => {
+      toast.success('관리자 제출함에 자료를 보냈습니다.');
+      setSubmissionTitle('');
+      setSubmissionUrl('');
+      setSubmissionNote('');
+      setSubmissionFile(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-submissions', projectId] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const downloadAdminSubmission = useMutation({
+    mutationFn: async (id: number) => {
+      const { blob, filename } = await attachmentsApi.downloadAdminSubmission(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename ?? 'download';
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+
+  const deleteAdminSubmission = useMutation({
+    mutationFn: (id: number) => attachmentsApi.deleteAdminSubmission(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-submissions', projectId] }),
+    onError: (error) => toast.error(errorMessage(error)),
   });
 
   const download = useMutation({
@@ -113,10 +159,92 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>업무 파일 보내기</CardTitle>
-        <p className="text-xs text-ink-400">받는 사람과 보낼 파일만 선택하세요. 전송한 파일은 보낸 사람과 선택한 받는 사람만 볼 수 있으며 다른 팀원에게는 표시되지 않습니다.</p>
+        <CardTitle>자료 보내기</CardTitle>
+        <p className="text-xs text-ink-400">할 일과 직접 연결되지 않은 출장·외근·참고자료도 보낼 수 있습니다.</p>
       </CardHeader>
       <CardContent>
+        {user?.globalRole === 'ADMIN' ? (
+          <div className="mb-6 rounded-md border border-ink-100 p-3">
+            <p className="mb-1 text-sm font-semibold text-ink-700">관리자 제출함</p>
+            <p className="mb-3 text-xs text-ink-400">현재 관리자는 이전 관리자가 받았던 제출물까지 프로젝트 기준으로 이어서 확인할 수 있습니다.</p>
+            {submissionsLoading ? <LoadingBlock /> : !adminSubmissions || adminSubmissions.length === 0 ? (
+              <EmptyState title="관리자에게 제출된 자료가 없습니다." />
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {adminSubmissions.map((item) => (
+                  <li key={item.id} className="rounded-md border border-ink-100 px-3 py-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink-800">{item.title}</p>
+                        <p className="text-xs text-ink-400">
+                          {personName(item.senderId)} · {formatDateTime(item.createdAt)}
+                        </p>
+                        {item.note && <p className="mt-1 text-xs text-ink-500">{item.note}</p>}
+                        {item.externalUrl && (
+                          <a href={item.externalUrl} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-accent-600 underline">
+                            {item.externalUrl}
+                          </a>
+                        )}
+                        {item.fileName && (
+                          <p className="mt-1 text-xs text-ink-500">
+                            첨부: {item.fileName}{item.sizeBytes != null ? ` · ${formatBytes(item.sizeBytes)}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {item.fileName && (
+                          <button onClick={() => downloadAdminSubmission.mutate(item.id)} className="text-accent-600 hover:underline" aria-label={`${item.fileName} 다운로드`}>
+                            <Download size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`'${item.title}' 제출 자료를 삭제할까요?`)) deleteAdminSubmission.mutate(item.id);
+                          }}
+                          className="text-red-600 hover:underline"
+                          aria-label={`${item.title} 삭제`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <div className="mb-6 rounded-md border border-ink-100 p-3">
+            <p className="mb-1 text-sm font-semibold text-ink-700">관리자에게 자료 제출</p>
+            <p className="mb-3 text-xs text-ink-400">
+              출장·외근·참고 링크처럼 등록된 할 일이 없어도 파일이나 URL을 관리자에게 보낼 수 있습니다. 관리자가 교체되어도 관리자 제출함에 그대로 남습니다.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input value={submissionTitle} onChange={(e) => setSubmissionTitle(e.target.value)} placeholder="제출 제목 (예: 광주 출장 보고)" />
+              <Input value={submissionUrl} onChange={(e) => setSubmissionUrl(e.target.value)} placeholder="URL (선택) https://..." />
+            </div>
+            <Textarea
+              className="mt-2"
+              rows={2}
+              value={submissionNote}
+              onChange={(e) => setSubmissionNote(e.target.value)}
+              placeholder="설명 또는 메모 (선택)"
+            />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <input type="file" className="min-w-0 flex-1 text-xs" onChange={(e) => setSubmissionFile(e.target.files?.[0] ?? null)} />
+              <Button
+                size="sm"
+                disabled={!submissionTitle.trim() || (!submissionUrl.trim() && !submissionFile) || submitToAdmin.isPending}
+                onClick={() => submitToAdmin.mutate()}
+              >
+                <Send size={13} /> 관리자에게 제출
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-2 text-xs font-medium text-ink-500">참여자끼리 파일 보내기</div>
+        <p className="mb-3 text-xs text-ink-400">이 영역은 특정 사람에게 직접 보내는 파일입니다. 일반 사용자가 관리자에게 보낼 자료는 위 관리자 제출함을 이용합니다.</p>
         <div className="mb-3 max-w-xs">
           <Select value={recipientId} onValueChange={setRecipientId}>
             <SelectTrigger><SelectValue placeholder="받는 사람 선택" /></SelectTrigger>
