@@ -199,4 +199,26 @@ public class SlackConnector implements ReadOnlyConnector {
             default -> "Slack 자료를 가져오지 못했습니다 (" + code + ")";
         };
     }
+
+    /** Fetches one Slack channel page instead of walking every cursor before the picker opens. */
+    @Override
+    public ConnectorTargetPage targetsPage(String token, String cursor, int pageSize) {
+        int size = Math.max(1, Math.min(pageSize, 200));
+        String uri = "/conversations.list?types=public_channel&exclude_archived=true&limit=" + size
+                + (cursor == null || cursor.isBlank() ? "" : "&cursor=" + encode(cursor));
+        JsonNode body = get(uri, token);
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode channels = body.path("channels");
+        if (channels.isArray()) {
+            for (JsonNode channel : channels) {
+                String id = channel.path("id").asText("");
+                String name = channel.path("name").asText("");
+                if (id.isBlank() || name.isBlank()) continue;
+                out.add(new ConnectorTarget(id, "#" + name, channel.path("purpose").path("value").asText("")));
+            }
+        }
+        String next = body.path("response_metadata").path("next_cursor").asText("");
+        return new ConnectorTargetPage(out, next, !next.isBlank());
+    }
+
 }
