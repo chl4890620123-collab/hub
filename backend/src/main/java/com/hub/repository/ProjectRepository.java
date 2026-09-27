@@ -47,7 +47,7 @@ public class ProjectRepository {
                 """,
                 (rs,n)->new Project(rs.getLong("id"),rs.getString("name"),rs.getString("description"),
                         rs.getString("department_name"),rs.getString("team_name"),rs.getLong("created_by"),
-                        "MEMBER",rs.getBoolean("can_confirm_todos")), userId);
+                        "MEMBER",false), userId);
     }
 
     public long create(String name, String description, String departmentName, String teamName, long userId) {
