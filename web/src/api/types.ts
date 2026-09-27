@@ -109,11 +109,13 @@ export interface WorkContextBundle { query: string; summary: string; sources: Ma
 export interface TimelineEvent { id: number; projectId: number; eventType: string; title: string; description: string | null; happenedAt: string; sourceType: string | null; sourceId: number | null; }
 export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED';
 export interface ProcessingJob { id: number; projectId: number; jobType: string; targetType: string; targetId: number | null; status: JobStatus; progress: number; errorCode: string | null; errorMessage: string | null; resultJson: string | null; createdAt: string; updatedAt: string; }
+export interface ProjectNotification { id: string; category: string; source: string; severity: 'ERROR' | 'WARNING' | string; title: string; detail: string | null; occurredAt: string | null; url: string | null; }
 
 export interface DocumentRow {
   id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; created_at: string; latest_version: number; has_original: boolean; content_purged?: boolean; [key: string]: unknown;
 }
 export interface DocumentVersionRow { id: number; version_no: number; sha256: string; parse_status: string; summary: string | null; created_at: string; [key: string]: unknown; }
+export interface GitHubExportResponse { status: string; repository: string; path: string; branch: string; url: string | null; pullRequestUrl: string | null; }
 export interface EvidenceView { id: number; versionId: number | null; chunkId: number | null; quote: string; contentHash: string | null; documentName: string | null; paragraphRef: string | null; pageNo: number | null; meetingTitle: string | null; startMs: number | null; endMs: number | null; speaker: string | null; }
 export interface ChangeEvidenceView { side: 'BEFORE' | 'AFTER'; id: number; versionId: number | null; chunkId: number | null; quote: string; contentHash: string | null; documentName: string | null; paragraphRef: string | null; pageNo: number | null; }
 export interface FileTransferRecipient { id: number; displayName: string; loginId: string; admin: boolean; }
