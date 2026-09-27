@@ -11,7 +11,6 @@ import { cn } from '@/lib/cn';
 import { ConnectorBrowserDialog } from '@/features/connectors/ConnectorBrowserDialog';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { connectorsApi } from '@/api/endpoints/connectors';
-import { jobsApi } from '@/api/endpoints/jobs';
 import type { ConnectorType } from '@/api/types';
 import { formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
@@ -90,14 +89,6 @@ export function ConnectorsPage() {
     enabled: !!currentProject,
   });
 
-  const { data: recentJobs } = useQuery({
-    queryKey: ['jobs-recent', currentProject?.id],
-    queryFn: () => jobsApi.recent(currentProject!.id),
-    enabled: !!currentProject,
-    refetchInterval: 3000,
-  });
-  const importJobs = (recentJobs ?? []).filter((job) => job.jobType === 'CONNECTOR_IMPORT').slice(0, 5);
-
   const disconnect = useMutation({
     mutationFn: (type: ConnectorType) => connectorsApi.disconnect(currentProject!.id, type),
     onSuccess: () => {
@@ -127,27 +118,6 @@ export function ConnectorsPage() {
         title="연결 서비스"
         description="GitHub 저장소, Google Drive 폴더, Slack 채널, Notion 페이지를 연결해 현재 프로젝트의 검색 자료로 가져옵니다."
       />
-
-      {importJobs.length > 0 && (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle>백그라운드 가져오기</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-2 text-xs text-ink-400">가져오기는 다른 화면으로 이동해도 서버에서 계속 진행됩니다.</p>
-            <ul className="flex flex-col gap-2">
-              {importJobs.map((job) => (
-                <li key={job.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm">
-                  <span className="font-medium text-ink-700">연결 서비스 자료 가져오기</span>
-                  <span className="text-xs text-ink-500">
-                    {CONNECTOR_STATUS_LABELS[job.status] ?? job.status} · 진행 {job.progress || 0}% · {formatDateTime(job.updatedAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {PROVIDERS.filter((p) => policy?.[p.type] !== false).map((provider) => {
