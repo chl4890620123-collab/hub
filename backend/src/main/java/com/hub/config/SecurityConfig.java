@@ -46,7 +46,7 @@ public class SecurityConfig {
     private static final String[] SPA_PAGE_PATHS = {
             "/login", "/signup", "/signup/member", "/signup/admin",
             "/search", "/ask", "/context", "/todos", "/review",
-            "/documents", "/meetings", "/sheets", "/connectors", "/account",
+            "/documents", "/meetings", "/sheets", "/connectors", "/notifications", "/account",
             "/admin", "/admin/members", "/admin/reassign", "/admin/users", "/admin/organization",
             "/admin/search", "/admin/security", "/admin/history",
     };
