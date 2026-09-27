@@ -14,20 +14,23 @@ import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
 import { projectsApi } from '@/api/endpoints/projects';
 import { TodoCard } from '@/features/todos/TodoCard';
+import { getTodoDisplayStatus, LABELS as TODO_STATUS_LABELS } from '@/features/todos/StatusCycleButton';
 import { FileTransferPanel } from '@/features/todos/FileTransferPanel';
 import { useEvidenceStore } from '@/stores/evidenceStore';
-import type { TaskStatus, TodoItem } from '@/api/types';
+import type { TaskStatusUpdate, TodoDisplayStatus, TodoItem } from '@/api/types';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '@/lib/errors';
 
 function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string }) {
   const rows = todos.filter((t) => t.reviewStatus === 'CONFIRMED' && !!t.dueDate && t.dueDate.startsWith(month));
   const total = rows.length;
-  const done = rows.filter((t) => t.taskStatus === 'DONE').length;
+  const done = rows.filter((t) => getTodoDisplayStatus(t) === 'DONE').length;
   const activeRows = rows.filter((t) => t.assignmentStatus === 'ACTIVE');
-  const doing = activeRows.filter((t) => t.taskStatus === 'IN_PROGRESS').length;
-  const waiting = activeRows.filter((t) => t.taskStatus === 'TODO').length;
-  const blocked = activeRows.filter((t) => t.taskStatus === 'BLOCKED').length;
+  const doing = activeRows.filter((t) => getTodoDisplayStatus(t) === 'IN_PROGRESS').length;
+  const waiting = activeRows.filter((t) => getTodoDisplayStatus(t) === 'TODO').length;
+  const rejected = activeRows.filter((t) => getTodoDisplayStatus(t) === 'REJECTED').length;
+  const hold = activeRows.filter((t) => getTodoDisplayStatus(t) === 'HOLD').length;
+  const blocked = activeRows.filter((t) => getTodoDisplayStatus(t) === 'BLOCKED').length;
   const reassign = rows.filter((t) => t.assignmentStatus === 'REASSIGNMENT_REQUIRED').length;
   const pct = total ? Math.round((done * 100) / total) : 0;
 
@@ -40,12 +43,18 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
         <div className="h-full rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex gap-4 text-xs">
+      <div className="flex flex-wrap gap-4 text-xs">
         <span>
           <strong className="text-ink-800">{doing}</strong> <span className="text-ink-400">진행 중</span>
         </span>
         <span>
           <strong className="text-ink-800">{waiting}</strong> <span className="text-ink-400">시작 전</span>
+        </span>
+        <span>
+          <strong className="text-ink-800">{rejected}</strong> <span className="text-ink-400">반려</span>
+        </span>
+        <span>
+          <strong className="text-ink-800">{hold}</strong> <span className="text-ink-400">보류</span>
         </span>
         <span>
           <strong className="text-ink-800">{blocked}</strong> <span className="text-ink-400">도움 필요</span>
@@ -71,7 +80,7 @@ export function TodosPage() {
 
   const [cursor, setCursor] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<ViewMode>(() => (searchParams.get('view') === 'calendar' ? 'calendar' : 'list'));
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<TodoDisplayStatus | 'ALL'>('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
   const [showTrash, setShowTrash] = useState(false);
 
@@ -107,7 +116,7 @@ export function TodosPage() {
   };
 
   const statusMutation = useMutation({
-    mutationFn: ({ todoId, status }: { todoId: number; status: TaskStatus }) => todosApi.updateStatus(todoId, status),
+    mutationFn: ({ todoId, status }: { todoId: number; status: TaskStatusUpdate }) => todosApi.updateStatus(todoId, status),
     onSuccess: invalidateTodos,
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -186,7 +195,7 @@ export function TodosPage() {
     () =>
       (showTrash
         ? (trashedTodos ?? [])
-        : (statusFilter === 'ALL' ? allTodos.filter((t) => t.taskStatus !== 'DONE') : allTodos.filter((t) => t.taskStatus === statusFilter)))
+        : (statusFilter === 'ALL' ? allTodos : allTodos.filter((t) => getTodoDisplayStatus(t) === statusFilter)))
         .filter((t) => showTrash || assigneeFilter === 'ALL' || String(t.assigneeId ?? '') === assigneeFilter)
         .sort((a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31')),
     [allTodos, statusFilter, assigneeFilter, showTrash, trashedTodos],
@@ -205,6 +214,11 @@ export function TodosPage() {
       todo={todo}
       isAssignee={isAssignee(todo)}
       canConfirm={canConfirm}
+      canRequestHelp={
+        todo.assignmentStatus === 'ACTIVE' &&
+        todo.reviewStatus === 'CONFIRMED' &&
+        todo.assigneeId === user.id
+      }
       onStatusChange={(status) => statusMutation.mutate({ todoId: todo.id, status })}
       onRequestCompletion={() => requestCompletionMutation.mutate(todo.id)}
       onApproveCompletion={() => approveCompletionMutation.mutate(todo.id)}
@@ -270,8 +284,8 @@ export function TodosPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex gap-1">
-          {(['ALL', 'TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'] as const).map((s) => (
+        <div className="flex flex-wrap gap-1">
+          {(['ALL', 'TODO', 'IN_PROGRESS', 'DONE', 'REJECTED', 'HOLD', 'BLOCKED'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -280,7 +294,7 @@ export function TodosPage() {
                 (statusFilter === s ? 'bg-accent-600 text-white' : 'bg-ink-100 text-ink-500 hover:bg-ink-200')
               }
             >
-              {s === 'ALL' ? '미완료 전체' : s === 'TODO' ? '시작 전' : s === 'IN_PROGRESS' ? '진행 중' : s === 'DONE' ? '완료' : '도움 필요'}
+              {s === 'ALL' ? '전체' : TODO_STATUS_LABELS[s]}
             </button>
           ))}
         </div>
