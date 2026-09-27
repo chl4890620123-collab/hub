@@ -123,6 +123,7 @@ export interface EvidenceView { id: number; versionId: number | null; chunkId: n
 export interface ChangeEvidenceView { side: 'BEFORE' | 'AFTER'; id: number; versionId: number | null; chunkId: number | null; quote: string; contentHash: string | null; documentName: string | null; paragraphRef: string | null; pageNo: number | null; }
 export interface FileTransferRecipient { id: number; displayName: string; loginId: string; admin: boolean; }
 export interface AttachmentView { id: number; todoId: number | null; senderId: number; recipientId: number | null; fileName: string; contentType: string | null; sizeBytes: number; note: string | null; read: boolean; createdAt: string; }
+export interface AdminSubmission { id: number; projectId: number; senderId: number; title: string; note: string | null; externalUrl: string | null; fileName: string | null; contentType: string | null; sizeBytes: number | null; createdAt: string; }
 
 export interface SignupApplication {
   id: number;
