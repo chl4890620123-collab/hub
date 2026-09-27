@@ -111,4 +111,17 @@ public class MeetingRepository {
                 "UPDATE meeting SET transcript_text=? WHERE created_at<? AND transcript_text IS NOT NULL AND transcript_text<>?",
                 STT_RETENTION_PLACEHOLDER, cutoffDate, STT_RETENTION_PLACEHOLDER);
     }
+
+    public int purgeTranscriptsOlderThan(long projectId, LocalDate cutoff) {
+        java.sql.Date cutoffDate = java.sql.Date.valueOf(cutoff);
+        jdbc.update("""
+                UPDATE transcript_segment SET text=?
+                WHERE text<>? AND meeting_id IN (
+                  SELECT id FROM meeting WHERE project_id=? AND created_at<?
+                )
+                """, STT_RETENTION_PLACEHOLDER, STT_RETENTION_PLACEHOLDER, projectId, cutoffDate);
+        return jdbc.update(
+                "UPDATE meeting SET transcript_text=? WHERE project_id=? AND created_at<? AND transcript_text IS NOT NULL AND transcript_text<>?",
+                STT_RETENTION_PLACEHOLDER, projectId, cutoffDate, STT_RETENTION_PLACEHOLDER);
+    }
 }
