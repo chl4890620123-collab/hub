@@ -54,16 +54,6 @@ function ProjectMembersPanel() {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
-  const toggleConfirm = useMutation({
-    mutationFn: ({ userId, granted }: { userId: number; granted: boolean }) =>
-      adminProjectApi.setConfirmPermission(currentProject!.id, userId, granted),
-    onSuccess: (_, variables) => {
-      toast.success(variables.granted ? '의사결정권자 권한을 줬습니다.' : '의사결정권자 권한을 뺐습니다.');
-      invalidate();
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
   if (!currentProject) return null;
   const otherProjects = projects.filter((p) => p.id !== currentProject.id);
 
@@ -86,14 +76,6 @@ function ProjectMembersPanel() {
                   <p className="text-xs text-ink-400">@{m.loginId}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={toggleConfirm.isPending}
-                    onClick={() => toggleConfirm.mutate({ userId: m.id, granted: !m.canConfirm })}
-                  >
-                    {m.canConfirm ? '의사결정권자 권한 빼기' : '의사결정권자 권한 주기'}
-                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setMoveTargetUserId(m.id)}>
                     다른 프로젝트로 옮기기
                   </Button>

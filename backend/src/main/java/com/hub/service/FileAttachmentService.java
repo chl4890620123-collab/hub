@@ -64,9 +64,11 @@ public class FileAttachmentService {
                     false
             ));
         }
-        for (User admin : users.list()) {
-            if (!admin.isAdmin() || !admin.active()) continue;
-            result.put(admin.id(), new Recipient(admin.id(), admin.displayName(), admin.loginId(), true));
+        if (actor.isAdmin()) {
+            for (User admin : users.list()) {
+                if (!admin.isAdmin() || !admin.active()) continue;
+                result.put(admin.id(), new Recipient(admin.id(), admin.displayName(), admin.loginId(), true));
+            }
         }
         return result.values().stream()
                 .sorted(Comparator.comparing(Recipient::admin).reversed()
@@ -77,10 +79,16 @@ public class FileAttachmentService {
 
     public long sendToMember(long projectId, long recipientId, MultipartFile file, String note, User actor) {
         access.requireAccess(projectId, actor);
+        boolean recipientIsMember = projects.isMember(projectId, recipientId);
+        boolean recipientIsAdmin = users.findById(recipientId).filter(User::active).map(User::isAdmin).orElse(false);
         boolean recipientOk = recipientId == actor.id()
-                || projects.isMember(projectId, recipientId)
-                || users.findById(recipientId).filter(User::active).map(User::isAdmin).orElse(false);
-        if (!recipientOk) throw new IllegalArgumentException("받는 사람은 같은 프로젝트 팀원 또는 관리자여야 합니다.");
+                || recipientIsMember
+                || (actor.isAdmin() && recipientIsAdmin);
+        if (!recipientOk) {
+            throw new IllegalArgumentException(actor.isAdmin()
+                    ? "받는 사람은 같은 프로젝트 일반 사용자 또는 관리자여야 합니다."
+                    : "관리자에게 보낼 자료는 관리자 제출함을 이용해 주세요.");
+        }
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,
                 safeName(file), file.getContentType(), file.getSize(), path, blankToNull(note));

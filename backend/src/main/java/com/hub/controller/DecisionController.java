@@ -45,7 +45,7 @@ public class DecisionController {
     @GetMapping("/api/projects/{projectId}/review/decisions")
     public List<Map<String, Object>> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         return decisions.pending(projectId);
     }
 
@@ -62,7 +62,7 @@ public class DecisionController {
     public Map<String, Object> confirm(@PathVariable long id, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         long projectId = decisions.projectId(id);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         if (!decisions.confirm(id, user.id())) throw new com.hub.service.StateConflictException("이미 확정된 결정 후보입니다.");
         revisions.add(
                 projectId,
@@ -89,7 +89,7 @@ public class DecisionController {
     public Map<String, Object> reject(@PathVariable long id, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         long projectId = decisions.projectId(id);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         if (!decisions.reject(id, user.id())) throw new com.hub.service.StateConflictException("이미 처리된 결정 후보입니다.");
         revisions.add(projectId, "DECISION", id, user.id(), "REJECT", null, "{\"reviewStatus\":\"REJECTED\"}");
         return Map.of("status", "REJECTED");
