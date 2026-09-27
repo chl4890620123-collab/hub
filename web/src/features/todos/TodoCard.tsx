@@ -100,7 +100,7 @@ export function TodoCard({
       {displayStatus === 'HOLD' && (
         <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">현재 보류 중인 할 일입니다.</p>
       )}
-      {!compact && todo.completionUrl && (
+      {!compact && todo.completionUrl && (isAssignee || canConfirm) && (
         <p className="mb-2 rounded bg-accent-50 px-2 py-1 text-xs text-accent-700">
           제출 URL:{' '}
           <a href={todo.completionUrl} target="_blank" rel="noreferrer" className="font-medium underline">
