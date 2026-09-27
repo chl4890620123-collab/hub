@@ -158,7 +158,7 @@ public class TodoController {
     public Map<String,Object> softDelete(@PathVariable long todoId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        requireDeletePermission(todo, user);
+        projectAccess.requireAdmin(todo.projectId(), user);
         todoService.softDelete(todo, user);
         return Map.of("status", "DELETED");
     }
@@ -167,7 +167,7 @@ public class TodoController {
     public Map<String,Object> restore(@PathVariable long todoId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        requireDeletePermission(todo, user);
+        projectAccess.requireAdmin(todo.projectId(), user);
         todoService.restore(todo, user);
         return Map.of("status", "RESTORED");
     }
@@ -176,7 +176,7 @@ public class TodoController {
     public Map<String,Object> permanentDelete(@PathVariable long todoId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        projectAccess.requireAdmin(todo.projectId(), user);
         todoService.permanentDelete(todo, user);
         return Map.of("status", "PERMANENTLY_DELETED");
     }
@@ -197,15 +197,6 @@ public class TodoController {
         }
         todoService.updateStatus(todo, status, user);
         return Map.of("status", status);
-    }
-
-    /** Decision-makers can remove mistakes; an assignee may clean up only their own completed work. */
-    private void requireDeletePermission(TodoItem todo, User user) {
-        projectAccess.requireAccess(todo.projectId(), user);
-        if (projectAccess.isAdmin(todo.projectId(), user)) return;
-        if ("CONFIRMED".equals(todo.reviewStatus()) && "DONE".equals(todo.taskStatus())
-                && todo.assigneeId() != null && todo.assigneeId() == user.id()) return;
-        projectAccess.requireConfirmPermission(todo.projectId(), user);
     }
 
     /** Personal work actions belong to the confirmed assignee, including when that assignee is an admin. */
@@ -229,7 +220,7 @@ public class TodoController {
     public Map<String, Object> approveCompletion(@PathVariable long todoId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        projectAccess.requireAdmin(todo.projectId(), user);
         todoService.approveCompletion(todo, user);
         return Map.of("status", "DONE");
     }
@@ -241,7 +232,7 @@ public class TodoController {
                                                 Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
-        projectAccess.requireConfirmPermission(todo.projectId(), user);
+        projectAccess.requireAdmin(todo.projectId(), user);
         todoService.rejectCompletion(todo, request == null ? null : request.reason(), user);
         return Map.of("status", "IN_PROGRESS");
     }
