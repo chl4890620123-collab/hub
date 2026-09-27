@@ -1,7 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { useCurrentProject } from '@/hooks/useProjects';
 import { PRIMARY_NAV, SECONDARY_NAV, type NavItem } from '@/components/layout/nav';
 import { useAppStore } from '@/stores/appStore';
 import { cn } from '@/lib/cn';
@@ -32,9 +31,8 @@ function NavLinkItem({ item, collapsed, onNavigate }: { item: NavItem; collapsed
  * a phone. At md and up it's the original in-flow, collapsible column. */
 export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen: boolean; onCloseMobile: () => void }) {
   const { data: user } = useCurrentUser();
-  const { currentProject } = useCurrentProject();
   const isAdmin = user?.globalRole === 'ADMIN';
-  const canConfirm = isAdmin || (currentProject?.canConfirm ?? false);
+  const canConfirm = isAdmin;
   const isCollapsed = useAppStore((state) => state.isSidebarCollapsed);
   const setSidebarCollapsed = useAppStore((state) => state.setSidebarCollapsed);
 
