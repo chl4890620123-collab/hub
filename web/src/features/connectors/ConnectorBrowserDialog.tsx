@@ -75,10 +75,10 @@ export function ConnectorBrowserDialog({
         ) : (
           <ul className="flex flex-col gap-2">
             {data.targets.map((target) => (
-              <li key={target.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-800">{target.name}</p>
-                  {target.description && <p className="truncate text-xs text-ink-400">{target.description}</p>}
+              <li key={target.id} className="flex flex-col gap-2 rounded-md border border-ink-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-medium text-ink-800">{target.name}</p>
+                  {target.description && <p className="break-words text-xs text-ink-400">{target.description}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {target.url && (

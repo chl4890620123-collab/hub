@@ -112,7 +112,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-col items-start">
         <CardTitle>업무 파일 보내기</CardTitle>
         <p className="text-xs text-ink-400">받는 사람과 보낼 파일만 선택하세요. 전송한 파일은 보낸 사람과 선택한 받는 사람만 볼 수 있으며 다른 팀원에게는 표시되지 않습니다.</p>
       </CardHeader>
@@ -173,7 +173,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
           </div>
         )}
 
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-ink-400">선택 {checkedFiles.length}개 / 추가 {selectedFiles.length}개</span>
           <Button
             size="sm"
@@ -190,16 +190,16 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
         ) : (
           <ul className="flex flex-col gap-1.5">
             {inbox.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-ink-800">{item.fileName}</p>
+              <li key={item.id} className="flex flex-col items-start gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 w-full flex-1">
+                  <p className="break-all text-ink-800">{item.fileName}</p>
                   <p className="text-xs text-ink-400">
                     {item.senderId === user?.id ? `${personName(item.recipientId)}에게 보냄` : `${personName(item.senderId)}이(가) 보냄`}
                     {' · '}{formatBytes(item.sizeBytes)} · {formatDateTime(item.createdAt)}
                     {item.senderId !== user?.id && !item.read ? ' · 안 읽음' : ''}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 self-end items-center gap-2 sm:self-auto">
                   <button onClick={() => download.mutate(item.id)} className="text-accent-600 hover:underline" aria-label={`${item.fileName} 다운로드`}>
                     <Download size={14} />
                   </button>

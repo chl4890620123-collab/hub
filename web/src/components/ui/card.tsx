@@ -6,11 +6,11 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center justify-between gap-2 border-b border-ink-100 px-4 py-3.5', className)} {...props} />;
+  return <div className={cn('flex flex-wrap items-start justify-between gap-2 border-b border-ink-100 px-4 py-3.5', className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-card-title text-ink-900', className)} {...props} />;
+  return <h3 className={cn('min-w-0 break-words text-card-title text-ink-900', className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

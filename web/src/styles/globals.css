@@ -71,6 +71,8 @@ body {
   background-color: var(--color-ink-50);
   color: var(--color-ink-900);
   font-family: var(--font-sans);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 * {

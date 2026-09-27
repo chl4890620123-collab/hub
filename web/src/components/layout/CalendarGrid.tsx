@@ -50,7 +50,8 @@ export function CalendarGrid<T>({
 
   return (
     <div>
-      <div className="grid grid-cols-7 overflow-hidden rounded-lg border border-ink-200">
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[700px] grid-cols-7 overflow-hidden rounded-lg border border-ink-200">
         {WEEKDAYS.map((day) => (
           <div key={day} className="border-b border-ink-100 bg-ink-50 py-1.5 text-center text-xs font-medium text-ink-500">
             {day}
@@ -84,6 +85,7 @@ export function CalendarGrid<T>({
             </div>
           );
         })}
+        </div>
       </div>
 
       {undated.length > 0 && (

@@ -50,14 +50,14 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         </button>
         {projects.length > 0 && (
           <DropdownMenu.Root>
-            <DropdownMenu.Trigger className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100">
-              {currentProject?.name ?? '프로젝트 선택'}
-              <ChevronDown size={14} className="text-ink-400" />
+            <DropdownMenu.Trigger className="flex min-w-0 max-w-[50vw] items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-100 sm:max-w-[18rem]">
+              <span className="min-w-0 truncate">{currentProject?.name ?? '프로젝트 선택'}</span>
+              <ChevronDown size={14} className="shrink-0 text-ink-400" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content
                 align="start"
-                className="z-50 min-w-[200px] rounded-md border border-ink-200 bg-white p-1 shadow-lg dark:bg-ink-100"
+                className="z-50 min-w-[200px] max-w-[calc(100vw-2rem)] rounded-md border border-ink-200 bg-white p-1 shadow-lg dark:bg-ink-100"
               >
                 {projectGroups.map(([label, rows], groupIndex) => (
                   <div key={label}>
@@ -68,7 +68,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
                         key={p.id}
                         onSelect={() => setCurrentProjectId(p.id)}
                         className={cn(
-                          'cursor-pointer rounded-sm px-2 py-1.5 text-sm outline-none',
+                          'cursor-pointer whitespace-normal break-words rounded-sm px-2 py-1.5 text-sm outline-none',
                           'data-[highlighted]:bg-accent-50 data-[highlighted]:text-accent-700',
                           p.id === currentProject?.id && 'font-semibold text-accent-600',
                         )}

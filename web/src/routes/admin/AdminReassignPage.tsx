@@ -87,7 +87,7 @@ export function AdminReassignPage() {
 
             <ul className="flex flex-col gap-2">
               {requests.map((req) => (
-                <li key={req.id} className="flex items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2">
+                <li key={req.id} className="flex flex-col gap-3 rounded-md border border-ink-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                   <label className="flex min-w-0 flex-1 items-start gap-2 text-sm text-ink-700">
                     <input
                       type="checkbox"
@@ -102,7 +102,7 @@ export function AdminReassignPage() {
                       className="mt-1"
                     />
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-ink-800">{req.title ?? `할 일 #${req.todo_id ?? req.id}`}</p>
+                      <p className="break-words font-medium text-ink-800">{req.title ?? `할 일 #${req.todo_id ?? req.id}`}</p>
                       <p className="text-xs text-ink-400">
                         {req.former_assignee_name ? `기존 담당자: ${req.former_assignee_name}` : '기존 담당자 없음'}
                         {req.due_date ? ` · 기한 ${formatDate(req.due_date)}` : ' · 기한 없음'}

@@ -218,7 +218,7 @@ export function AdminSearchRulesPage() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-col items-start">
           <CardTitle>대표 문서 등록</CardTitle>
           <p className="text-xs text-ink-400">자주 쓰는 기준 파일과 다른 이름을 등록하면 파일명이 조금 달라도 관련 자료를 더 쉽게 찾습니다.</p>
         </CardHeader>
@@ -237,8 +237,8 @@ export function AdminSearchRulesPage() {
             <ul className="flex flex-col gap-2">
               {rules.map((rule) => (
                 <li key={rule.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm">
-                  <div>
-                    <p className="font-medium text-ink-800">{rule.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-medium text-ink-800">{rule.name}</p>
                     {rule.targetFile && <p className="text-xs text-ink-400">기준 원본 · {rule.targetFile}</p>}
                     <p className="text-xs text-ink-400">다른 이름: {rule.aliases.join(', ') || '등록 없음'}</p>
                     <div className="mt-1 flex flex-wrap gap-1">
@@ -263,7 +263,7 @@ export function AdminSearchRulesPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-col items-start">
           <CardTitle>검색 준비 상태</CardTitle>
           <p className="text-xs text-ink-400">등록된 문서가 내용 검색에 사용할 수 있도록 준비됐는지 확인합니다.</p>
         </CardHeader>
@@ -296,7 +296,7 @@ export function AdminSearchRulesPage() {
           <CardTitle>검색 테스트</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
             <Input value={testQuery} onChange={(e) => setTestQuery(e.target.value)} placeholder="테스트 검색어" className="max-w-sm" />
             <Button disabled={!testQuery.trim() || testResult.isPending} onClick={() => testResult.mutate(testQuery.trim())}>
               테스트

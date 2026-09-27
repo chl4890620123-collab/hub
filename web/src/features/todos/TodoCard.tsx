@@ -58,7 +58,7 @@ export function TodoCard({
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
       <div className="mb-1.5 flex items-start justify-between gap-2">
-        <p className={cn('font-medium text-ink-900', compact ? 'truncate text-xs' : 'text-sm')}>{todo.title}</p>
+        <p className={cn('min-w-0 flex-1 font-medium text-ink-900', compact ? 'truncate text-xs' : 'break-words text-sm')}>{todo.title}</p>
         {isDeleted ? (
           <Badge variant="neutral">휴지통</Badge>
         ) : needsReassignment ? (
@@ -73,7 +73,7 @@ export function TodoCard({
           </Badge>
         )}
       </div>
-      {!compact && todo.description && <p className="mb-2 line-clamp-2 text-xs text-ink-500">{todo.description}</p>}
+      {!compact && todo.description && <p className="mb-2 line-clamp-2 break-words text-xs text-ink-500">{todo.description}</p>}
       {!compact && needsReassignment && (
         <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
           기존 담당자가 프로젝트에서 빠져 새 담당자를 정해야 합니다. 관리자가 재배정하면 다시 진행할 수 있습니다.
