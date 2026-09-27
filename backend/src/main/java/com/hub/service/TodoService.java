@@ -36,7 +36,7 @@ public class TodoService {
         if(assigneeId==null||dueDate==null)throw new IllegalArgumentException("후속 할 일에는 담당자와 기한이 모두 필요합니다.");
         String assigneeText=null;
         if(assigneeId!=null){
-            if(!projects.isAssignableParticipant(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 참여자 또는 관리자여야 합니다.");
+            if(!projects.isAssignableParticipant(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 일반 사용자여야 합니다.");
             assigneeText=users.findById(assigneeId).filter(User::active).map(User::displayName)
                     .orElseThrow(()->new IllegalArgumentException("담당자를 찾을 수 없습니다."));
         }
@@ -52,7 +52,7 @@ public class TodoService {
     @Transactional
     public void confirm(TodoItem before,Long assigneeId,LocalDate dueDate,User actor){
         if(assigneeId==null)throw new IllegalArgumentException("할 일을 확정하기 전에 담당 팀원을 선택해 주세요.");
-        if(!projects.isAssignableParticipant(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 참여자 또는 관리자여야 합니다.");
+        if(!projects.isAssignableParticipant(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 일반 사용자여야 합니다.");
         String confirmedAssignee=users.findById(assigneeId).filter(User::active).map(User::displayName)
                 .orElseThrow(()->new IllegalArgumentException("담당자를 찾을 수 없습니다."));
         if(!todos.confirm(before.id(),actor.id(),assigneeId,confirmedAssignee,dueDate))
