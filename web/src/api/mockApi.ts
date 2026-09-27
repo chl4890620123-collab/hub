@@ -309,6 +309,39 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
         accessExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
       } as T, 1500);
     }
+    if (pathname.match(/^\/api\/projects\/\d+\/changes$/) && method === 'POST') {
+      return result({ changes: [
+        { category: 'SCHEDULE', before: '베타 공개일: 9월 20일', after: '베타 공개일: 9월 27일', reason: '사용성 테스트 일정을 반영해 1주 연기했습니다.' },
+        { category: 'FEATURE', before: '검색 결과 제목/요약만 표시', after: '출처 배지와 원문 열기 버튼 추가', reason: '사용자가 근거 자료를 바로 확인할 수 있도록 개선했습니다.' },
+        { category: 'ASSIGNEE', before: '검색 검수 담당자 미정', after: '박준호 담당', reason: '프론트엔드 구현 담당자가 최종 검수까지 이어서 진행합니다.' },
+      ] } as T, 2300);
+    }
+
+    if (pathname.match(/^\/api\/projects\/\d+\/documents\/\d+\/analyze$/) && method === 'POST') {
+      return result({ versionId: 3021, documentId: 301, jobId: 1401, status: 'SUCCESS' } as T, 1900);
+    }
+
+    if (pathname.match(/^\/api\/projects\/\d+\/sheets$/) && method === 'POST') {
+      return result({ id: 1601 } as T, 1400);
+    }
+
+    if (pathname.match(/^\/api\/sheets\/\d+\/rows$/) && method === 'POST') {
+      const sheetId = Number(pathname.match(/sheets\/(\d+)/)?.[1]);
+      const rows = sheetRows[sheetId] ?? [];
+      const cells = (body.cells && typeof body.cells === 'object' ? body.cells : {}) as Record<string, string>;
+      const created: SpreadsheetDataRow = { id: 1799, fileId: sheetId, position: rows.length + 1, cells, updatedAt: new Date().toISOString() };
+      rows.push(created);
+      return result(created as T, 1200);
+    }
+
+    if (pathname.match(/^\/api\/sheets\/\d+(?:\/columns|\/security)?$/) && ['PUT','DELETE'].includes(method)) {
+      return result({ status: 'SUCCESS' } as T, 1200);
+    }
+
+    if (pathname.match(/^\/api\/sheets\/\d+\/rows\/\d+$/) && ['PUT','DELETE'].includes(method)) {
+      return result({ status: 'SUCCESS' } as T, 1200);
+    }
+
     const signupApproveMatch = pathname.match(/^\/api\/admin\/signup-applications\/(\d+)\/approve$/);
     if (signupApproveMatch && method === 'POST') {
       const userId = Number(signupApproveMatch[1]);
@@ -459,7 +492,7 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
       return result({ status: 'SUCCESS' } as T);
     }
     if (pathname.includes('/documents/manual')) return result({ versionId: 3021, documentId: 301, jobId: 1401, status: 'SUCCESS' } as T);
-    if (pathname.includes('/revise-draft')) return result({ revisedText: '목데이터 기준 - 회의 내용을 반영한 초안입니다.' } as T);
+    if (pathname.includes('/revise-draft')) return result({ revisedText: '회의 반영 초안\n\n- 베타 공개일을 9월 27일로 조정\n- 검색 결과에 출처 배지와 원문 열기를 포함\n- 모바일 화면 검수를 출시 전 필수 항목으로 추가\n- 박준호가 검색 결과 UI 최종 검수를 담당' } as T, 2200);
     if (pathname.includes('/documents/upload') || pathname.includes('/meetings')) return result({ versionId: 3021, meetingId: 501, documentId: 301, jobId: 1401, status: 'SUCCESS' } as T);
     if (pathname.endsWith('/materials/ask')) return result({ answer: '목데이터 기준으로 연결된 답변입니다.', sources: hits } as T);
     if (pathname.includes('/search/test')) return result({ query: searchParams.get('q') ?? '', matchedRule: rules[0], results: hits } as T);
