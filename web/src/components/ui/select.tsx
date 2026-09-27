@@ -10,7 +10,7 @@ export function SelectTrigger({ className, children, ...props }: React.Component
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        'flex h-9 w-full items-center justify-between rounded-md border border-ink-300 bg-white px-3 text-sm dark:bg-ink-100',
+        'flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-ink-300 bg-white px-3 text-sm dark:bg-ink-100 [&>span]:min-w-0 [&>span]:truncate',
         'focus:outline-none focus:ring-2 focus:ring-accent-500/40',
         className,
       )}
@@ -18,7 +18,7 @@ export function SelectTrigger({ className, children, ...props }: React.Component
     >
       {children}
       <SelectPrimitive.Icon>
-        <ChevronDown size={14} className="text-ink-400" />
+        <ChevronDown size={14} className="shrink-0 text-ink-400" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -28,7 +28,7 @@ export function SelectContent({ className, children, ...props }: React.Component
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        className={cn('z-50 overflow-hidden rounded-md border border-ink-200 bg-white shadow-lg dark:bg-ink-100', className)}
+        className={cn('z-50 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-ink-200 bg-white shadow-lg dark:bg-ink-100', className)}
         position="popper"
         sideOffset={4}
         {...props}
@@ -43,7 +43,7 @@ export function SelectItem({ className, children, ...props }: React.ComponentPro
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-7 pr-3 text-sm text-ink-700 outline-none',
+        'relative flex max-w-[calc(100vw-3rem)] cursor-pointer select-none items-center whitespace-normal break-words rounded-sm py-1.5 pl-7 pr-3 text-sm text-ink-700 outline-none',
         'data-[highlighted]:bg-accent-50 data-[highlighted]:text-accent-700',
         'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:text-ink-400',
         className,
