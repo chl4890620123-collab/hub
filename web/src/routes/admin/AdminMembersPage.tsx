@@ -81,11 +81,11 @@ function ProjectMembersPanel() {
           <ul className="flex flex-col gap-2">
             {members.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium text-ink-800">{m.displayName}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-medium text-ink-800">{m.displayName}</p>
                   <p className="text-xs text-ink-400">@{m.loginId}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                   <Button
                     size="sm"
                     variant="outline"
@@ -221,11 +221,11 @@ export function AdminMembersPage() {
             <ul className="flex flex-col gap-2">
               {applications.map((app) => (
                 <li key={app.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-2">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-ink-800">
                       {app.displayName} <span className="text-ink-400">({app.loginId})</span>
                     </p>
-                    <p className="text-xs text-ink-400">
+                    <p className="break-words text-xs text-ink-400">
                       {app.email} · {ROLE_LABELS[app.requestedRole]} · {formatDateTime(app.createdAt)}
                     </p>
                     {(app.companyName || app.departmentName || app.teamName || app.jobTitle) && (
@@ -257,7 +257,7 @@ export function AdminMembersPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                     {app.requestedRole === 'MEMBER' && (
                       <Select
                         value={projectChoice[app.id] ?? (app.requestedProjectId ? String(app.requestedProjectId) : '')}
