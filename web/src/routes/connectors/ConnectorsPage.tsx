@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 import { ConnectorBrowserDialog } from '@/features/connectors/ConnectorBrowserDialog';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { connectorsApi } from '@/api/endpoints/connectors';
+import { jobsApi } from '@/api/endpoints/jobs';
 import type { ConnectorType } from '@/api/types';
 import { formatDateTime } from '@/lib/format';
 import { toast } from '@/stores/toastStore';
@@ -54,6 +55,7 @@ function useConnectorCallbackToast(projectId: number | undefined) {
       toast.success(`${label} 연결이 완료되었습니다.`);
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: ['connector-status', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['connector-connection', projectId] });
         queryClient.invalidateQueries({ queryKey: ['connector-targets', projectId] });
       }
     } else if (reason === 'access_denied') toast.error(`${label} 연결을 취소했습니다.`);
@@ -65,8 +67,8 @@ function useConnectorCallbackToast(projectId: number | undefined) {
 
 function LinkedAccountBadge({ projectId, type }: { projectId: number; type: ConnectorType }) {
   const { data } = useQuery({
-    queryKey: ['connector-targets', projectId, type],
-    queryFn: () => connectorsApi.targets(projectId, type),
+    queryKey: ['connector-connection', projectId, type],
+    queryFn: () => connectorsApi.connection(projectId, type),
   });
   if (!data) return <Badge variant="neutral">상태 확인 중</Badge>;
   if (data.linkedByUser) return <Badge variant="accent">연결됨 · {data.account || '내 계정'}</Badge>;
@@ -87,11 +89,21 @@ export function ConnectorsPage() {
     enabled: !!currentProject,
   });
 
+  const { data: recentJobs } = useQuery({
+    queryKey: ['jobs-recent', currentProject?.id],
+    queryFn: () => jobsApi.recent(currentProject!.id),
+    enabled: !!currentProject,
+    refetchInterval: 3000,
+  });
+  const importJobs = (recentJobs ?? []).filter((job) => job.jobType === 'CONNECTOR_IMPORT').slice(0, 5);
+
   const disconnect = useMutation({
     mutationFn: (type: ConnectorType) => connectorsApi.disconnect(currentProject!.id, type),
     onSuccess: () => {
       toast.success('내 계정 연결을 해제했습니다. 회사 공용 연결이 허용된 경우 공용 연결로 전환될 수 있습니다.');
       queryClient.invalidateQueries({ queryKey: ['connector-status', currentProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['connector-connection', currentProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['connector-connection', currentProject?.id] });
       queryClient.invalidateQueries({ queryKey: ['connector-targets', currentProject?.id] });
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -114,6 +126,27 @@ export function ConnectorsPage() {
         title="연결 서비스"
         description="GitHub 저장소, Google Drive 폴더, Slack 채널, Notion 페이지를 연결해 현재 프로젝트의 검색 자료로 가져옵니다."
       />
+
+      {importJobs.length > 0 && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle>백그라운드 가져오기</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-2 text-xs text-ink-400">가져오기는 다른 화면으로 이동해도 서버에서 계속 진행됩니다.</p>
+            <ul className="flex flex-col gap-2">
+              {importJobs.map((job) => (
+                <li key={job.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-ink-100 px-3 py-2 text-sm">
+                  <span className="font-medium text-ink-700">연결 서비스 자료 가져오기</span>
+                  <span className="text-xs text-ink-500">
+                    {CONNECTOR_STATUS_LABELS[job.status] ?? job.status} · 진행 {job.progress || 0}% · {formatDateTime(job.updatedAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {PROVIDERS.filter((p) => policy?.[p.type] !== false).map((provider) => {
