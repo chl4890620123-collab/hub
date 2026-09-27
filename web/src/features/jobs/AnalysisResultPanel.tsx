@@ -18,8 +18,8 @@ interface AnalyzedResult {
 
 /** Shown right where a document/meeting/quick-note analysis job was started - once it succeeds, this
  * is the AI's actual output (summary + extracted todos/decisions), with the same confirm/reject/merge
- * controls as the 담당자 배정 review screen, so a user with confirm permission never has to leave the
- * page they were already on to act on what the AI just found. */
+ * controls as the 담당자 배정 review screen for ADMIN decision-makers. Regular users can see the analysis
+ * result, while confirmation remains in the administrator review flow. */
 export function AnalysisResultPanel({
   jobId,
   projectId,
@@ -43,7 +43,7 @@ export function AnalysisResultPanel({
   const { data: pending } = useQuery({
     queryKey: ['review-todos', projectId],
     queryFn: () => todosApi.pendingReview(projectId),
-    enabled: ready,
+    enabled: ready && canConfirm,
   });
 
   const invalidatePending = () => queryClient.invalidateQueries({ queryKey: ['review-todos', projectId] });
@@ -172,7 +172,7 @@ export function AnalysisResultPanel({
             </ul>
           )}
           {!canConfirm && (
-            <p className="text-xs text-ink-400">AI가 정리한 내용은 바로 업무로 확정되지 않습니다. 담당자 배정 권한이 있는 사람이 원문을 확인한 뒤 확정합니다.</p>
+            <p className="text-xs text-ink-400">AI가 정리한 내용은 바로 업무로 확정되지 않습니다. 관리자가 원문을 확인하고 담당자를 지정한 뒤 확정합니다.</p>
           )}
         </div>
       )}
