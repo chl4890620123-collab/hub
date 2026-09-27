@@ -90,7 +90,7 @@ export function TodoCandidateCard({
               ) : (
                 members.map((m) => (
                   <SelectItem key={m.id} value={String(m.id)}>
-                    {m.displayName}{m.jobTitle ? ` · ${m.jobTitle}` : ` · ${m.loginId}`}
+                    {m.displayName}{m.jobTitle ? ` · ${m.jobTitle}` : ` · ${m.loginId}`}{m.projectRole === 'ADMIN' ? ' · 관리자' : ''}
                   </SelectItem>
                 ))
               )}
