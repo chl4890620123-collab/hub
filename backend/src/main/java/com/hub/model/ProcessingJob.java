@@ -9,6 +9,7 @@ public record ProcessingJob(
         String jobType,
         String targetType,
         Long targetId,
+        Long requesterUserId,
         String status,
         int progress,
         String errorCode,

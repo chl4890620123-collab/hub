@@ -23,12 +23,15 @@ public class MeController {
     public record ProfileUpdate(String departmentName,String teamName,String jobTitle){}
     @PatchMapping("/profile")
     public User profile(@RequestBody ProfileUpdate request,Authentication auth){
-        User user=current.requireOperational(auth);String department=trim(request.departmentName());String team=trim(request.teamName());String jobTitle=trim(request.jobTitle());
-        if(department!=null&&department.length()>200)throw new IllegalArgumentException("부서는 200자 이하여야 합니다.");
-        if(team!=null&&team.length()>200)throw new IllegalArgumentException("팀은 200자 이하여야 합니다.");
+        User user=current.requireOperational(auth);
+        String requestedDepartment=trim(request.departmentName());String requestedTeam=trim(request.teamName());String jobTitle=trim(request.jobTitle());
+        if(requestedDepartment!=null&&!same(user.departmentName(),requestedDepartment))
+            throw new IllegalArgumentException("부서는 관리자가 회사 관리에서 변경해야 합니다.");
+        if(requestedTeam!=null&&!same(user.teamName(),requestedTeam))
+            throw new IllegalArgumentException("팀은 관리자가 회사 관리에서 변경해야 합니다.");
         if(jobTitle!=null&&jobTitle.length()>200)throw new IllegalArgumentException("직급/직책은 200자 이하여야 합니다.");
-        users.updateProfile(user.id(),department,team,jobTitle);
-        audit.add(user.id(),null,"USER_PROFILE_UPDATE","USER",user.id(),"{\"departmentChanged\":"+!same(user.departmentName(),department)+",\"teamChanged\":"+!same(user.teamName(),team)+"}");
+        users.updateJobTitle(user.id(),jobTitle);
+        audit.add(user.id(),null,"USER_PROFILE_UPDATE","USER",user.id(),"{\"jobTitleChanged\":"+!same(user.jobTitle(),jobTitle)+"}");
         return users.findById(user.id()).orElseThrow();
     }
 

@@ -61,7 +61,7 @@ export const authApi = {
 
 export const meApi = {
   get: () => apiGet<User>('/api/me'),
-  updateProfile: (payload: { departmentName?: string | null; teamName?: string | null; jobTitle?: string | null }) =>
+  updateProfile: (payload: { jobTitle?: string | null }) =>
     apiPatch<User>('/api/me/profile', payload),
   withdraw: (currentPassword: string, reason?: string) =>
     apiPost<{ status: string; reassignmentCount: number }>('/api/me/withdraw', { currentPassword, reason }),

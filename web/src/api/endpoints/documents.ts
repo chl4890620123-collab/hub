@@ -39,6 +39,10 @@ export const documentsApi = {
     apiPost<{ revisedText: string }>(`/api/projects/${projectId}/documents/${documentId}/revise-draft`, {
       meetingDocumentId,
     }),
+  reviseDraftJob: (projectId: number, documentId: number, meetingDocumentId: number) =>
+    apiPost<{ jobId: number; status: string }>(`/api/projects/${projectId}/documents/${documentId}/revise-draft-job`, {
+      meetingDocumentId,
+    }),
 
   analyze: (projectId: number, versionId: number, sourceDate?: string, force = false) => {
     const params = new URLSearchParams();

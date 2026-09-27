@@ -167,7 +167,13 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
       { id: 1301, entity_type: 'DOCUMENT', entity_id: 301, action: 'DOCUMENT_UPDATED', before_json: null, after_json: null, actor_name: mockUser.displayName, created_at: iso(1) },
     ] as RevisionRow[] as T);
   if (pathname.endsWith('/jobs')) return result([{ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) }] as ProcessingJob[] as T);
-  if (pathname.match(/\/jobs\/\d+$/)) return result({ id: 1401, projectId, jobType: 'DOCUMENT_ANALYSIS', targetType: 'DOCUMENT', targetId: 301, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson: null, createdAt: iso(1), updatedAt: iso(1) } as ProcessingJob as T);
+  if (pathname.match(/\/jobs\/\d+$/)) {
+    const jobId = Number(pathname.split('/').at(-1));
+    const askResult: MaterialAskResponse = { answer: '목데이터 기준으로 연결된 답변입니다.', sources: hits };
+    const jobType = jobId === 1402 ? 'MATERIAL_ASK' : jobId === 1403 ? 'DOCUMENT_REVISION' : 'DOCUMENT_ANALYSIS';
+    const resultJson = jobId === 1402 ? JSON.stringify(askResult) : jobId === 1403 ? JSON.stringify({ revisedText: '목데이터 기준 - 회의 내용을 반영한 초안입니다.' }) : null;
+    return result({ id: jobId, projectId, jobType, targetType: jobId === 1402 ? 'USER' : 'DOCUMENT', targetId: jobId === 1402 ? mockUser.id : 301, requesterUserId: jobId === 1401 ? null : mockUser.id, status: 'SUCCESS', progress: 100, errorCode: null, errorMessage: null, resultJson, createdAt: iso(1), updatedAt: iso(1) } as ProcessingJob as T);
+  }
   if (pathname.endsWith('/file-transfer-recipients')) {
     const recipients: FileTransferRecipient[] = users.map((user) => ({
       id: user.id,
@@ -243,8 +249,10 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
       return result({ status: 'SUCCESS' } as T);
     }
     if (pathname.includes('/documents/manual')) return result({ versionId: 3021, documentId: 301, jobId: 1401, status: 'SUCCESS' } as T);
+    if (pathname.includes('/revise-draft-job')) return result({ jobId: 1403, status: 'PENDING' } as T);
     if (pathname.includes('/revise-draft')) return result({ revisedText: '목데이터 기준 - 회의 내용을 반영한 초안입니다.' } as T);
     if (pathname.includes('/documents/upload') || pathname.includes('/meetings')) return result({ versionId: 3021, meetingId: 501, documentId: 301, jobId: 1401, status: 'SUCCESS' } as T);
+    if (pathname.endsWith('/materials/ask-job')) return result({ jobId: 1402, status: 'PENDING' } as T);
     if (pathname.endsWith('/materials/ask')) return result({ answer: '목데이터 기준으로 연결된 답변입니다.', sources: hits } as T);
     if (pathname.includes('/search/test')) return result({ query: searchParams.get('q') ?? '', matchedRule: rules[0], results: hits } as T);
     if (pathname.includes('/signup') || pathname.includes('/login') || pathname.includes('/logout')) return result({ status: 'SUCCESS', message: '목데이터 작업이 완료되었습니다.', user: mockUser } as T);

@@ -108,7 +108,7 @@ export interface MaterialAskResponse { answer: string; sources: MaterialHit[]; }
 export interface WorkContextBundle { query: string; summary: string; sources: MaterialHit[]; todos: TodoItem[]; decisions: DecisionRow[]; changes: ChangeItemRow[]; timeline: TimelineEvent[]; }
 export interface TimelineEvent { id: number; projectId: number; eventType: string; title: string; description: string | null; happenedAt: string; sourceType: string | null; sourceId: number | null; }
 export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED';
-export interface ProcessingJob { id: number; projectId: number; jobType: string; targetType: string; targetId: number | null; status: JobStatus; progress: number; errorCode: string | null; errorMessage: string | null; resultJson: string | null; createdAt: string; updatedAt: string; }
+export interface ProcessingJob { id: number; projectId: number; jobType: string; targetType: string; targetId: number | null; requesterUserId?: number | null; status: JobStatus; progress: number; errorCode: string | null; errorMessage: string | null; resultJson: string | null; createdAt: string; updatedAt: string; }
 
 export interface DocumentRow {
   id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; created_at: string; latest_version: number; has_original: boolean; content_purged?: boolean; [key: string]: unknown;

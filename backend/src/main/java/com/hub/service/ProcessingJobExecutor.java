@@ -18,13 +18,16 @@ public class ProcessingJobExecutor {
     private final AnalysisService analysis;
     private final MeetingService meetings;
     private final ConnectorService connectors;
+    private final MaterialSearchService materials;
+    private final DocumentService documents;
     private final AuditRepository audit;
     private final ObjectMapper json;
 
     public ProcessingJobExecutor(ProcessingJobRepository jobs, AnalysisService analysis, MeetingService meetings,
-                                 ConnectorService connectors, AuditRepository audit, ObjectMapper json) {
+                                 ConnectorService connectors, MaterialSearchService materials, DocumentService documents,
+                                 AuditRepository audit, ObjectMapper json) {
         this.jobs = jobs; this.analysis = analysis; this.meetings = meetings; this.connectors = connectors;
-        this.audit = audit; this.json = json;
+        this.materials = materials; this.documents = documents; this.audit = audit; this.json = json;
     }
 
     @Async("hubTaskExecutor")
@@ -49,6 +52,30 @@ public class ProcessingJobExecutor {
         } catch (Exception error) {
             meetings.markFailed(meetingId);
             jobs.fail(jobId, "MEETING_PROCESSING_FAILED", rootMessage(error));
+        }
+    }
+
+    @Async("hubTaskExecutor")
+    public void materialAsk(long jobId, long projectId, String question, User user) {
+        try {
+            jobs.start(jobId); jobs.progress(jobId, 15);
+            var result = materials.ask(projectId, question, user);
+            jobs.progress(jobId, 90);
+            jobs.success(jobId, json.writeValueAsString(result));
+        } catch (Exception error) {
+            jobs.fail(jobId, "MATERIAL_ASK_FAILED", rootMessage(error));
+        }
+    }
+
+    @Async("hubTaskExecutor")
+    public void documentRevision(long jobId, long projectId, long documentId, long meetingDocumentId, User user) {
+        try {
+            jobs.start(jobId); jobs.progress(jobId, 20);
+            String revisedText = documents.reviseDraftFromMeeting(projectId, documentId, meetingDocumentId, user);
+            jobs.progress(jobId, 90);
+            jobs.success(jobId, json.writeValueAsString(Map.of("revisedText", revisedText)));
+        } catch (Exception error) {
+            jobs.fail(jobId, "DOCUMENT_REVISION_FAILED", rootMessage(error));
         }
     }
 

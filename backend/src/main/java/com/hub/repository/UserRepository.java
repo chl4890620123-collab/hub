@@ -220,6 +220,11 @@ public class UserRepository {
                 trimNullable(departmentName), trimNullable(teamName), trimNullable(jobTitle), userId);
     }
 
+    public void updateJobTitle(long userId, String jobTitle) {
+        jdbc.update("UPDATE app_user SET job_title=? WHERE id=? AND approval_status='APPROVED'",
+                trimNullable(jobTitle), userId);
+    }
+
     public void updatePassword(long userId, String passwordHash) {
         jdbc.update("""
                 UPDATE app_user SET password_hash=?,password_changed_at=CURRENT_TIMESTAMP,must_change_password=FALSE,

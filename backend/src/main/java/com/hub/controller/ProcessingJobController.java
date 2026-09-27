@@ -30,6 +30,8 @@ public class ProcessingJobController {
         User user = current.requireOperational(authentication);
         ProcessingJob job = jobs.find(jobId);
         access.requireAccess(job.projectId(), user);
+        if (job.requesterUserId() != null && job.requesterUserId() != user.id())
+            throw new org.springframework.security.access.AccessDeniedException("이 AI 작업은 요청한 사용자만 볼 수 있습니다.");
         return job;
     }
 
@@ -37,6 +39,6 @@ public class ProcessingJobController {
     public List<ProcessingJob> recent(@PathVariable long projectId, Authentication authentication) {
         User user = current.requireOperational(authentication);
         access.requireAccess(projectId, user);
-        return jobs.recent(projectId);
+        return jobs.recentVisible(projectId, user.id());
     }
 }

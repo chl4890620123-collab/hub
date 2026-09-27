@@ -8,6 +8,8 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   DOCUMENT_ANALYSIS: '문서 정리',
   MEETING_STT_ANALYSIS: '회의 음성 정리',
   CONNECTOR_IMPORT: '연결 서비스 자료 가져오기',
+  MATERIAL_ASK: 'AI 자료 질문',
+  DOCUMENT_REVISION: '회의 내용으로 문서 수정',
 };
 
 const JOB_STATUS_LABELS: Record<string, string> = {

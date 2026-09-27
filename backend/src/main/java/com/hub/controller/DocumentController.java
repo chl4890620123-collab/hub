@@ -59,6 +59,16 @@ public class DocumentController {
 
     public record ReviseDraftRequest(Long meetingDocumentId) {}
 
+    @PostMapping("/{documentId}/revise-draft-job")
+    public ResponseEntity<Map<String,Object>> reviseDraftJob(@PathVariable long projectId, @PathVariable long documentId,
+                                                             @RequestBody ReviseDraftRequest request, Authentication auth) {
+        User user = current.requireOperational(auth); access.requireAccess(projectId, user);
+        if (request == null || request.meetingDocumentId() == null)
+            throw new IllegalArgumentException("참고할 회의 기록을 선택해 주세요.");
+        long jobId = jobs.queueDocumentRevision(projectId, documentId, request.meetingDocumentId(), user);
+        return ResponseEntity.accepted().body(Map.of("jobId", jobId, "status", "PENDING"));
+    }
+
     @PostMapping("/{documentId}/revise-draft")
     public Map<String,Object> reviseDraft(@PathVariable long projectId, @PathVariable long documentId,
                                           @RequestBody ReviseDraftRequest request, Authentication auth) {
