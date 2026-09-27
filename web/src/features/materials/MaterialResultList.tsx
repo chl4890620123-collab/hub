@@ -38,9 +38,9 @@ function MaterialResultCard({ hit, actions }: { hit: MaterialHit; actions?: Mate
         <span className="text-xs text-ink-400">{ITEM_TYPE_LABELS[hit.itemType] ?? '자료'}</span>
         {hit.recommendationReason && <span className="text-xs text-accent-600">{hit.recommendationReason}</span>}
       </div>
-      <p className="mb-1 text-sm font-semibold text-ink-900">{hit.title}</p>
-      {hit.location && <p className="mb-1 text-xs text-ink-400">{hit.location}</p>}
-      <p className="line-clamp-3 text-sm text-ink-600">{hit.snippet}</p>
+      <p className="mb-1 break-words text-sm font-semibold text-ink-900">{hit.title}</p>
+      {hit.location && <p className="mb-1 break-words text-xs text-ink-400">{hit.location}</p>}
+      <p className="line-clamp-3 break-words text-sm text-ink-600">{hit.snippet}</p>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-400">
         {hit.author && <span>{hit.author}</span>}
         {hit.sourceUrl && (
