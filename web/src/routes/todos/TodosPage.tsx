@@ -120,9 +120,9 @@ export function TodosPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
   const requestCompletionMutation = useMutation({
-    mutationFn: (todoId: number) => todosApi.requestCompletion(todoId),
+    mutationFn: ({ todoId, url }: { todoId: number; url: string }) => todosApi.requestCompletion(todoId, url || undefined),
     onSuccess: () => {
-      toast.success('완료 승인을 요청했습니다.');
+      toast.success('제출물을 관리자에게 보냈습니다.');
       invalidateTodos();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -220,7 +220,7 @@ export function TodosPage() {
         todo.assigneeId === user.id
       }
       onStatusChange={(status) => statusMutation.mutate({ todoId: todo.id, status })}
-      onRequestCompletion={() => requestCompletionMutation.mutate(todo.id)}
+      onRequestCompletion={(url) => requestCompletionMutation.mutate({ todoId: todo.id, url })}
       onApproveCompletion={() => approveCompletionMutation.mutate(todo.id)}
       onRejectCompletion={(reason) => rejectCompletionMutation.mutate({ todoId: todo.id, reason })}
       onRequestHelp={(note) => requestHelpMutation.mutate({ todoId: todo.id, note })}
@@ -279,7 +279,7 @@ export function TodosPage() {
             <SelectItem value="ALL">담당자 전체</SelectItem>
             {members?.map((m) => (
               <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+                {m.displayName}{m.projectRole === 'ADMIN' ? ' · 관리자' : ''}
               </SelectItem>
             ))}
           </SelectContent>
