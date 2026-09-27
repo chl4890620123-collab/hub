@@ -83,7 +83,7 @@ public class TodoController {
     @GetMapping("/api/projects/{projectId}/review/todos")
     public List<TodoItem> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         return todoService.pending(projectId);
     }
 
@@ -104,7 +104,7 @@ public class TodoController {
                                        Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem before = todos.find(todoId);
-        projectAccess.requireConfirmPermission(before.projectId(), user);
+        projectAccess.requireAdmin(before.projectId(), user);
         todoService.confirm(before, request.assigneeId(), request.dueDate(), user);
         return Map.of("status", "CONFIRMED");
     }
@@ -117,7 +117,7 @@ public class TodoController {
                                             Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem before=todos.find(todoId);
-        projectAccess.requireConfirmPermission(before.projectId(),user);
+        projectAccess.requireAdmin(before.projectId(),user);
         todoService.editCandidate(before,request.title(),request.description(),user);
         return Map.of("status","UPDATED");
     }
@@ -129,7 +129,7 @@ public class TodoController {
                                           @RequestBody BulkConfirm request,
                                           Authentication authentication){
         User user=currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId,user);
+        projectAccess.requireAdmin(projectId,user);
         if(request.todoIds()==null||request.todoIds().isEmpty())throw new IllegalArgumentException("선택된 할 일이 없습니다.");
         Map<Long,String> results=todoService.bulkConfirm(projectId,request.todoIds(),request.assigneeId(),request.dueDate(),user);
         return Map.of("results",results);
@@ -139,7 +139,7 @@ public class TodoController {
     public Map<String,Object> reject(@PathVariable long todoId,Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem before=todos.find(todoId);
-        projectAccess.requireConfirmPermission(before.projectId(),user);
+        projectAccess.requireAdmin(before.projectId(),user);
         todoService.reject(before,user);
         return Map.of("status","REJECTED");
     }
@@ -149,7 +149,7 @@ public class TodoController {
     public Map<String,Object> mergeDuplicate(@PathVariable long todoId,Authentication authentication){
         User user=currentUser.requireOperational(authentication);
         TodoItem candidate=todos.find(todoId);
-        projectAccess.requireConfirmPermission(candidate.projectId(),user);
+        projectAccess.requireAdmin(candidate.projectId(),user);
         todoService.mergeDuplicate(candidate,user);
         return Map.of("status","MERGED");
     }
@@ -199,10 +199,10 @@ public class TodoController {
         return Map.of("status", status);
     }
 
-    /** Personal work actions belong to the confirmed assignee, including when that assignee is an admin. */
+    /** Personal work actions belong only to the confirmed MEMBER assignee. ADMIN is the decision-maker, not an assignee. */
     private void requireAssignee(TodoItem todo, User user) {
         projectAccess.requireAccess(todo.projectId(), user);
-        if (!"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
+        if (user.isAdmin() || !"CONFIRMED".equals(todo.reviewStatus()) || todo.assigneeId() == null || todo.assigneeId() != user.id()) {
             throw new AccessDeniedException("이 작업은 해당 할 일의 담당자 본인만 할 수 있습니다.");
         }
     }
