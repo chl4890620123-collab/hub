@@ -221,7 +221,8 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   if (pathname.includes('/todos/undated')) return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate) as T);
   if (pathname.match(/\/todos$/) && method === 'GET') return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
   if (pathname.endsWith('/changes')) return result(reviewChanges as T);
-  if (pathname.match(/\/documents$/)) return result(documents.filter((doc) => projectId === 101 ? doc.id !== 303 : doc.id === 303) as T);
+  if (pathname.match(/\/documents\/meeting-transcripts$/)) return result(documents.filter((doc) => doc.source_type === 'MEETING_TRANSCRIPT') as T);
+    if (pathname.match(/\/documents$/)) return result(documents.filter((doc) => projectId === 101 ? doc.id !== 303 : doc.id === 303) as T);
   if (pathname.match(/\/documents\/\d+\/versions/)) return result([
     { id: 3020, version_no: 1, sha256: 'mock-sha-3020', parse_status: 'DONE', summary: '초기 문서입니다. 베타 공개일은 9월 20일로 기록되어 있습니다.', created_at: iso(6) },
     { id: 3021, version_no: 2, sha256: 'mock-sha-3021', parse_status: 'DONE', summary: '사용성 테스트를 반영해 베타 공개일을 9월 27일로 변경하고 원문 연결 검수를 추가했습니다.', created_at: iso(1) },
