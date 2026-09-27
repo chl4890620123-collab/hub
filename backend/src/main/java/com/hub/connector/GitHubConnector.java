@@ -160,4 +160,35 @@ public class GitHubConnector implements ReadOnlyConnector {
         }
         return out;
     }
+
+    /** Loads exactly one GitHub repository page so opening the picker does not enumerate the
+     * caller's entire account up front. */
+    @Override
+    public ConnectorTargetPage targetsPage(String token, String cursor, int pageSize) {
+        int size = Math.max(1, Math.min(pageSize, 100));
+        int page = 1;
+        try {
+            if (cursor != null && !cursor.isBlank()) page = Math.max(1, Integer.parseInt(cursor));
+        } catch (NumberFormatException ignored) {
+            page = 1;
+        }
+        if (page > MAX_TARGET_PAGES) return ConnectorTargetPage.empty();
+
+        String uri = "/user/repos?per_page=" + size + "&page=" + page
+                + "&sort=updated&affiliation=owner,collaborator,organization_member";
+        ResponseEntity<String> response = getEntity(uri, token);
+        JsonNode repos = ConnectorSupport.json(json, response.getBody(), "GitHub 응답을 처리하지 못했습니다.");
+        List<ConnectorTarget> out = new ArrayList<>();
+        if (repos.isArray()) {
+            for (JsonNode repo : repos) {
+                String full = repo.path("full_name").asText("");
+                if (full.isBlank()) continue;
+                String description = repo.path("private").asBoolean(false) ? "비공개 저장소" : "공개 저장소";
+                out.add(new ConnectorTarget(full, full, description, "https://github.com/" + full));
+            }
+        }
+        boolean hasMore = nextLink(response.getHeaders()) != null && page < MAX_TARGET_PAGES;
+        return new ConnectorTargetPage(out, hasMore ? String.valueOf(page + 1) : "", hasMore);
+    }
+
 }
