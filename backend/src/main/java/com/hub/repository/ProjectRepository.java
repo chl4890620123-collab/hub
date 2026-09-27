@@ -83,10 +83,17 @@ public class ProjectRepository {
 
     public List<java.util.Map<String,Object>> listMembers(long projectId) {
         return jdbc.queryForList("""
-                SELECT u.id user_id,u.display_name,u.login_id,u.email,u.job_title,'MEMBER' project_role,u.account_status,pm.can_confirm_todos
-                FROM project_member pm JOIN app_user u ON u.id=pm.user_id
-                WHERE pm.project_id=? AND u.account_status='ACTIVE' AND u.global_role='MEMBER' ORDER BY u.display_name,u.id
-                """, projectId);
+                SELECT * FROM (
+                  SELECT u.id user_id,u.display_name,u.login_id,u.email,u.job_title,'MEMBER' project_role,u.account_status,pm.can_confirm_todos
+                  FROM project_member pm JOIN app_user u ON u.id=pm.user_id
+                  WHERE pm.project_id=? AND u.account_status='ACTIVE' AND u.global_role='MEMBER'
+                  UNION ALL
+                  SELECT u.id user_id,u.display_name,u.login_id,u.email,u.job_title,'ADMIN' project_role,u.account_status,TRUE can_confirm_todos
+                  FROM project p JOIN app_user u ON u.id=p.created_by
+                  WHERE p.id=? AND u.account_status='ACTIVE' AND u.global_role='ADMIN'
+                ) participants
+                ORDER BY display_name,user_id
+                """, projectId, projectId);
     }
 
     /** Active MEMBER-role users not yet on this project - the pool a decision-maker can invite in.
@@ -124,6 +131,22 @@ public class ProjectRepository {
         return jdbc.query("SELECT project_id FROM project_member WHERE user_id=? ORDER BY project_id", (rs,n)->rs.getLong(1), userId);
     }
 
+
+    public boolean isAssignableParticipant(long projectId, long userId) {
+        Integer count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM app_user u
+                WHERE u.id=? AND u.account_status='ACTIVE' AND (
+                  (u.global_role='MEMBER' AND EXISTS (
+                    SELECT 1 FROM project_member pm WHERE pm.project_id=? AND pm.user_id=u.id
+                  ))
+                  OR
+                  (u.global_role='ADMIN' AND EXISTS (
+                    SELECT 1 FROM project p WHERE p.id=? AND p.created_by=u.id
+                  ))
+                )
+                """, Integer.class, userId, projectId, projectId);
+        return count != null && count > 0;
+    }
 
     public boolean isMember(long projectId, long userId) {
         Integer count = jdbc.queryForObject("""
