@@ -2,9 +2,15 @@
 
 ## 1. 원칙
 
-운영자가 직접 관리하는 파일은 루트 `.env` 하나입니다. Git에는 변수 이름만 있는 `.env.example`만 둡니다. Spring 설정은 `application.yml` 하나, 선택적 컨테이너 배포는 `deploy/compose.yml` 하나를 사용합니다.
+Hub 저장소에서 직접 관리하는 환경 템플릿은 루트 `.env.example`입니다. 실제 `.env`와 Secret은 Git에 커밋하지 않습니다.
+
+Spring 설정은 `backend/src/main/resources/application.yml`, AI 기본값은 `ai-service/app/config.py`가 기준입니다.
+
+운영 배포 설정은 Hub 저장소가 아니라 **`chl4890620123-collab/Server` 저장소와 운영 서버의 런타임 `.env`**가 최종 기준입니다.
 
 ## 2. 로컬 `.env`
+
+대표 설정:
 
 ```env
 HUB_PORT=8080
@@ -16,42 +22,89 @@ HUB_JWT_SECRET=<32자 이상>
 
 HUB_AI_MODE=gemini
 GEMINI_API_KEY=<secret>
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-2.5-flash
 GEMINI_FALLBACK_MODEL=gemini-3.6-flash
-GEMINI_TRANSCRIBE_MODEL=gemini-3.5-transcribe
+GEMINI_TRANSCRIBE_MODEL=gemini-2.5-flash
 HUB_EMBED_MODE=e5
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REFRESH_TOKEN=
-GOOGLE_ACCESS_TOKEN=
-SLACK_TOKEN=
-NOTION_TOKEN=
-GITHUB_TOKEN=
 ```
 
-OCR/STT provider 선택용 ENV는 제거했습니다. 실제 모드에서 OCR은 local PaddleOCR, STT는 Gemini로 고정되어 운영자가 provider 변수를 중복 관리하지 않습니다. mock 모드는 `HUB_AI_MODE=mock` 하나로 전환합니다.
+실제 기본 모델 값은 `ai-service/app/config.py`와 `.env.example`을 기준으로 확인합니다. 서버 런타임 `.env`에 같은 변수가 있으면 그 값이 우선합니다.
 
-텍스트 분석·RAG 요청에서 기본 Gemini 모델이 재시도 후에도 429를 반환하면 `GEMINI_FALLBACK_MODEL`로 재시도합니다. 음성 전사 모델은 독립 설정이며 변경되지 않습니다. 기본 모델과 대체 모델이 모두 한도 초과이면 작업은 기존과 같이 실패로 기록됩니다. 서버 `.env`에 `GEMINI_MODEL`이 있으면 코드 기본값보다 우선합니다.
+OCR은 실제 모드에서 local PaddleOCR, STT는 Gemini를 사용합니다. 빠른 smoke run에서는 `HUB_AI_MODE=mock`, `HUB_EMBED_MODE=hash` 조합을 사용할 수 있습니다.
 
-관리자 가입은 최초 계정을 포함해 항상 기존 관리자의 승인 대기 상태로 처리합니다(자가 승인 불가). 관리자가 0명인 첫 배포에서는 운영자가 `HUB_BOOTSTRAP_ADMIN_PASSWORD`를 서버의 `.env`에 직접 정해서 넣어야 `BootstrapService`가 그 값으로 관리자 계정 하나를 만듭니다(코드/마이그레이션에 비밀번호를 적어두지 않음). 최초 로그인 시 비밀번호 변경이 강제되며, 관리자가 이미 있으면 이 값은 무시됩니다.
+텍스트 분석·RAG에서 기본 Gemini 모델이 재시도 후 429를 반환하면 fallback 모델을 사용할 수 있습니다. STT 모델은 별도 설정입니다.
 
-## 3. DB
+## 3. 최초 관리자
 
-기본 `HUB.bat start`는 H2를 사용하므로 DB 설치가 필요 없습니다. PostgreSQL 배포 때만 `DB_URL`, `DB_USER`, `DB_PASSWORD`를 사용합니다.
+관리자 가입은 자가 승인되지 않습니다.
 
-## 4. Google Drive
+관리자가 0명인 최초 설치에서는 운영자가 `HUB_BOOTSTRAP_ADMIN_PASSWORD`를 서버의 비공개 런타임 환경에 설정하면 `BootstrapService`가 최초 관리자 계정을 만들 수 있습니다. 최초 로그인 뒤 비밀번호 변경이 강제됩니다.
 
-권장 값은 Client ID + Client Secret + Refresh Token입니다. Access Token은 짧게 만료되므로 일반적으로 비워두고 Hub가 refresh token으로 새 access token을 발급받습니다.
+이미 관리자가 존재하면 bootstrap 값은 관리자 추가 수단으로 사용되지 않습니다.
 
-## 5. CI/CD
+## 4. DB
 
-`.env`는 저장소에 커밋하지 않습니다. CI(`web-and-config`/`ai`/`backend` job)는 앱 시크릿 없이 빌드/테스트만 하므로 GitHub Actions Secrets에 커넥터 토큰류를 등록할 필요가 없습니다.
+일반 `HUB.bat start`는 H2 file DB를 사용합니다.
 
-배포 서버에 SSH로 접속해 `git pull` + `docker compose up`을 실행하는 `deploy` job만 예외로, 이때 Actions Secrets에는 배포 접속 정보 4개(`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`)만 등록합니다. `GEMINI_API_KEY`/`GITHUB_TOKEN`/`DB_PASSWORD` 같은 앱 런타임 값은 Actions를 거치지 않고 배포 서버의 로컬 `.env` 파일에만 있으면 됩니다 - 상세 절차는 `docs/DEPLOYMENT.md` 참고.
+PostgreSQL 배포에서는 다음 값이 필요합니다.
 
-(참고: GitHub Actions는 `GITHUB_`로 시작하는 이름을 저장소 Secret으로 등록하지 못하게 막아둡니다. 위 방식에서는 해당하지 않지만, 혹시 커넥터 토큰을 Actions Secret으로 직접 등록해야 하는 다른 상황이 생기면 `HUB_GITHUB_TOKEN`처럼 접두사를 바꾼 이름으로 등록하고 워크플로에서 런타임 이름(`GITHUB_TOKEN`)으로 매핑해야 합니다.)
+- `DB_URL`
+- `DB_USER`
+- `DB_PASSWORD`
 
-## 6. 고급 튜닝
+운영은 PostgreSQL + pgvector를 사용합니다.
 
-검색 크기, timeout, E5 batch size 같은 자주 바꾸지 않는 값은 `application.yml` 또는 `ai-service/app/config.py`의 기본값으로 둡니다. 일반 운영자의 `.env`에 수십 개 변수를 노출하지 않습니다.
+## 5. Connector
+
+필요한 서비스만 설정합니다.
+
+- GitHub: token 또는 OAuth client
+- Google Drive: Client ID / Client Secret / Refresh Token 권장
+- Slack: token 또는 OAuth client
+- Notion: token 또는 OAuth client
+
+Access Token은 짧게 만료될 수 있으므로 Google Drive는 refresh token 기반 구성을 권장합니다.
+
+`HUB_ALLOW_SHARED_CONNECTOR_FALLBACK=false`가 기본입니다. 실제 다중 사용자 환경에서는 개인 연결 정보를 우선하고 공유 credential fallback은 켜지 않는 것이 원칙입니다.
+
+## 6. React API origin
+
+현재 프로덕션 구조는 React SPA를 Spring Boot가 직접 정적 파일로 서비스하므로 API도 같은 origin을 사용합니다.
+
+따라서 현재 배포에서는 `VITE_API_BASE_URL`을 비워 두는 것이 기본입니다.
+
+로컬 Vite 개발 서버에서는 `/api`를 `http://localhost:8080`으로 프록시해 브라우저 기준 same-origin처럼 동작시킵니다.
+
+별도 frontend/backend origin으로 분리하려면 CORS·cookie·CSRF 구성을 별도로 설계해야 하며 현재 운영 기본 구조가 아닙니다.
+
+## 7. CI/CD
+
+Hub 저장소의 `.github/workflows/ci.yml`은 **빌드/테스트만 수행하고 운영 배포는 하지 않습니다.**
+
+검사 항목:
+
+- 저장소/환경 구조
+- Flyway migration 버전 충돌
+- React/TypeScript build
+- AI compile/test
+- Spring test/bootJar
+
+운영 배포 SSH Secret은 Hub 저장소가 아니라 `Server` 저장소에 있습니다.
+
+현재 중앙 배포가 사용하는 Secret 이름:
+
+- `SERVER_HOST`
+- `SERVER_USER`
+- `SERVER_PORT`
+- `SERVER_SSH_KEY`
+- `SERVER_PASSWORD`
+
+키 방식 또는 비밀번호 방식 중 운영 환경에 설정된 인증 수단을 사용합니다.
+
+`GEMINI_API_KEY`, DB 비밀번호, Connector credential 같은 앱 런타임 값은 Hub Actions에 넣는 구조가 아니라 서버의 비공개 런타임 `.env`에서 관리합니다.
+
+자세한 흐름은 `docs/DEPLOYMENT.md`를 참고하세요.
+
+## 8. 고급 튜닝
+
+검색 크기, timeout, E5 batch size, Gemini retry 같은 자주 바꾸지 않는 값은 `application.yml` 또는 `ai-service/app/config.py` 기본값에 둡니다. 일반 운영자의 `.env`에는 실제로 조정할 값만 노출합니다.
