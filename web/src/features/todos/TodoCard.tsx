@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, FileText, HelpCircle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
 import type { TaskStatusUpdate, TodoItem } from '@/api/types';
-import { getTodoDisplayStatus, StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
+import { getTodoDisplayStatus, REJECTED_STATUS_NOTE, StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
 import { TodoAttachmentsPanel } from '@/features/todos/TodoAttachmentsPanel';
 import { NotePromptDialog } from '@/features/todos/NotePromptDialog';
 import { Badge } from '@/components/ui/badge';
@@ -91,8 +91,10 @@ export function TodoCard({
       {displayStatus === 'BLOCKED' && todo.statusNote && (
         <p className="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">도움 요청: {todo.statusNote}</p>
       )}
-      {displayStatus === 'REJECTED' && todo.statusNote && (
-        <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">반려 사유: {todo.statusNote}</p>
+      {displayStatus === 'REJECTED' && (
+        <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
+          {todo.statusNote && todo.statusNote !== REJECTED_STATUS_NOTE ? `반려 사유: ${todo.statusNote}` : '완료 요청이 반려되었습니다.'}
+        </p>
       )}
       {displayStatus === 'HOLD' && (
         <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">현재 보류 중인 할 일입니다.</p>
