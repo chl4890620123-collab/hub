@@ -115,7 +115,7 @@ export interface ProcessingJob { id: number; projectId: number; jobType: string;
 export interface ProjectNotification { id: string; category: string; source: string; severity: 'ERROR' | 'WARNING' | string; title: string; detail: string | null; occurredAt: string | null; url: string | null; }
 
 export interface DocumentRow {
-  id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; created_at: string; latest_version: number; has_original: boolean; content_purged?: boolean; [key: string]: unknown;
+  id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; retention_protected?: boolean; created_at: string; latest_version: number; has_original: boolean; content_purged?: boolean; [key: string]: unknown;
 }
 export interface DocumentVersionRow { id: number; version_no: number; sha256: string; parse_status: string; summary: string | null; created_at: string; [key: string]: unknown; }
 export interface GitHubExportResponse { status: string; repository: string; path: string; branch: string; url: string | null; pullRequestUrl: string | null; }
