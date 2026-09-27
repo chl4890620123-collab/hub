@@ -1,10 +1,15 @@
 import { API_BASE, apiDelete, apiGet, apiPost, apiPut } from '@/api/client';
-import type { ConnectorSyncState, ConnectorTargetsResponse, ConnectorType } from '@/api/types';
+import type { ConnectorConnectionResponse, ConnectorSyncState, ConnectorTargetsResponse, ConnectorType } from '@/api/types';
 
 export const connectorsApi = {
   status: (projectId: number) => apiGet<ConnectorSyncState[]>(`/api/projects/${projectId}/connectors/status`),
-  targets: (projectId: number, type: ConnectorType) =>
-    apiGet<ConnectorTargetsResponse>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/targets`),
+  connection: (projectId: number, type: ConnectorType) =>
+    apiGet<ConnectorConnectionResponse>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/connection`),
+  targets: (projectId: number, type: ConnectorType, cursor?: string | null, pageSize = 20) => {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set('cursor', cursor);
+    return apiGet<ConnectorTargetsResponse>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/targets?${params.toString()}`);
+  },
   disconnect: (projectId: number, type: ConnectorType) =>
     apiDelete<{ status: string }>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/link`),
   connect: (projectId: number, type: ConnectorType) =>

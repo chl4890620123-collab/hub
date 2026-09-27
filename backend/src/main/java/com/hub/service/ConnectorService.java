@@ -78,6 +78,60 @@ public class ConnectorService {
         return result;
     }
 
+    /**
+     * Lightweight connection status for the provider cards. This deliberately does not enumerate
+     * repositories/folders/channels/pages; target data is fetched only after the picker is opened.
+     */
+    public java.util.Map<String,Object> connection(String type, User user) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        ReadOnlyConnector adapter = adapters.get(normalizedType);
+        if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
+        if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
+        String token = resolveToken(normalizedType, user);
+        boolean connected = token != null && !token.isBlank();
+        boolean linked = connected && linkedByUser(normalizedType, user);
+        java.util.Map<String,Object> result = new java.util.LinkedHashMap<>();
+        result.put("connected", connected);
+        result.put("linkedByUser", linked);
+        result.put("account", linked ? accountLabel(normalizedType, user) : null);
+        return result;
+    }
+
+    /**
+     * Loads one provider-side target page. cursor is intentionally opaque: Hub never tries to
+     * interpret Drive/Slack/Notion cursors in the browser, and GitHub uses a simple page token.
+     */
+    public java.util.Map<String,Object> targetPage(String type, User user, String cursor, int pageSize) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        ReadOnlyConnector adapter = adapters.get(normalizedType);
+        if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
+        if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
+        int safePageSize = Math.max(10, Math.min(pageSize, 100));
+        String token = resolveToken(normalizedType, user);
+        if (token == null || token.isBlank()) {
+            java.util.Map<String,Object> disconnected = new java.util.LinkedHashMap<>();
+            disconnected.put("connected", false);
+            disconnected.put("linkedByUser", false);
+            disconnected.put("account", null);
+            disconnected.put("targets", java.util.List.of());
+            disconnected.put("nextCursor", "");
+            disconnected.put("hasMore", false);
+            disconnected.put("pageSize", safePageSize);
+            return disconnected;
+        }
+        boolean linked = linkedByUser(normalizedType, user);
+        com.hub.connector.ConnectorTargetPage page = adapter.targetsPage(token, cursor, safePageSize);
+        java.util.Map<String,Object> result = new java.util.LinkedHashMap<>();
+        result.put("connected", true);
+        result.put("linkedByUser", linked);
+        result.put("account", linked ? accountLabel(normalizedType, user) : null);
+        result.put("targets", page.targets());
+        result.put("nextCursor", page.nextCursor());
+        result.put("hasMore", page.hasMore());
+        result.put("pageSize", safePageSize);
+        return result;
+    }
+
     /** Name of the external account behind this account's own link, when it made one. */
     public String accountLabel(String type, User user) {
         if ("GOOGLE_DRIVE".equals(type)) return googleTokens.accountLabel(user.id());

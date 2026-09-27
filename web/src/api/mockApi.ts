@@ -151,7 +151,8 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
     }) as T);
   }
   if (pathname.endsWith('/connector-policy')) return result({ GITHUB: true, GOOGLE_DRIVE: true, SLACK: true, NOTION: true } as T);
-  if (pathname.endsWith('/targets')) return result({ connected: true, linkedByUser: true, account: 'demo@hub.local', targets: [{ id: 'repo-hub-front', name: 'hub-front', description: '제품 허브 프론트엔드 저장소', url: 'https://github.com' }, { id: 'repo-design-system', name: 'design-system', description: '공용 컴포넌트와 토큰', url: 'https://github.com' }] } as ConnectorTargetsResponse as T);
+  if (pathname.endsWith('/connection')) return result({ connected: true, linkedByUser: true, account: 'demo@hub.local' } as T);
+  if (pathname.endsWith('/targets')) return result({ connected: true, linkedByUser: true, account: 'demo@hub.local', targets: [{ id: 'repo-hub-front', name: 'hub-front', description: '제품 허브 프론트엔드 저장소', url: 'https://github.com' }, { id: 'repo-design-system', name: 'design-system', description: '공용 컴포넌트와 토큰', url: 'https://github.com' }], nextCursor: '', hasMore: false, pageSize: 20 } as ConnectorTargetsResponse as T);
   if (pathname.endsWith('/admin/users')) return result(users as T);
   if (pathname.endsWith('/signup-applications')) return result(applications as T);
   if (pathname.endsWith('/reassignments')) return result([{ id: 1101, project_id: projectId, old_assignee_id: 3, reason: '팀 이동으로 담당자 변경 필요', created_at: iso(2) }] as ReassignmentRequest[] as T);

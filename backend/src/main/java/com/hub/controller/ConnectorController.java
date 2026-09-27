@@ -37,12 +37,22 @@ public class ConnectorController {
         return connectorService.syncStates(projectId);
     }
 
-    /** What this account may import from. The screen offers these instead of a free-text scope box. */
+    /** Lightweight link status; unlike /targets this never enumerates provider content. */
+    @GetMapping("/{type}/connection")
+    public Map<String,Object> connection(@PathVariable long projectId, @PathVariable String type,
+                                         Authentication authentication) {
+        User user = currentUser.requireOperational(authentication); projectAccess.requireAccess(projectId, user);
+        return connectorService.connection(type, user);
+    }
+
+    /** What this account may import from, fetched one provider page at a time. */
     @GetMapping("/{type}/targets")
     public Map<String,Object> targets(@PathVariable long projectId, @PathVariable String type,
+                                      @RequestParam(defaultValue = "") String cursor,
+                                      @RequestParam(defaultValue = "20") int pageSize,
                                       Authentication authentication) {
         User user = currentUser.requireOperational(authentication); projectAccess.requireAccess(projectId, user);
-        return connectorService.targets(type, user);
+        return connectorService.targetPage(type, user, cursor, pageSize);
     }
 
     /** Removes this account's own link; the shared server credential (if any) takes over again. */

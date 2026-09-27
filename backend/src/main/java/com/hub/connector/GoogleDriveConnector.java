@@ -261,4 +261,29 @@ public class GoogleDriveConnector implements ReadOnlyConnector {
         }
         return out;
     }
+
+    /** Fetches one Drive folder page and exposes Google's nextPageToken as an opaque cursor. */
+    @Override
+    public ConnectorTargetPage targetsPage(String token, String cursor, int pageSize) {
+        int size = Math.max(1, Math.min(pageSize, 100));
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/drive/v3/files")
+                .queryParam("q", "mimeType='application/vnd.google-apps.folder' and trashed=false")
+                .queryParam("fields", "nextPageToken,files(id,name)")
+                .queryParam("pageSize", size)
+                .queryParam("orderBy", "name");
+        if (cursor != null && !cursor.isBlank()) builder.queryParam("pageToken", cursor);
+        JsonNode body = getJson(builder.build().toUriString(), token);
+        List<ConnectorTarget> out = new ArrayList<>();
+        JsonNode files = body.path("files");
+        if (files.isArray()) {
+            for (JsonNode folder : files) {
+                String id = folder.path("id").asText("");
+                if (id.isBlank()) continue;
+                out.add(new ConnectorTarget(id, folder.path("name").asText("이름 없음"), "Drive 폴더"));
+            }
+        }
+        String next = body.path("nextPageToken").asText("");
+        return new ConnectorTargetPage(out, next, !next.isBlank());
+    }
+
 }
