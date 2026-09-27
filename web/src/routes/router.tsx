@@ -54,7 +54,10 @@ export const router = createBrowserRouter([
           { path: '/ask', element: <AskPage /> },
           { path: '/context', element: <ContextPage /> },
           { path: '/todos', element: <TodosPage /> },
-          { path: '/review', element: <ReviewPage /> },
+          {
+            element: <AdminRoute />,
+            children: [{ path: '/review', element: <ReviewPage /> }],
+          },
           { path: '/documents', element: <DocumentsPage /> },
           { path: '/meetings', element: <MeetingsPage /> },
           { path: '/sheets', element: <SheetsPage /> },
