@@ -260,7 +260,7 @@ public class DocumentRepository {
     public List<Map<String, Object>> listDocuments(long projectId) {
         return jdbc.queryForList(
                 """
-                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,
+                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.retention_protected,d.created_at,
                        MAX(v.version_no) latest_version,(d.storage_path IS NOT NULL) has_original,
                        EXISTS (
                          SELECT 1 FROM document_version lv
@@ -271,7 +271,7 @@ public class DocumentRepository {
                 FROM document d
                 LEFT JOIN document_version v ON v.document_id=d.id
                 WHERE d.project_id=? AND d.source_deleted=FALSE
-                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.storage_path
+                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.retention_protected,d.created_at,d.storage_path
                 ORDER BY d.id DESC
                 LIMIT 500
                 """,
@@ -320,6 +320,12 @@ public class DocumentRepository {
 
     public void archive(long documentId) {
         jdbc.update("UPDATE document SET archived=TRUE,archived_at=CURRENT_TIMESTAMP WHERE id=?", documentId);
+    }
+
+    public void setRetentionProtected(long documentId, boolean protectedFromRetention) {
+        if (jdbc.update("UPDATE document SET retention_protected=? WHERE id=?", protectedFromRetention, documentId) != 1) {
+            throw new IllegalArgumentException("문서를 찾을 수 없습니다.");
+        }
     }
 
     public void restore(long documentId) {
@@ -461,7 +467,7 @@ public class DocumentRepository {
                 UPDATE document_chunk SET content=?,embedding_json=NULL
                 WHERE version_id IN (
                   SELECT v.id FROM document_version v JOIN document d ON d.id=v.document_id
-                  WHERE d.archived=TRUE AND d.archived_at<? AND v.full_text<>?
+                  WHERE d.archived=TRUE AND d.retention_protected=FALSE AND d.archived_at<? AND v.full_text<>?
                 )
                 """,
                 ARCHIVED_CONTENT_PLACEHOLDER, cutoffDate, ARCHIVED_CONTENT_PLACEHOLDER);
@@ -469,10 +475,33 @@ public class DocumentRepository {
                 """
                 UPDATE document_version SET full_text=?
                 WHERE full_text<>? AND document_id IN (
-                  SELECT id FROM document WHERE archived=TRUE AND archived_at<?
+                  SELECT id FROM document WHERE archived=TRUE AND retention_protected=FALSE AND archived_at<?
                 )
                 """,
                 ARCHIVED_CONTENT_PLACEHOLDER, ARCHIVED_CONTENT_PLACEHOLDER, cutoffDate);
+    }
+
+    public int purgeArchivedContentOlderThan(long projectId, java.time.LocalDate cutoff) {
+        java.sql.Date cutoffDate = java.sql.Date.valueOf(cutoff);
+        jdbc.update(
+                """
+                UPDATE document_chunk SET content=?,embedding_json=NULL
+                WHERE version_id IN (
+                  SELECT v.id FROM document_version v JOIN document d ON d.id=v.document_id
+                  WHERE d.project_id=? AND d.archived=TRUE AND d.retention_protected=FALSE
+                    AND d.archived_at<? AND v.full_text<>?
+                )
+                """,
+                ARCHIVED_CONTENT_PLACEHOLDER, projectId, cutoffDate, ARCHIVED_CONTENT_PLACEHOLDER);
+        return jdbc.update(
+                """
+                UPDATE document_version SET full_text=?
+                WHERE full_text<>? AND document_id IN (
+                  SELECT id FROM document
+                  WHERE project_id=? AND archived=TRUE AND retention_protected=FALSE AND archived_at<?
+                )
+                """,
+                ARCHIVED_CONTENT_PLACEHOLDER, ARCHIVED_CONTENT_PLACEHOLDER, projectId, cutoffDate);
     }
 
     public String versionText(long versionId) {
