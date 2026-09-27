@@ -85,7 +85,7 @@ export function AnalysisResultPanel({
   });
 
   if (!jobId) return null;
-  if (!job || job.status === 'PENDING' || job.status === 'RUNNING' || job.status === 'FAILED') {
+  if (!job || job.status === 'PENDING' || job.status === 'PROCESSING' || job.status === 'RUNNING' || job.status === 'FAILED') {
     return (
       <div className="mt-4 flex flex-col gap-3">
         {context === 'meeting' && (
