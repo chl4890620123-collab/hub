@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>검색 UI 검수 체크리스트</title>
+<style>
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#f7f8fa;color:#18202a}
+main{max-width:1050px;margin:48px auto;padding:0 28px}
+header{margin-bottom:28px}
+h1{font-size:28px;margin:0 0 8px}
+.meta{color:#667085;font-size:14px}
+.card{background:white;border:1px solid #e4e7ec;border-radius:14px;overflow:hidden;box-shadow:0 6px 20px rgba(16,24,40,.05)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:14px 16px;border-bottom:1px solid #eef0f3;text-align:left;font-size:14px}
+th{background:#f9fafb;color:#475467;font-size:13px}
+.badge{display:inline-block;padding:4px 9px;border-radius:999px;background:#ecfdf3;color:#027a48;font-size:12px;font-weight:600}
+.note{margin-top:22px;background:white;border:1px solid #e4e7ec;border-radius:12px;padding:18px;line-height:1.7}
+</style>
+</head>
+<body>
+<main>
+<header><h1>검색 UI 검수 체크리스트</h1><div class="meta">Atlas 리뉴얼 · 담당자 박준호 · 관리자 이승현 · 2026-09-27</div></header>
+<div class="card">
+<table>
+<thead><tr><th>구분</th><th>검수 항목</th><th>담당</th><th>상태</th><th>비고</th></tr></thead>
+<tbody>
+<tr><td>검색 결과</td><td>자료 유형 출처 배지 표시</td><td>박준호</td><td><span class="badge">완료</span></td><td>Hub / GitHub / Drive 구분</td></tr>
+<tr><td>원문 연결</td><td>결과에서 원문 파일 열기</td><td>이승현</td><td><span class="badge">완료</span></td><td>권한 있는 자료만 접근</td></tr>
+<tr><td>모바일</td><td>긴 파일명 줄바꿈 및 카드 레이아웃</td><td>이서윤</td><td><span class="badge">완료</span></td><td>375px 기준 확인</td></tr>
+<tr><td>동기화</td><td>최근 가져온 시각과 오류 분리 표시</td><td>박준호</td><td><span class="badge">완료</span></td><td>문서 목록과 알림 분리</td></tr>
+<tr><td>협업</td><td>완료 요청 후 관리자 승인 흐름</td><td>이승현</td><td><span class="badge">완료</span></td><td>일반회원 → 관리자</td></tr>
+</tbody>
+</table>
+</div>
+<div class="note"><strong>검수 메모</strong><br>검색 결과에서 파일을 열어 실제 내용을 확인한 뒤 업무 화면으로 돌아올 수 있어야 합니다. 일반회원은 자신의 업무 파일과 전달받은 파일만 보고, 관리자는 업무 완료 요청과 담당자 배정 상태를 함께 확인합니다.</div>
+</main>
+</body></html>
