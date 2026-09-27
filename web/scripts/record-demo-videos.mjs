@@ -120,6 +120,148 @@ async function showTodoViews(page) {
   }
 }
 
+async function showTodoDetails(page) {
+  const title = page.getByText('검색 결과 카드에 출처 배지 추가', { exact: false }).first();
+  if (!(await title.count())) return;
+  const card = title.locator('xpath=ancestor::div[contains(@class,"rounded-md")][1]');
+
+  const attachmentButton = card.getByRole('button', { name: /첨부파일/ }).first();
+  if (await attachmentButton.count()) {
+    await clickVisible(page, attachmentButton, 1900);
+    await card.scrollIntoViewIfNeeded();
+    await sleep(1300);
+  }
+
+  const evidenceButton = card.getByRole('button', { name: /근거/ }).first();
+  if (await evidenceButton.count()) {
+    await clickVisible(page, evidenceButton, 1800);
+    const dialog = page.getByRole('dialog').last();
+    if (await dialog.count()) {
+      await dialog.scrollIntoViewIfNeeded();
+      await sleep(2200);
+      await page.keyboard.press('Escape');
+      await sleep(1000);
+    }
+  }
+}
+
+async function showSearchFilePreview(page) {
+  const link = page.getByRole('link', { name: /파일 읽기\/다운로드/ }).first();
+  if (!(await link.count())) return;
+  await link.scrollIntoViewIfNeeded();
+  await sleep(900);
+  await Promise.all([
+    page.waitForLoadState('domcontentloaded').catch(() => {}),
+    link.click(),
+  ]);
+  await sleep(3000);
+  await scrollWholePage(page);
+  await sleep(1200);
+  await page.goBack({ waitUntil: 'domcontentloaded' });
+  await waitAndShow(page, 2500);
+}
+
+async function showDocumentDetails(page) {
+  const title = page.getByText('주간 제품 회의록 - 09월 2주차.md', { exact: false }).first();
+  if (!(await title.count())) return;
+  let row = title.locator('xpath=ancestor::li[1]');
+
+  const summary = row.getByRole('button', { name: /요약\/확인/ }).first();
+  if (await summary.count()) {
+    page.once('dialog', (dialog) => dialog.accept());
+    await clickVisible(page, summary, 3800);
+    await scrollWholePage(page);
+  }
+
+  row = page.getByText('주간 제품 회의록 - 09월 2주차.md', { exact: false }).first().locator('xpath=ancestor::li[1]');
+  const compare = row.getByRole('button', { name: '버전 비교', exact: true });
+  if (await compare.count()) {
+    await clickVisible(page, compare, 1600);
+    const dialog = page.getByRole('dialog').last();
+    const combos = dialog.getByRole('combobox');
+    if ((await combos.count()) >= 2) {
+      await combos.nth(0).click();
+      await sleep(500);
+      const v1 = page.getByRole('option', { name: /버전 1/ }).first();
+      if (await v1.count()) await v1.click();
+      await sleep(500);
+      await combos.nth(1).click();
+      await sleep(500);
+      const v2 = page.getByRole('option', { name: /버전 2/ }).first();
+      if (await v2.count()) await v2.click();
+      await sleep(800);
+      const compareButton = dialog.getByRole('button', { name: '비교', exact: true });
+      await clickVisible(page, compareButton, 3400);
+      await dialog.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+      await sleep(2200);
+      await page.keyboard.press('Escape');
+      await sleep(1200);
+    }
+  }
+
+  row = page.getByText('주간 제품 회의록 - 09월 2주차.md', { exact: false }).first().locator('xpath=ancestor::li[1]');
+  const revise = row.getByRole('button', { name: '회의 내용으로 수정', exact: true });
+  if (await revise.count()) {
+    await clickVisible(page, revise, 1500);
+    const dialog = page.getByRole('dialog').last();
+    const combo = dialog.getByRole('combobox').first();
+    if (await combo.count()) {
+      await combo.click();
+      await sleep(600);
+      const meeting = page.getByRole('option', { name: /09월 3주차 스프린트 회의/ }).first();
+      if (await meeting.count()) await meeting.click();
+      await sleep(700);
+      const generate = dialog.getByRole('button', { name: 'AI로 초안 만들기', exact: true });
+      await clickVisible(page, generate, 3600);
+      await dialog.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+      await sleep(2800);
+    }
+    await page.keyboard.press('Escape');
+    await sleep(1200);
+  }
+}
+
+async function showSheetDetails(page) {
+  const sheet = page.getByRole('button', { name: /Atlas 출시 체크리스트/ }).first();
+  if (!(await sheet.count())) return;
+  await clickVisible(page, sheet, 2800);
+  await scrollWholePage(page);
+
+  const cells = page.locator('tbody input');
+  if ((await cells.count()) >= 4) {
+    const status = cells.nth(3);
+    await status.scrollIntoViewIfNeeded();
+    await status.fill('완료 · 영상 검수');
+    await page.getByRole('heading', { name: 'Atlas 출시 체크리스트' }).click();
+    await waitAndShow(page, 1800);
+  }
+
+  const addRow = page.getByRole('button', { name: /행 추가/ }).first();
+  if (await addRow.count()) await clickVisible(page, addRow, 1700);
+  await scrollWholePage(page);
+
+  const back = page.getByRole('button', { name: /목록으로/ }).first();
+  if (await back.count()) await clickVisible(page, back, 1900);
+}
+
+async function showMeetingUpload(page) {
+  const input = page.locator('#meeting-file');
+  if (!(await input.count())) return;
+  await input.setInputFiles({
+    name: 'Atlas_주간회의_녹음.wav',
+    mimeType: 'audio/wav',
+    buffer: Buffer.from('RIFF0000WAVEfmt demo-hub-audio'),
+  });
+  await waitAndShow(page, 4300);
+  await scrollWholePage(page);
+
+  const history = page.getByText(/MEETING|회의/, { exact: false }).last();
+  if (await history.count()) {
+    await history.scrollIntoViewIfNeeded().catch(() => {});
+    await sleep(1200);
+  }
+}
+
 async function showDocumentViews(page) {
   for (const filter of ['보관함', '전체', '사용 중']) {
     const button = page.getByRole('button', { name: filter, exact: true });
@@ -213,11 +355,12 @@ async function exerciseSearchAndAi(page, path) {
   if (path === '/search') {
     const input = page.locator('input:visible').first();
     if (await input.count()) {
-      await input.fill('베타 일정');
+      await input.fill('검색');
       await sleep(900);
       const button = page.getByRole('button', { name: /찾기|검색/ }).first();
       await clickVisible(page, button, 3500);
       await scrollWholePage(page);
+      await showSearchFilePreview(page);
     }
   }
 
@@ -250,7 +393,13 @@ async function exercisePage(page, role, path) {
 
   await exerciseSearchAndAi(page, path);
 
-  if (path === '/documents') await showDocumentViews(page);
+  if (path === '/todos') await showTodoDetails(page);
+  if (path === '/documents') {
+    await showDocumentDetails(page);
+    await showDocumentViews(page);
+  }
+  if (path === '/meetings') await showMeetingUpload(page);
+  if (path === '/sheets') await showSheetDetails(page);
   if (path === '/review' && role !== 'ADMIN') await showReviewTabs(page);
 
   await scrollWholePage(page);
