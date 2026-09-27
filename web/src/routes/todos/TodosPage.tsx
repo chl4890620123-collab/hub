@@ -9,7 +9,7 @@ import { CalendarGrid } from '@/components/layout/CalendarGrid';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState, LoadingBlock } from '@/components/ui/spinner';
-import { useCanConfirm, useCurrentProject } from '@/hooks/useProjects';
+import { useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser, useIsAdmin } from '@/hooks/useAuth';
 import { todosApi } from '@/api/endpoints/todos';
 import { projectsApi } from '@/api/endpoints/projects';
@@ -73,7 +73,6 @@ export function TodosPage() {
   const { currentProject } = useCurrentProject();
   const { data: user } = useCurrentUser();
   const isAdmin = useIsAdmin();
-  const canConfirm = useCanConfirm();
   const queryClient = useQueryClient();
   const openEvidence = useEvidenceStore((s) => s.open);
   const [searchParams] = useSearchParams();
@@ -121,9 +120,9 @@ export function TodosPage() {
     onError: (error) => toast.error(errorMessage(error)),
   });
   const requestCompletionMutation = useMutation({
-    mutationFn: (todoId: number) => todosApi.requestCompletion(todoId),
+    mutationFn: ({ todoId, url }: { todoId: number; url: string }) => todosApi.requestCompletion(todoId, url || undefined),
     onSuccess: () => {
-      toast.success('완료 승인을 요청했습니다.');
+      toast.success('제출물을 관리자에게 보냈습니다.');
       invalidateTodos();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -204,35 +203,36 @@ export function TodosPage() {
   if (!currentProject || !user) return <NoProjectState />;
 
   const isAssignee = (todo: TodoItem) =>
-    todo.assignmentStatus === 'ACTIVE' && (isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id));
+    todo.assignmentStatus === 'ACTIVE' &&
+    todo.reviewStatus === 'CONFIRMED' &&
+    todo.assigneeId === user.id;
 
-  const canDeleteTodo = (todo: TodoItem) =>
-    isAdmin || canConfirm || (todo.reviewStatus === 'CONFIRMED' && todo.taskStatus === 'DONE' && todo.assigneeId === user.id);
+  const canDeleteTodo = () => isAdmin;
 
   const cardFor = (todo: TodoItem, compact?: boolean) => (
     <TodoCard
       todo={todo}
       isAssignee={isAssignee(todo)}
-      canConfirm={canConfirm}
+      canConfirm={isAdmin}
       canRequestHelp={
         todo.assignmentStatus === 'ACTIVE' &&
         todo.reviewStatus === 'CONFIRMED' &&
         todo.assigneeId === user.id
       }
       onStatusChange={(status) => statusMutation.mutate({ todoId: todo.id, status })}
-      onRequestCompletion={() => requestCompletionMutation.mutate(todo.id)}
+      onRequestCompletion={(url) => requestCompletionMutation.mutate({ todoId: todo.id, url })}
       onApproveCompletion={() => approveCompletionMutation.mutate(todo.id)}
       onRejectCompletion={(reason) => rejectCompletionMutation.mutate({ todoId: todo.id, reason })}
       onRequestHelp={(note) => requestHelpMutation.mutate({ todoId: todo.id, note })}
       onResolveHelp={() => resolveHelpMutation.mutate(todo.id)}
       onShowEvidence={() => evidenceMutation.mutate(todo)}
-      canDelete={canDeleteTodo(todo)}
+      canDelete={canDeleteTodo()}
       isDeleted={showTrash}
       onDelete={() => {
         if (window.confirm(`"${todo.title}" 할 일을 삭제할까요? 휴지통에서 복원할 수 있습니다.`)) deleteMutation.mutate(todo.id);
       }}
       onRestore={() => restoreMutation.mutate(todo.id)}
-      canPermanentDelete={isAdmin || canConfirm}
+      canPermanentDelete={isAdmin}
       onPermanentDelete={() => {
         if (window.confirm(`"${todo.title}" 할 일을 영구 삭제할까요? 이 작업은 복원할 수 없습니다.`)) {
           permanentDeleteMutation.mutate(todo.id);
@@ -248,7 +248,7 @@ export function TodosPage() {
     <div>
       <PageHeader
         title="할 일·일정"
-        description="확정된 할 일을 확인하고 진행 상태를 관리합니다. 담당자가 완료를 요청하면 의사결정권자 또는 관리자가 승인해야 완료됩니다."
+        description="확정된 할 일을 확인하고 진행 상태를 관리합니다. 담당자가 완료를 요청하면 관리자가 승인해야 완료됩니다."
         action={
           <div className="flex items-center gap-2">
             <Button variant={showTrash ? 'primary' : 'outline'} size="sm" onClick={() => setShowTrash((v) => !v)}>
@@ -279,7 +279,7 @@ export function TodosPage() {
             <SelectItem value="ALL">담당자 전체</SelectItem>
             {members?.map((m) => (
               <SelectItem key={m.id} value={String(m.id)}>
-                {m.displayName}
+                {m.displayName}{m.projectRole === 'ADMIN' ? ' · 관리자' : ''}
               </SelectItem>
             ))}
           </SelectContent>

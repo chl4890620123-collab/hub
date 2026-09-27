@@ -57,6 +57,13 @@ public class FileAttachmentRepository {
                 """, (rs, n) -> map(rs), todoId);
     }
 
+    public boolean existsForTodoSender(long todoId, long senderId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM file_attachment WHERE todo_id=? AND sender_id=?",
+                Integer.class, todoId, senderId);
+        return count != null && count > 0;
+    }
+
     public List<Attachment> listForTodoVisible(long todoId, long userId) {
         return jdbc.query(selectColumns() + " " + """
                 FROM file_attachment

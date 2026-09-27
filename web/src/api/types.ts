@@ -81,6 +81,7 @@ export interface TodoItem {
   googleCalendarEventId: string | null;
   pendingApproval: boolean;
   statusNote: string | null;
+  completionUrl: string | null;
   deletedAt: string | null;
   deletedBy: number | null;
 }

@@ -203,12 +203,12 @@ public class TodoRepository {
     }
 
     /** Assignee asks a decision-maker to review the work; task_status is untouched (stays IN_PROGRESS/TODO). */
-    public boolean requestCompletion(long todoId){
+    public boolean requestCompletion(long todoId,String completionUrl){
         return jdbc.update("""
-                UPDATE todo SET pending_approval=TRUE,status_note=NULL,updated_at=CURRENT_TIMESTAMP
+                UPDATE todo SET pending_approval=TRUE,status_note=NULL,completion_url=?,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND review_status='CONFIRMED' AND assignment_status='ACTIVE'
                   AND pending_approval=FALSE AND task_status='IN_PROGRESS' AND status_note IS NULL AND deleted_at IS NULL
-                """,todoId)==1;
+                """,completionUrl,todoId)==1;
     }
 
     public boolean approveCompletion(long todoId){
@@ -272,7 +272,7 @@ public class TodoRepository {
         SELECT id,project_id,title,description,assignee_id,assignee_text,assignee_suggestion_id,
                assignee_suggestion_text,due_date,due_date_suggestion,confidence,review_status,task_status,
                assignment_status,possible_duplicate_of_id,duplicate_reason,created_at,updated_at,google_calendar_event_id,
-               pending_approval,status_note,deleted_at,deleted_by
+               pending_approval,status_note,completion_url,deleted_at,deleted_by
         """;}
     private TodoItem map(java.sql.ResultSet rs)throws java.sql.SQLException{
         Date due=rs.getDate("due_date"),suggestion=rs.getDate("due_date_suggestion");
@@ -285,6 +285,7 @@ public class TodoRepository {
                 rs.getString("task_status"),rs.getString("assignment_status"),duplicateId,rs.getString("duplicate_reason"),
                 rs.getTimestamp("created_at").toLocalDateTime(),rs.getTimestamp("updated_at").toLocalDateTime(),
                 rs.getString("google_calendar_event_id"),rs.getBoolean("pending_approval"),rs.getString("status_note"),
+                rs.getString("completion_url"),
                 rs.getTimestamp("deleted_at")==null?null:rs.getTimestamp("deleted_at").toLocalDateTime(),
                 rs.getObject("deleted_by")==null?null:rs.getLong("deleted_by"));
     }

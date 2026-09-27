@@ -37,7 +37,7 @@ export function TodoCard({
   /** Help requests must come from the confirmed assignee themself, never an admin acting for them. */
   canRequestHelp: boolean;
   onStatusChange: (status: TaskStatusUpdate) => void;
-  onRequestCompletion: () => void;
+  onRequestCompletion: (url: string) => void;
   onApproveCompletion: () => void;
   onRejectCompletion: (reason: string) => void;
   onRequestHelp: (note: string) => void;
@@ -53,6 +53,7 @@ export function TodoCard({
 }) {
   const [showAttachments, setShowAttachments] = useState(false);
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
   const needsReassignment = todo.assignmentStatus === 'REASSIGNMENT_REQUIRED';
@@ -99,6 +100,14 @@ export function TodoCard({
       {displayStatus === 'HOLD' && (
         <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">현재 보류 중인 할 일입니다.</p>
       )}
+      {!compact && todo.completionUrl && (isAssignee || canConfirm) && (
+        <p className="mb-2 rounded bg-accent-50 px-2 py-1 text-xs text-accent-700">
+          제출 URL:{' '}
+          <a href={todo.completionUrl} target="_blank" rel="noreferrer" className="font-medium underline">
+            제출물 열기
+          </a>
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-400">
         <span>{todo.assigneeText ?? '담당자 미정'}</span>
         <span>· {formatDate(todo.dueDate)}</span>
@@ -125,8 +134,11 @@ export function TodoCard({
             </button>
           )}
           {isAssignee && !todo.pendingApproval && displayStatus === 'IN_PROGRESS' && (
-            <button onClick={onRequestCompletion} className="rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200">
-              완료 요청
+            <button
+              onClick={() => setCompletionDialogOpen(true)}
+              className="rounded-full bg-accent-100 px-2.5 py-1 text-xs font-medium text-accent-700 hover:bg-accent-200"
+            >
+              완료 제출
             </button>
           )}
           {canRequestHelp && !todo.pendingApproval && displayStatus !== 'BLOCKED' && displayStatus !== 'DONE' && (
@@ -178,8 +190,22 @@ export function TodoCard({
         </div>
       )}
 
-      {showAttachments && <TodoAttachmentsPanel todoId={todo.id} />}
+      {(showAttachments || (canConfirm && todo.pendingApproval)) && (
+        <TodoAttachmentsPanel todoId={todo.id} canUpload={isAssignee && !todo.pendingApproval && !isDeleted} />
+      )}
 
+      <NotePromptDialog
+        open={completionDialogOpen}
+        onOpenChange={setCompletionDialogOpen}
+        title="완료 제출"
+        description="관리자가 확인할 제출 URL을 입력하세요. URL 없이 제출하려면 먼저 첨부파일에서 제출 파일을 추가해야 합니다."
+        placeholder="https://... (첨부파일로 제출했다면 비워도 됩니다)"
+        confirmLabel="관리자에게 제출"
+        onSubmit={(url) => {
+          onRequestCompletion(url);
+          setCompletionDialogOpen(false);
+        }}
+      />
       <NotePromptDialog
         open={helpDialogOpen}
         onOpenChange={setHelpDialogOpen}

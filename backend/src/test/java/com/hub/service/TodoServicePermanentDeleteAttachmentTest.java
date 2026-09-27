@@ -35,7 +35,7 @@ class TodoServicePermanentDeleteAttachmentTest {
         TodoItem todo = new TodoItem(77L, 9L, "삭제할 업무", null, 22L, "담당자",
                 null, null, null, null, "HIGH", "CONFIRMED", "DONE", "ACTIVE",
                 null, null, LocalDateTime.now().minusDays(10), LocalDateTime.now().minusDays(1),
-                null, false, null, LocalDateTime.now(), 11L);
+                null, false, null, null, LocalDateTime.now(), 11L);
         User actor = new User(11L, "member11", "member11@example.test", "Member 11",
                 "Hub", "Dev", "Team", "Engineer", "MEMBER", "ACTIVE", false, "APPROVED");
         FileAttachmentRepository.Attachment attachment = new FileAttachmentRepository.Attachment(

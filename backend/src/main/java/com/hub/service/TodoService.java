@@ -8,6 +8,7 @@ import com.hub.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,9 +36,9 @@ public class TodoService {
         if(assigneeId==null||dueDate==null)throw new IllegalArgumentException("후속 할 일에는 담당자와 기한이 모두 필요합니다.");
         String assigneeText=null;
         if(assigneeId!=null){
-            if(!projects.isMember(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트에 참여 중인 팀원이어야 합니다.");
-            assigneeText=users.findById(assigneeId).filter(User::active).filter(u->!u.isAdmin()).map(User::displayName)
-                    .orElseThrow(()->new IllegalArgumentException("담당 팀원을 찾을 수 없습니다."));
+            if(!projects.isAssignableParticipant(projectId,assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 참여자 또는 관리자여야 합니다.");
+            assigneeText=users.findById(assigneeId).filter(User::active).map(User::displayName)
+                    .orElseThrow(()->new IllegalArgumentException("담당자를 찾을 수 없습니다."));
         }
         long id=todos.createConfirmed(projectId,versionId,title.trim(),assigneeId,assigneeText,dueDate,actor.id());
         timeline.append(projectId,"TODO_CREATED",title.trim(),null,LocalDateTime.now(),"TODO",id);
@@ -51,9 +52,9 @@ public class TodoService {
     @Transactional
     public void confirm(TodoItem before,Long assigneeId,LocalDate dueDate,User actor){
         if(assigneeId==null)throw new IllegalArgumentException("할 일을 확정하기 전에 담당 팀원을 선택해 주세요.");
-        if(!projects.isMember(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트에 참여 중인 팀원이어야 합니다.");
-        String confirmedAssignee=users.findById(assigneeId).filter(User::active).filter(u->!u.isAdmin()).map(User::displayName)
-                .orElseThrow(()->new IllegalArgumentException("담당 팀원을 찾을 수 없습니다."));
+        if(!projects.isAssignableParticipant(before.projectId(),assigneeId))throw new IllegalArgumentException("담당자는 현재 프로젝트의 참여자 또는 관리자여야 합니다.");
+        String confirmedAssignee=users.findById(assigneeId).filter(User::active).map(User::displayName)
+                .orElseThrow(()->new IllegalArgumentException("담당자를 찾을 수 없습니다."));
         if(!todos.confirm(before.id(),actor.id(),assigneeId,confirmedAssignee,dueDate))
             throw new StateConflictException("이미 확정했거나 제외한 할 일은 다시 확정할 수 없습니다.");
         try{revisions.add(before.projectId(),"TODO",before.id(),actor.id(),"CONFIRM",json.writeValueAsString(before),"{\"confirmed\":true}");}
@@ -179,14 +180,18 @@ public class TodoService {
         timeline.append(before.projectId(),"TODO_STATUS",before.title(),status,LocalDateTime.now(),"TODO",before.id());
     }
 
-    /** The assignee asks a decision-maker to review the work - task_status is left as-is until approved. */
+    /** The assignee submits either an attached file or an http(s) URL for administrator review. */
     @Transactional
-    public void requestCompletion(TodoItem before,User actor){
+    public void requestCompletion(TodoItem before,String submissionUrl,User actor){
         if("REASSIGNMENT_REQUIRED".equals(before.assignmentStatus()))
             throw new StateConflictException("새 담당자를 정해야 하는 할 일입니다. 관리자가 먼저 담당자를 재배정해 주세요.");
-        if(!todos.requestCompletion(before.id()))
+        String normalizedUrl=normalizeSubmissionUrl(submissionUrl);
+        if(normalizedUrl==null&&!attachments.existsForTodoSender(before.id(),actor.id()))
+            throw new IllegalArgumentException("완료 요청 전에 제출 파일을 첨부하거나 제출 URL을 입력해 주세요.");
+        if(!todos.requestCompletion(before.id(),normalizedUrl))
             throw new StateConflictException("완료 요청할 수 없는 상태입니다.");
-        timeline.append(before.projectId(),"TODO_COMPLETION_REQUESTED",before.title(),null,LocalDateTime.now(),"TODO",before.id());
+        timeline.append(before.projectId(),"TODO_COMPLETION_REQUESTED",before.title(),
+                normalizedUrl==null?"첨부파일 제출":"URL 제출: "+normalizedUrl,LocalDateTime.now(),"TODO",before.id());
     }
 
     /** Approving is what actually finishes the todo - deletes the calendar hold the same way a direct DONE used to. */
@@ -221,6 +226,22 @@ public class TodoService {
         if(!todos.requestHelp(before.id(),note.trim()))
             throw new StateConflictException("도움을 요청할 수 없는 상태입니다.");
         timeline.append(before.projectId(),"TODO_HELP_REQUESTED",before.title(),note.trim(),LocalDateTime.now(),"TODO",before.id());
+    }
+
+    private static String normalizeSubmissionUrl(String value){
+        if(value==null||value.isBlank())return null;
+        String url=value.trim();
+        if(url.length()>2000)throw new IllegalArgumentException("제출 URL은 2000자 이하여야 합니다.");
+        try{
+            URI uri=URI.create(url);
+            String scheme=uri.getScheme();
+            if(scheme==null||(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme))||uri.getHost()==null)
+                throw new IllegalArgumentException("제출 URL은 http:// 또는 https:// 주소여야 합니다.");
+            return uri.toString();
+        }catch(IllegalArgumentException e){
+            if(e.getMessage()!=null&&e.getMessage().startsWith("제출 URL"))throw e;
+            throw new IllegalArgumentException("올바른 제출 URL을 입력해 주세요.");
+        }
     }
 
     @Transactional
