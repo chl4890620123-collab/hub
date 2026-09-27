@@ -73,6 +73,21 @@ public class AdminController {
         return Map.of("status","REMOVED","reassignmentCount",queued);
     }
 
+    public record RetentionPolicy(int months){}
+    @GetMapping("/projects/{projectId}/retention")
+    public Map<String,Object> retention(@PathVariable long projectId,Authentication authentication){
+        User admin=requireAdmin(authentication);access.requireAdmin(projectId,admin);
+        return Map.of("months",projects.retentionMonths(projectId));
+    }
+
+    @PutMapping("/projects/{projectId}/retention")
+    public Map<String,Object> retention(@PathVariable long projectId,@RequestBody RetentionPolicy request,Authentication authentication){
+        User admin=requireAdmin(authentication);access.requireAdmin(projectId,admin);
+        projects.setRetentionMonths(projectId,request.months());
+        audit.add(admin.id(),projectId,"PROJECT_RETENTION_UPDATE","PROJECT",projectId,"{\"months\":"+request.months()+"}");
+        return Map.of("status","UPDATED","months",request.months());
+    }
+
     public record MoveMember(long userId,long toProjectId){}
     @PostMapping("/projects/{fromProjectId}/members/move")
     public Map<String,Object> moveProjectMember(@PathVariable long fromProjectId,@RequestBody MoveMember request,Authentication authentication){
