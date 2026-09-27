@@ -220,7 +220,7 @@ export function mockApiFetch<T>(path: string, opts: RequestInit = {}): Promise<T
   }
   if (pathname.includes('/todos/undated')) return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate) as T);
   if (pathname.match(/\/todos$/) && method === 'GET') return result(activeProjectTodos(projectId).filter((todo) => !todo.dueDate || todo.dueDate.startsWith(`${searchParams.get('year')}-${String(searchParams.get('month')).padStart(2, '0')}`)) as T);
-  if (pathname.endsWith('/changes')) return result(reviewChanges as T);
+  if (pathname.endsWith('/changes') && method === 'GET') return result(reviewChanges as T);
   if (pathname.match(/\/documents\/meeting-transcripts$/)) return result(documents.filter((doc) => doc.source_type === 'MEETING_TRANSCRIPT') as T);
     if (pathname.match(/\/documents$/)) return result(documents.filter((doc) => projectId === 101 ? doc.id !== 303 : doc.id === 303) as T);
   if (pathname.match(/\/documents\/\d+\/versions/)) return result([
