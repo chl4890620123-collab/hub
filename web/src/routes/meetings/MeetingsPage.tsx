@@ -97,8 +97,8 @@ export function MeetingsPage() {
         <Card className="mt-5"><CardHeader><CardTitle>최근 회의 처리 내역</CardTitle></CardHeader><CardContent className="flex flex-col gap-2">
           <p className="text-xs text-ink-400">완료된 회의는 다시 열어 확인할 수 있고, 만든 사람 또는 관리자는 필요 없는 회의록을 삭제할 수 있습니다.</p>
           {meetingJobs.map((job) => (
-            <div key={job.id} className={cn('flex items-center justify-between rounded-md border border-ink-200 px-3 py-2 text-sm hover:bg-ink-50 dark:hover:bg-ink-200', activeJobId === job.id && 'border-accent-400')}>
-              <button type="button" onClick={() => setActiveJobId(job.id)} className="flex min-w-0 flex-1 items-center justify-between text-left">
+            <div key={job.id} className={cn('flex flex-col gap-2 rounded-md border border-ink-200 px-3 py-2 text-sm hover:bg-ink-50 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-ink-200', activeJobId === job.id && 'border-accent-400')}>
+              <button type="button" onClick={() => setActiveJobId(job.id)} className="flex min-w-0 w-full flex-1 flex-wrap items-center justify-between gap-1 text-left sm:w-auto">
                 <span>회의 분석 #{job.id}</span><span className="mr-3 text-xs text-ink-400">{job.status === 'SUCCESS' ? '완료' : job.status === 'FAILED' ? '실패' : '처리 중'} · {job.progress}%</span>
               </button>
               {job.status === 'SUCCESS' && job.targetId != null && (
