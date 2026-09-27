@@ -207,12 +207,16 @@ public class TodoController {
         }
     }
 
+    public record CompletionRequest(String url) {}
+
     @PostMapping("/api/todos/{todoId}/request-completion")
-    public Map<String, Object> requestCompletion(@PathVariable long todoId, Authentication authentication) {
+    public Map<String, Object> requestCompletion(@PathVariable long todoId,
+                                                 @RequestBody(required = false) CompletionRequest request,
+                                                 Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
         TodoItem todo = todos.find(todoId);
         requireAssignee(todo, user);
-        todoService.requestCompletion(todo, user);
+        todoService.requestCompletion(todo, request == null ? null : request.url(), user);
         return Map.of("status", "PENDING_APPROVAL");
     }
 
