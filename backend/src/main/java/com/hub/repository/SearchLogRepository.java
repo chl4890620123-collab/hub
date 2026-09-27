@@ -25,4 +25,7 @@ public class SearchLogRepository {
 
     /** Retention cleanup only: search_log is a plain query log, never referenced by any other table. */
     public int purgeOlderThan(LocalDate cutoff){return jdbc.update("DELETE FROM search_log WHERE created_at<?",Date.valueOf(cutoff));}
+    public int purgeOlderThan(long projectId, LocalDate cutoff){
+        return jdbc.update("DELETE FROM search_log WHERE project_id=? AND created_at<?", projectId, Date.valueOf(cutoff));
+    }
 }
