@@ -80,7 +80,7 @@ public class ChangeController {
     @GetMapping("/review")
     public List<Map<String, Object>> pending(@PathVariable long projectId, Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         return changes.pending(projectId);
     }
 
@@ -101,7 +101,7 @@ public class ChangeController {
                                        @PathVariable long itemId,
                                        Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
             throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }
@@ -123,7 +123,7 @@ public class ChangeController {
                                       @PathVariable long itemId,
                                       Authentication authentication) {
         User user = currentUser.requireOperational(authentication);
-        projectAccess.requireConfirmPermission(projectId, user);
+        projectAccess.requireAdmin(projectId, user);
         if (changes.projectIdForItem(itemId) != projectId) {
             throw new IllegalArgumentException("현재 프로젝트의 변경 항목이 아닙니다.");
         }
