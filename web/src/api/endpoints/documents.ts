@@ -1,5 +1,5 @@
 import { apiDelete, apiDownload, apiGet, apiPost, apiPut, apiUpload } from '@/api/client';
-import type { DocumentRow, DocumentVersionRow } from '@/api/types';
+import type { DocumentRow, DocumentVersionRow, GitHubExportResponse } from '@/api/types';
 
 export interface UploadResult {
   versionId: number;
@@ -19,6 +19,8 @@ export const documentsApi = {
   restore: (documentId: number) => apiPost<{ status: string }>(`/api/documents/${documentId}/restore`),
   deletePermanently: (documentId: number) => apiDelete<{ status: string }>(`/api/documents/${documentId}/permanent`),
   download: (documentId: number) => apiDownload(`/api/documents/${documentId}/download`),
+  exportToGitHub: (projectId: number, documentId: number, payload: { repository: string; path: string; mode: 'PR' | 'SAVE_AS'; branch?: string; commitMessage?: string; prTitle?: string }) =>
+    apiPost<GitHubExportResponse>(`/api/projects/${projectId}/documents/${documentId}/github-export`, payload),
 
   upload: (projectId: number, file: File) => {
     const form = new FormData();

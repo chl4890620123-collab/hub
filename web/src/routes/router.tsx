@@ -20,6 +20,7 @@ const DocumentsPage = lazy(() => import('@/routes/documents/DocumentsPage').then
 const MeetingsPage = lazy(() => import('@/routes/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })));
 const SheetsPage = lazy(() => import('@/routes/sheets/SheetsPage').then((m) => ({ default: m.SheetsPage })));
 const ConnectorsPage = lazy(() => import('@/routes/connectors/ConnectorsPage').then((m) => ({ default: m.ConnectorsPage })));
+const NotificationsPage = lazy(() => import('@/routes/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const AccountPage = lazy(() => import('@/routes/account/AccountPage').then((m) => ({ default: m.AccountPage })));
 const AdminLayout = lazy(() => import('@/routes/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
 const AdminMembersPage = lazy(() => import('@/routes/admin/AdminMembersPage').then((m) => ({ default: m.AdminMembersPage })));
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
           { path: '/meetings', element: <MeetingsPage /> },
           { path: '/sheets', element: <SheetsPage /> },
           { path: '/connectors', element: <ConnectorsPage /> },
+          { path: '/notifications', element: <NotificationsPage /> },
           { path: '/account', element: <AccountPage /> },
           {
             path: '/admin',

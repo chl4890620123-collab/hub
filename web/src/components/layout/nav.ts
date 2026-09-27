@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Bell,
   CalendarCheck,
   FileText,
   Home,
@@ -33,6 +34,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { to: '/meetings', label: '회의 녹음', icon: Mic },
   { to: '/sheets', label: '공유 자료표', icon: Table },
   { to: '/connectors', label: '연결 서비스', icon: Link2 },
+  { to: '/notifications', label: '알림', icon: Bell },
 ];
 
 export const SECONDARY_NAV: NavItem[] = [
