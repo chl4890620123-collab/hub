@@ -204,7 +204,9 @@ export function TodosPage() {
   if (!currentProject || !user) return <NoProjectState />;
 
   const isAssignee = (todo: TodoItem) =>
-    todo.assignmentStatus === 'ACTIVE' && (isAdmin || (todo.reviewStatus === 'CONFIRMED' && todo.assigneeId === user.id));
+    todo.assignmentStatus === 'ACTIVE' &&
+    todo.reviewStatus === 'CONFIRMED' &&
+    todo.assigneeId === user.id;
 
   const canDeleteTodo = (todo: TodoItem) =>
     isAdmin || canConfirm || (todo.reviewStatus === 'CONFIRMED' && todo.taskStatus === 'DONE' && todo.assigneeId === user.id);
