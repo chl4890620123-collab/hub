@@ -40,7 +40,7 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-ink-100">
         <div className="h-full rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex gap-4 text-xs">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span>
           <strong className="text-ink-800">{doing}</strong> <span className="text-ink-400">진행 중</span>
         </span>
