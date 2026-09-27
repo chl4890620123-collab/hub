@@ -28,6 +28,19 @@ function ProjectMembersPanel() {
     queryFn: () => adminProjectApi.members(currentProject!.id),
     enabled: !!currentProject,
   });
+  const { data: retention } = useQuery({
+    queryKey: ['project-retention', currentProject?.id],
+    queryFn: () => adminProjectApi.retention(currentProject!.id),
+    enabled: !!currentProject,
+  });
+  const setRetention = useMutation({
+    mutationFn: (months: 3 | 6 | 12) => adminProjectApi.setRetention(currentProject!.id, months),
+    onSuccess: (_, months) => {
+      toast.success(`자료 보관 기간을 ${months}개월로 설정했습니다.`);
+      queryClient.invalidateQueries({ queryKey: ['project-retention', currentProject?.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['project-members', currentProject?.id] });
@@ -63,6 +76,24 @@ function ProjectMembersPanel() {
         <CardTitle>{currentProject.name} 프로젝트 구성원</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-ink-100 px-3 py-3">
+          <div>
+            <p className="text-sm font-medium text-ink-800">자료 보관 기간</p>
+            <p className="text-xs text-ink-400">프로젝트별로 3·6·12개월 중 선택합니다. 중요 자료로 보호한 문서는 기간 정리에서 제외됩니다.</p>
+          </div>
+          <Select
+            value={String(retention?.months ?? 12)}
+            onValueChange={(value) => setRetention.mutate(Number(value) as 3 | 6 | 12)}
+            disabled={setRetention.isPending}
+          >
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3개월</SelectItem>
+              <SelectItem value="6">6개월</SelectItem>
+              <SelectItem value="12">12개월</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {isLoading ? (
           <LoadingBlock />
         ) : !members || members.length === 0 ? (
