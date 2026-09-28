@@ -42,7 +42,7 @@ class WorkflowFoundationServiceTest {
         assertEquals("회의 근거", candidate.knowledge().get(0).excerpt());
 
         var assigned = WorkflowFoundationService.next(todo("CONFIRMED", false));
-        assertEquals("ASSIGNEE_WORK_AND_SUBMIT", assigned.recommendedAction());
+        assertEquals("ASSIGNEE_START", assigned.recommendedAction());
         assertEquals("ADMIN_REVIEW_COMPLETION", WorkflowFoundationService.next(todo("CONFIRMED", true)).recommendedAction());
         verify(todos, never()).approveCompletion(anyLong());
     }

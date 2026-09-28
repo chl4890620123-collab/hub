@@ -45,7 +45,8 @@ public class WorkflowFoundationService {
         List<Long> meetings = jdbc.query("SELECT source_meeting_id FROM todo WHERE id=? AND project_id=? AND source_meeting_id IS NOT NULL",
                 (rs, row) -> rs.getLong(1), todoId, projectId);
         if (!meetings.isEmpty()) relations.add(new Relation(uri, "DERIVED_FROM", uri(projectId, "meetings", meetings.get(0))));
-        if (todo.assigneeId() != null && "CONFIRMED".equals(todo.reviewStatus()))
+        if (todo.assigneeId() != null && "CONFIRMED".equals(todo.reviewStatus())
+                && "ACTIVE".equals(todo.assignmentStatus()))
             relations.add(new Relation(uri, "ASSIGNED_TO", uri(projectId, "members", todo.assigneeId())));
 
         List<Knowledge> knowledge = new ArrayList<>();
@@ -73,6 +74,12 @@ public class WorkflowFoundationService {
             return new Agent("ADMIN_REVIEW_COMPLETION", "담당자의 제출물을 관리자가 검토해야 합니다.", true);
         if ("DONE".equals(todo.taskStatus()))
             return new Agent("NONE", "완료 승인된 업무입니다.", false);
+        if ("BLOCKED".equals(todo.taskStatus()))
+            return new Agent("ASSIGNEE_RESOLVE_HELP", "담당자가 도움 요청을 해결한 뒤 작업을 이어갈 수 있습니다.", false);
+        if (todo.statusNote() != null && !todo.statusNote().isBlank())
+            return new Agent("ASSIGNEE_RESUME", "보류 또는 반려 사유를 확인하고 진행 상태로 되돌려야 합니다.", false);
+        if ("TODO".equals(todo.taskStatus()))
+            return new Agent("ASSIGNEE_START", "담당자가 진행 상태로 바꾼 뒤 작업을 제출할 수 있습니다.", false);
         return new Agent("ASSIGNEE_WORK_AND_SUBMIT", "담당자가 작업 후 파일 또는 URL로 완료를 요청할 수 있습니다.", false);
     }
 
