@@ -4,7 +4,6 @@ import com.hub.model.User;
 import com.hub.repository.FileAttachmentRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.TodoRepository;
-import com.hub.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,14 +24,13 @@ public class FileAttachmentService {
     private final FileAttachmentRepository attachments;
     private final TodoRepository todos;
     private final ProjectRepository projects;
-    private final UserRepository users;
     private final ProjectAccessService access;
     private final FileStorageService storage;
 
     public FileAttachmentService(FileAttachmentRepository attachments, TodoRepository todos, ProjectRepository projects,
-                                 UserRepository users, ProjectAccessService access, FileStorageService storage) {
+                                 ProjectAccessService access, FileStorageService storage) {
         this.attachments = attachments; this.todos = todos; this.projects = projects;
-        this.users = users; this.access = access; this.storage = storage;
+        this.access = access; this.storage = storage;
     }
 
     public long attachToTodo(long todoId, MultipartFile file, String note, User actor) {
@@ -67,12 +65,6 @@ public class FileAttachmentService {
                     false
             ));
         }
-        if (actor.isAdmin()) {
-            for (User admin : users.list()) {
-                if (!admin.isAdmin() || !admin.active()) continue;
-                result.put(admin.id(), new Recipient(admin.id(), admin.displayName(), admin.loginId(), true));
-            }
-        }
         return result.values().stream()
                 .sorted(Comparator.comparing(Recipient::admin).reversed()
                         .thenComparing(Recipient::displayName, String.CASE_INSENSITIVE_ORDER)
@@ -83,14 +75,9 @@ public class FileAttachmentService {
     public long sendToMember(long projectId, long recipientId, MultipartFile file, String note, User actor) {
         access.requireAccess(projectId, actor);
         boolean recipientIsMember = projects.isMember(projectId, recipientId);
-        boolean recipientIsAdmin = users.findById(recipientId).filter(User::active).map(User::isAdmin).orElse(false);
-        boolean recipientOk = recipientId == actor.id()
-                || recipientIsMember
-                || (actor.isAdmin() && recipientIsAdmin);
+        boolean recipientOk = recipientId == actor.id() || recipientIsMember;
         if (!recipientOk) {
-            throw new IllegalArgumentException(actor.isAdmin()
-                    ? "받는 사람은 같은 프로젝트 일반 사용자 또는 관리자여야 합니다."
-                    : "관리자에게 보낼 자료는 관리자 제출함을 이용해 주세요.");
+            throw new IllegalArgumentException("받는 사람은 같은 프로젝트에 참여 중인 사용자여야 합니다.");
         }
         String path = save(projectId, file);
         return attachments.create(projectId, null, actor.id(), recipientId,

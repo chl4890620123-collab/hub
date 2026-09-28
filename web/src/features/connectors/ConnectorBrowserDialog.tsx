@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { EmptyState, LoadingBlock, Spinner } from '@/components/ui/spinner';
+import { EmptyState, ErrorState, LoadingBlock, Spinner } from '@/components/ui/spinner';
 import { connectorsApi } from '@/api/endpoints/connectors';
 import type { ConnectorType } from '@/api/types';
 import { useJobPolling } from '@/hooks/useJobPolling';
@@ -41,11 +41,12 @@ export function ConnectorBrowserDialog({
     setPageSize(20);
   }, [open, type]);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['connector-targets', projectId, type, cursor ?? '', pageSize],
     queryFn: () => connectorsApi.targets(projectId, type as ConnectorType, cursor, pageSize),
     enabled: open && !!type,
     placeholderData: (previous) => previous,
+    retry: false,
   });
 
   const importMutation = useMutation({
@@ -72,6 +73,8 @@ export function ConnectorBrowserDialog({
     } else if (job.status === 'FAILED') {
       toast.error(job.errorMessage || '자료를 가져오지 못했습니다.');
     }
+    queryClient.invalidateQueries({ queryKey: ['connector-status', projectId] });
+    if (type) queryClient.invalidateQueries({ queryKey: ['connector-targets', projectId, type] });
     setJobId(null);
     setImportingTargetId(null);
   }, [job, projectId, providerLabel, queryClient]);
@@ -116,6 +119,13 @@ export function ConnectorBrowserDialog({
 
         {isLoading ? (
           <LoadingBlock />
+        ) : isError ? (
+          <div className="flex flex-col items-center gap-2">
+            <ErrorState message={errorMessage(error) || '목록을 불러오지 못했습니다.'} />
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              다시 시도
+            </Button>
+          </div>
         ) : !data?.connected ? (
           <EmptyState
             title={providerLabel + ' 계정이 연결되지 않았습니다.'}

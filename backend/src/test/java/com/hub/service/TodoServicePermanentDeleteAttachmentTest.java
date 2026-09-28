@@ -26,11 +26,13 @@ class TodoServicePermanentDeleteAttachmentTest {
         GoogleCalendarService calendar = mock(GoogleCalendarService.class);
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         FileStorageService storage = mock(FileStorageService.class);
+        AiClient ai = mock(AiClient.class);
+        VectorIndexService vectors = mock(VectorIndexService.class);
 
         ObjectMapper json = mock(ObjectMapper.class);
         when(json.writeValueAsString(org.mockito.ArgumentMatchers.any())).thenReturn("{}");
         TodoService service = new TodoService(todos, feedback, revisions, timeline, projects, users, evidence,
-                json, calendar, attachments, storage);
+                json, calendar, attachments, storage, ai, vectors);
 
         TodoItem todo = new TodoItem(77L, 9L, "삭제할 업무", null, 22L, "담당자",
                 null, null, null, null, "HIGH", "CONFIRMED", "DONE", "ACTIVE",

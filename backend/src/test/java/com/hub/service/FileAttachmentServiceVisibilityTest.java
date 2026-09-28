@@ -5,7 +5,6 @@ import com.hub.model.User;
 import com.hub.repository.FileAttachmentRepository;
 import com.hub.repository.ProjectRepository;
 import com.hub.repository.TodoRepository;
-import com.hub.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,10 +28,9 @@ class FileAttachmentServiceVisibilityTest {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
         ProjectRepository projects = mock(ProjectRepository.class);
-        UserRepository users = mock(UserRepository.class);
         ProjectAccessService access = mock(ProjectAccessService.class);
         FileStorageService storage = mock(FileStorageService.class);
-        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, access, storage);
 
         User sender = member(11L);
         when(todos.find(77L)).thenReturn(todo(77L, 9L, 11L, "CONFIRMED"));
@@ -59,10 +57,9 @@ class FileAttachmentServiceVisibilityTest {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
         ProjectRepository projects = mock(ProjectRepository.class);
-        UserRepository users = mock(UserRepository.class);
         ProjectAccessService access = mock(ProjectAccessService.class);
         FileStorageService storage = mock(FileStorageService.class);
-        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, access, storage);
 
         User sender = member(11L);
         when(todos.find(77L)).thenReturn(todo(77L, 9L, null, "CONFIRMED"));
@@ -79,10 +76,9 @@ class FileAttachmentServiceVisibilityTest {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
         ProjectRepository projects = mock(ProjectRepository.class);
-        UserRepository users = mock(UserRepository.class);
         ProjectAccessService access = mock(ProjectAccessService.class);
         FileStorageService storage = mock(FileStorageService.class);
-        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, access, storage);
 
         User sender = member(11L);
         TodoItem pending = todo(77L, 9L, 11L, "CONFIRMED", true);
@@ -111,10 +107,9 @@ class FileAttachmentServiceVisibilityTest {
         FileAttachmentRepository attachments = mock(FileAttachmentRepository.class);
         TodoRepository todos = mock(TodoRepository.class);
         ProjectRepository projects = mock(ProjectRepository.class);
-        UserRepository users = mock(UserRepository.class);
         ProjectAccessService access = mock(ProjectAccessService.class);
         FileStorageService storage = mock(FileStorageService.class);
-        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, users, access, storage);
+        FileAttachmentService service = new FileAttachmentService(attachments, todos, projects, access, storage);
 
         User admin = new User(99L, "admin99", "admin99@example.test", "Admin",
                 "Hub", null, null, null, "ADMIN", "ACTIVE", false, "APPROVED");

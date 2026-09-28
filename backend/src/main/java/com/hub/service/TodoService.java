@@ -2,6 +2,8 @@
 package com.hub.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hub.dto.AiDtos;
+import com.hub.model.SearchHit;
 import com.hub.model.TodoItem;
 import com.hub.model.User;
 import com.hub.repository.*;
@@ -15,14 +17,16 @@ import java.util.List;
 
 @Service
 public class TodoService {
+    private static final int RELATED_EVIDENCE_LIMIT=3;
     private final TodoRepository todos;private final FeedbackRepository feedback;private final RevisionRepository revisions;
     private final TimelineRepository timeline;private final ProjectRepository projects;private final UserRepository users;private final EvidenceRepository evidence;private final ObjectMapper json;
     private final GoogleCalendarService calendar;private final FileAttachmentRepository attachments;private final FileStorageService storage;
+    private final AiClient ai;private final VectorIndexService vectors;
     public TodoService(TodoRepository todos,FeedbackRepository feedback,RevisionRepository revisions,TimelineRepository timeline,
                        ProjectRepository projects,UserRepository users,EvidenceRepository evidence,ObjectMapper json,GoogleCalendarService calendar,
-                       FileAttachmentRepository attachments,FileStorageService storage){
+                       FileAttachmentRepository attachments,FileStorageService storage,AiClient ai,VectorIndexService vectors){
         this.todos=todos;this.feedback=feedback;this.revisions=revisions;this.timeline=timeline;this.projects=projects;this.users=users;this.evidence=evidence;this.json=json;this.calendar=calendar;
-        this.attachments=attachments;this.storage=storage;}
+        this.attachments=attachments;this.storage=storage;this.ai=ai;this.vectors=vectors;}
     public List<TodoItem> month(long projectId,int year,int month){LocalDate from=LocalDate.of(year,month,1);return todos.listMonth(projectId,from,from.plusMonths(1));}
     public List<TodoItem> undated(long projectId){return todos.listUndated(projectId);}
     public List<TodoItem> dueThrough(long projectId,LocalDate through){return todos.listDueThrough(projectId,through);}
@@ -31,7 +35,7 @@ public class TodoService {
 
     /** Registering a document with a due date can create its follow-up task in the same step. */
     @Transactional
-    public long createManual(long projectId,Long versionId,String title,Long assigneeId,LocalDate dueDate,User actor){
+    public long createManual(long projectId,Long versionId,String title,String text,Long assigneeId,LocalDate dueDate,User actor){
         if(title==null||title.isBlank())throw new IllegalArgumentException("할 일 제목을 입력해 주세요.");
         if(assigneeId==null||dueDate==null)throw new IllegalArgumentException("후속 할 일에는 담당자와 기한이 모두 필요합니다.");
         String assigneeText=null;
@@ -42,11 +46,32 @@ public class TodoService {
         }
         long id=todos.createConfirmed(projectId,versionId,title.trim(),assigneeId,assigneeText,dueDate,actor.id());
         timeline.append(projectId,"TODO_CREATED",title.trim(),null,LocalDateTime.now(),"TODO",id);
+        attachRelatedEvidence(id,projectId,versionId,text);
         if(assigneeId!=null&&dueDate!=null){
             String eventId=calendar.createEvent(assigneeId,title.trim(),null,dueDate);
             if(eventId!=null)todos.setCalendarEventId(id,eventId);
         }
         return id;
+    }
+
+    /**
+     * A manually typed follow-up has no upstream AI run, so todo_evidence is otherwise empty for it.
+     * Point at the existing project documents closest in meaning instead of leaving the evidence view
+     * blank - an embedding lookup, not a claim that these are the actual source of the task.
+     */
+    private void attachRelatedEvidence(long todoId,long projectId,Long excludeVersionId,String text){
+        if(text==null||text.isBlank())return;
+        try{
+            AiDtos.EmbedResponse embedded=ai.embed(List.of(text),"query");
+            if(embedded==null||embedded.vectors()==null||embedded.vectors().isEmpty())return;
+            List<SearchHit> hits=vectors.nearest(projectId,embedded.vectors().get(0),RELATED_EVIDENCE_LIMIT+5);
+            hits.stream()
+                .filter(hit->excludeVersionId==null||hit.versionId()!=excludeVersionId)
+                .limit(RELATED_EVIDENCE_LIMIT)
+                .forEach(hit->evidence.linkTodo(todoId,evidence.createDocumentEvidence(hit.versionId(),hit.chunkId(),hit.content(),null)));
+        }catch(RuntimeException ignored){
+            // Embedding/AI failure is best-effort here and must not block manual todo creation.
+        }
     }
 
     @Transactional

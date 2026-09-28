@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { FileText, Users } from 'lucide-react';
 import type { ProjectMember, TodoItem } from '@/api/types';
+import { todosApi } from '@/api/endpoints/todos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { EvidenceItem } from '@/features/evidence/EvidenceItem';
+
+const INLINE_EVIDENCE_LIMIT = 2;
 
 const CONFIDENCE_LABELS = {
   HIGH: '신뢰 높음',
@@ -42,6 +47,13 @@ export function TodoCandidateCard({
   const [title, setTitle] = useState(todo.title);
   const [description, setDescription] = useState(todo.description ?? '');
 
+  const { data: evidence } = useQuery({
+    queryKey: ['todo-evidence', todo.id],
+    queryFn: () => todosApi.evidence(todo.id),
+  });
+  const visibleEvidence = evidence?.slice(0, INLINE_EVIDENCE_LIMIT) ?? [];
+  const hiddenEvidenceCount = evidence ? evidence.length - visibleEvidence.length : 0;
+
   return (
     <div className="rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100">
       <div className="mb-2 flex items-start gap-2">
@@ -73,6 +85,27 @@ export function TodoCandidateCard({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mb-2 flex items-center gap-1 text-xs text-ink-400">
+        <Users size={12} /> 배정 가능한 팀원 {members.length}명
+      </div>
+
+      <div className="mb-2">
+        {evidence && evidence.length === 0 ? (
+          <p className="text-xs text-ink-400">증거 자료가 없습니다.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {visibleEvidence.map((item) => (
+              <EvidenceItem key={item.id} item={item} />
+            ))}
+          </ul>
+        )}
+        {hiddenEvidenceCount > 0 && (
+          <button onClick={onShowEvidence} className="mt-1 flex items-center gap-1 text-xs text-accent-600 hover:underline">
+            <FileText size={12} /> 근거 더보기 ({hiddenEvidenceCount})
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
@@ -121,9 +154,6 @@ export function TodoCandidateCard({
             중복 병합
           </Button>
         )}
-        <button onClick={onShowEvidence} className="ml-auto flex items-center gap-1 text-xs text-accent-600 hover:underline">
-          <FileText size={12} /> 근거
-        </button>
       </div>
     </div>
   );

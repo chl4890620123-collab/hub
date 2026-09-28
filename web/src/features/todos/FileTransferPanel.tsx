@@ -250,10 +250,10 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
             <SelectTrigger><SelectValue placeholder="받는 사람 선택" /></SelectTrigger>
             <SelectContent>
               {recipients && recipients.length === 0 ? (
-                <SelectItem value="__no-recipients" disabled>전송 가능한 팀원이나 관리자가 없습니다</SelectItem>
+                <SelectItem value="__no-recipients" disabled>같은 프로젝트에 전송 가능한 팀원이 없습니다</SelectItem>
               ) : recipients?.map((person) => (
                 <SelectItem key={person.id} value={String(person.id)}>
-                  {person.displayName} · {person.loginId}{person.id === user?.id ? ' (나)' : person.admin ? ' · 관리자' : ''}
+                  {person.displayName} · {person.loginId}{person.id === user?.id ? ' (나)' : ''}
                 </SelectItem>
               ))}
             </SelectContent>

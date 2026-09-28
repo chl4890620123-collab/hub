@@ -6,6 +6,7 @@ import com.hub.service.CurrentUserService;
 import com.hub.service.DocumentService;
 import com.hub.service.ProcessingJobService;
 import com.hub.service.ProjectAccessService;
+import com.hub.service.TodoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,7 +28,8 @@ class DocumentControllerFollowUpValidationTest {
         DocumentService documents = mock(DocumentService.class);
         ProcessingJobService jobs = mock(ProcessingJobService.class);
         DocumentRepository repository = mock(DocumentRepository.class);
-        DocumentController controller = new DocumentController(current, access, documents, jobs, repository);
+        TodoService todos = mock(TodoService.class);
+        DocumentController controller = new DocumentController(current, access, documents, jobs, repository, todos);
 
         Authentication auth = mock(Authentication.class);
         MultipartFile file = mock(MultipartFile.class);
