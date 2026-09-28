@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarCheck, FileText, HelpCircle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
 import type { TaskStatusUpdate, TodoItem } from '@/api/types';
-import { getTodoDisplayStatus, REJECTED_STATUS_NOTE, StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
+import { getTodoDisplayStatus, HOLD_STATUS_NOTE, LEGACY_REJECTED_STATUS_NOTE, StatusCycleButton, LABELS as STATUS_LABELS } from '@/features/todos/StatusCycleButton';
 import { TodoAttachmentsPanel } from '@/features/todos/TodoAttachmentsPanel';
 import { NotePromptDialog } from '@/features/todos/NotePromptDialog';
 import { Badge } from '@/components/ui/badge';
@@ -58,12 +58,19 @@ export function TodoCard({
 
   const needsReassignment = todo.assignmentStatus === 'REASSIGNMENT_REQUIRED';
   const displayStatus = getTodoDisplayStatus(todo);
+  const holdReason =
+    displayStatus === 'HOLD' &&
+    todo.statusNote &&
+    todo.statusNote !== HOLD_STATUS_NOTE &&
+    todo.statusNote !== LEGACY_REJECTED_STATUS_NOTE
+      ? todo.statusNote
+      : null;
   const canCycle =
     !isDeleted &&
     !needsReassignment &&
     isAssignee &&
     !todo.pendingApproval &&
-    (displayStatus === 'TODO' || displayStatus === 'IN_PROGRESS' || displayStatus === 'HOLD' || displayStatus === 'REJECTED');
+    (displayStatus === 'TODO' || displayStatus === 'IN_PROGRESS' || displayStatus === 'HOLD');
 
   return (
     <div className={cn('rounded-md border border-ink-200 bg-white p-3 dark:bg-ink-100', compact && 'text-xs')}>
@@ -78,7 +85,7 @@ export function TodoCard({
         ) : canCycle ? (
           <StatusCycleButton status={displayStatus} disabled={false} onCycle={onStatusChange} />
         ) : (
-          <Badge variant={displayStatus === 'DONE' ? 'accent' : displayStatus === 'BLOCKED' || displayStatus === 'REJECTED' ? 'danger' : 'outline'}>
+          <Badge variant={displayStatus === 'DONE' ? 'accent' : displayStatus === 'BLOCKED' ? 'danger' : 'outline'}>
             {STATUS_LABELS[displayStatus]}
           </Badge>
         )}
@@ -92,13 +99,10 @@ export function TodoCard({
       {displayStatus === 'BLOCKED' && todo.statusNote && (
         <p className="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">도움 요청: {todo.statusNote}</p>
       )}
-      {displayStatus === 'REJECTED' && (
-        <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
-          {todo.statusNote && todo.statusNote !== REJECTED_STATUS_NOTE ? `반려 사유: ${todo.statusNote}` : '완료 요청이 반려되었습니다.'}
-        </p>
-      )}
       {displayStatus === 'HOLD' && (
-        <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">현재 보류 중인 할 일입니다.</p>
+        <p className="mb-2 rounded bg-ink-50 px-2 py-1 text-xs text-ink-600">
+          {holdReason ? `보류 사유: ${holdReason}` : '현재 보류 중인 할 일입니다.'}
+        </p>
       )}
       {!compact && todo.completionUrl && (isAssignee || canConfirm) && (
         <p className="mb-2 rounded bg-accent-50 px-2 py-1 text-xs text-accent-700">
@@ -222,10 +226,10 @@ export function TodoCard({
       <NotePromptDialog
         open={rejectDialogOpen}
         onOpenChange={setRejectDialogOpen}
-        title="완료 반려"
-        description="담당자에게 보일 반려 사유를 적어 주세요 (선택)."
+        title="완료 보류"
+        description="담당자에게 보일 보류 사유를 적어 주세요 (선택)."
         placeholder="예: 검수 항목 하나가 누락되었습니다."
-        confirmLabel="반려"
+        confirmLabel="보류"
         onSubmit={(reason) => {
           onRejectCompletion(reason);
           setRejectDialogOpen(false);
