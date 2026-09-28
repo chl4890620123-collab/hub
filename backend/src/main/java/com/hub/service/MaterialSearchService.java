@@ -143,8 +143,20 @@ public class MaterialSearchService {
         List<String> terms = SearchText.terms(plan.searchText());
         SearchRuleService.RuleMatch rule = searchRules.match(projectId, normalized).orElse(null);
         List<Candidate> ranked = rankCandidates(projectId, plan, rule);
+        // An administrator's rule defines the answer boundary. Search still uses the full hybrid
+        // ranking, but RAG may only read documents matched by that rule or its reference form.
+        boolean scopedAnswer = rule != null && rule.managed();
+        List<Candidate> answerCandidates = scopedAnswer ? ranked.stream()
+                .filter(candidate -> candidate.ruleRank < Integer.MAX_VALUE
+                        || candidate.templateRank < Integer.MAX_VALUE)
+                .toList() : ranked;
+        Set<Long> allowedDocumentIds = answerCandidates.stream()
+                .map(Candidate::nativeSeed)
+                .filter(java.util.Objects::nonNull)
+                .map(SearchHit::documentId)
+                .collect(java.util.stream.Collectors.toSet());
 
-        List<SearchHit> hubSeeds = ranked.stream()
+        List<SearchHit> hubSeeds = answerCandidates.stream()
                 .map(Candidate::nativeSeed)
                 .filter(java.util.Objects::nonNull)
                 .toList();
@@ -157,6 +169,7 @@ public class MaterialSearchService {
         int displayRank = 1;
 
         for (DocumentContextService.ContextItem item : hubContext) {
+            if (scopedAnswer && !allowedDocumentIds.contains(item.hit().documentId())) continue;
             if (chunks.size() >= props.ragMaxChunks()) break;
             int remaining = props.ragMaxContextChars() - usedChars;
             if (remaining <= 0) break;
@@ -176,7 +189,7 @@ public class MaterialSearchService {
         // Attachments are not parsed as full documents, but their filename and user-entered note are
         // meaningful work context. Include only metadata the current actor is allowed to see, using the
         // exact same visibility rule as attachment search/download.
-        if (actor != null && chunks.size() < props.ragMaxChunks() && usedChars < props.ragMaxContextChars()) {
+        if (!scopedAnswer && actor != null && chunks.size() < props.ragMaxChunks() && usedChars < props.ragMaxContextChars()) {
             try {
                 for (FileAttachmentRepository.Attachment attachment :
                         attachments.searchVisible(projectId, actor.id(), plan.searchText(), ATTACHMENT_RESULTS)) {
@@ -208,7 +221,7 @@ public class MaterialSearchService {
         // Connector snapshots are already document-level records. Use more than the short UI snippet,
         // while still respecting the same bounded context window used by the AI service.
         Set<Long> usedExternal = new LinkedHashSet<>();
-        for (Candidate candidate : ranked) {
+        for (Candidate candidate : answerCandidates) {
             ConnectorRepository.ExternalSearchRow row = candidate.externalRow();
             if (row == null || !usedExternal.add(row.id())) continue;
             if (chunks.size() >= props.ragMaxChunks() || usedChars >= props.ragMaxContextChars()) break;
