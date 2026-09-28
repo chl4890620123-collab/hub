@@ -36,6 +36,7 @@ class DocumentRepositoryRetentionRestoreTest {
                   archived BOOLEAN NOT NULL DEFAULT FALSE,
                   source_deleted BOOLEAN NOT NULL DEFAULT FALSE,
                   archived_at TIMESTAMP,
+                  created_by BIGINT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """);

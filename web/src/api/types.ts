@@ -115,10 +115,13 @@ export interface ProcessingJob { id: number; projectId: number; jobType: string;
 export interface ProjectNotification { id: string; category: string; source: string; severity: 'ERROR' | 'WARNING' | string; title: string; detail: string | null; occurredAt: string | null; url: string | null; }
 
 export interface DocumentRow {
-  id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; created_at: string; latest_version: number; has_original: boolean; content_purged?: boolean; [key: string]: unknown;
+  id: number; original_name: string; source_type: string; source_identifier: string | null; archived: boolean; source_deleted: boolean; created_at: string; created_by: number; latest_version: number; has_original: boolean; content_purged?: boolean; latest_summary?: string | null; [key: string]: unknown;
 }
 export interface DocumentVersionRow { id: number; version_no: number; sha256: string; parse_status: string; summary: string | null; created_at: string; [key: string]: unknown; }
 export interface GitHubExportResponse { status: string; repository: string; path: string; branch: string; url: string | null; pullRequestUrl: string | null; }
+export interface DriveExportResponse { status: string; fileId: string; webViewLink: string | null; }
+export interface SlackExportResponse { status: string; fileId: string; permalink: string | null; }
+export interface NotionExportResponse { status: string; pageId: string; url: string | null; }
 export interface EvidenceView { id: number; versionId: number | null; chunkId: number | null; quote: string; contentHash: string | null; documentName: string | null; paragraphRef: string | null; pageNo: number | null; meetingTitle: string | null; startMs: number | null; endMs: number | null; speaker: string | null; }
 export interface ChangeEvidenceView { side: 'BEFORE' | 'AFTER'; id: number; versionId: number | null; chunkId: number | null; quote: string; contentHash: string | null; documentName: string | null; paragraphRef: string | null; pageNo: number | null; }
 export interface FileTransferRecipient { id: number; displayName: string; loginId: string; admin: boolean; }

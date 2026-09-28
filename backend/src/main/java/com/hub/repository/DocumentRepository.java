@@ -260,18 +260,23 @@ public class DocumentRepository {
     public List<Map<String, Object>> listDocuments(long projectId) {
         return jdbc.queryForList(
                 """
-                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,
+                SELECT d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.created_by,
                        MAX(v.version_no) latest_version,(d.storage_path IS NOT NULL) has_original,
                        EXISTS (
                          SELECT 1 FROM document_version lv
                          WHERE lv.document_id=d.id
                            AND lv.version_no=(SELECT MAX(lv2.version_no) FROM document_version lv2 WHERE lv2.document_id=d.id)
                            AND lv.full_text=?
-                       ) content_purged
+                       ) content_purged,
+                       (
+                         SELECT ls.summary FROM document_version ls
+                         WHERE ls.document_id=d.id
+                           AND ls.version_no=(SELECT MAX(lv2.version_no) FROM document_version lv2 WHERE lv2.document_id=d.id)
+                       ) latest_summary
                 FROM document d
                 LEFT JOIN document_version v ON v.document_id=d.id
                 WHERE d.project_id=? AND d.source_deleted=FALSE
-                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.storage_path
+                GROUP BY d.id,d.original_name,d.source_type,d.source_identifier,d.archived,d.source_deleted,d.created_at,d.created_by,d.storage_path
                 ORDER BY d.id DESC
                 LIMIT 500
                 """,

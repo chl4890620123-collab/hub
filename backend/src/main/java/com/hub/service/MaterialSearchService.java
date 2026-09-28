@@ -491,8 +491,17 @@ public class MaterialSearchService {
         return new MaterialHit(
                 hit.chunkId(), "HUB", nativeSourceLabel(hit.sourceType()), "DOCUMENT", hit.documentName(),
                 joinLocation(hit.documentName(), hit.paragraphRef()), excerpt(hit.content(), query, terms, 620),
-                blankTo(hit.author(), ""), "", hit.sourceCreatedAt(), 0, "", ""
+                blankTo(hit.author(), ""), nativeSourceUrl(hit), hit.sourceCreatedAt(), 0, "", ""
         );
+    }
+
+    /** Only FILE/LOCAL_PC documents keep an original binary to download; other native types have none. */
+    private static String nativeSourceUrl(SearchHit hit) {
+        String type = hit.sourceType() == null ? "" : hit.sourceType().toUpperCase(Locale.ROOT);
+        return switch (type) {
+            case "FILE", "LOCAL_PC" -> "/api/documents/" + hit.documentId() + "/download";
+            default -> "";
+        };
     }
 
     private MaterialHit externalHit(ConnectorRepository.ExternalSearchRow row,

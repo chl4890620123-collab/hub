@@ -26,7 +26,16 @@ public class GoogleOAuthService {
     // itself makes for a todo's due date, without also granting read/write access to the rest of the
     // account's calendar. Anyone who linked Google before this scope was added must reconnect once for
     // calendar sync to start working - GoogleCalendarService treats the resulting 403 as "not linked".
-    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events email";
+    // drive.readonly alone cannot create files, so GoogleDriveExportService needs drive.file added on
+    // top of it - NOT instead of it. drive.file by itself only grants access to files/folders the app
+    // itself created or that were explicitly opened with it, which would silently break the existing
+    // "browse any folder in my Drive" import target list (GoogleDriveConnector.targets()) if it replaced
+    // drive.readonly outright. Keeping both: readonly still lists/reads the whole Drive for import,
+    // drive.file additionally lets the app create a new file (the file being created is, by definition,
+    // "created by this app", so drive.file's own-file rule is satisfied at creation time). Anyone who
+    // linked Google before drive.file was added must reconnect once - the old token has no write access
+    // and export calls will 403 until then.
+    private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events email";
     private final HubProperties props;
     private final GoogleAccessTokenProvider tokens;
     private final RestClient client;

@@ -43,7 +43,11 @@ public class ExternalOAuthService {
         String id=clientId(type),secret=clientSecret(type);if(blank(id)||blank(secret))throw new IllegalStateException(type+" OAuth 설정이 필요합니다.");
         String state=UUID.randomUUID().toString();pending.put(state,new Pending(userId,projectId,type,redirectUri,Instant.now().plusSeconds(600)));
         String base=switch(type){case "GITHUB"->"https://github.com/login/oauth/authorize";case "SLACK"->"https://slack.com/oauth/v2/authorize";default->"https://api.notion.com/v1/oauth/authorize";};
-        String scope=switch(type){case "GITHUB"->"repo read:user";case "SLACK"->"channels:history,channels:read,users:read";default->"";};
+        // chat:write/files:write were added for SlackExportService's channel file upload; anyone who
+        // linked Slack before these were added must reconnect once, or export calls fail with missing_scope.
+        // Notion has no scope param at all - whether SlackExportService's Notion counterpart may write
+        // is controlled entirely by the integration's Capabilities setting at notion.so/my-integrations.
+        String scope=switch(type){case "GITHUB"->"repo read:user";case "SLACK"->"channels:history,channels:read,users:read,chat:write,files:write";default->"";};
         var url=UriComponentsBuilder.fromUriString(base).queryParam("client_id",id).queryParam("redirect_uri",redirectUri).queryParam("response_type","code").queryParam("state",state).queryParam("scope",scope);
         if ("SLACK".equals(type) && !blank(props.slackTeamId())) {
             url = url.queryParam("team", props.slackTeamId());
