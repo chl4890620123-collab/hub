@@ -28,7 +28,6 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
   const activeRows = rows.filter((t) => t.assignmentStatus === 'ACTIVE');
   const doing = activeRows.filter((t) => getTodoDisplayStatus(t) === 'IN_PROGRESS').length;
   const waiting = activeRows.filter((t) => getTodoDisplayStatus(t) === 'TODO').length;
-  const rejected = activeRows.filter((t) => getTodoDisplayStatus(t) === 'REJECTED').length;
   const hold = activeRows.filter((t) => getTodoDisplayStatus(t) === 'HOLD').length;
   const blocked = activeRows.filter((t) => getTodoDisplayStatus(t) === 'BLOCKED').length;
   const reassign = rows.filter((t) => t.assignmentStatus === 'REASSIGNMENT_REQUIRED').length;
@@ -49,9 +48,6 @@ function TodoProgressPanel({ todos, month }: { todos: TodoItem[]; month: string 
         </span>
         <span>
           <strong className="text-ink-800">{waiting}</strong> <span className="text-ink-400">시작 전</span>
-        </span>
-        <span>
-          <strong className="text-ink-800">{rejected}</strong> <span className="text-ink-400">반려</span>
         </span>
         <span>
           <strong className="text-ink-800">{hold}</strong> <span className="text-ink-400">보류</span>
@@ -138,7 +134,7 @@ export function TodosPage() {
   const rejectCompletionMutation = useMutation({
     mutationFn: ({ todoId, reason }: { todoId: number; reason: string }) => todosApi.rejectCompletion(todoId, reason || undefined),
     onSuccess: () => {
-      toast.success('완료를 반려했습니다.');
+      toast.success('완료를 보류했습니다.');
       invalidateTodos();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -285,7 +281,7 @@ export function TodosPage() {
           </SelectContent>
         </Select>
         <div className="flex flex-wrap gap-1">
-          {(['ALL', 'TODO', 'IN_PROGRESS', 'DONE', 'REJECTED', 'HOLD', 'BLOCKED'] as const).map((s) => (
+          {(['ALL', 'TODO', 'IN_PROGRESS', 'DONE', 'HOLD', 'BLOCKED'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}

@@ -25,7 +25,7 @@ import { errorMessage } from '@/lib/errors';
 const TASK_STATUS_LABELS: Record<string, string> = { TODO: '시작 전', IN_PROGRESS: '진행 중', DONE: '완료', BLOCKED: '도움 필요' };
 const TIMELINE_LABELS: Record<string, string> = {
   TODO_CREATED: '할 일 생성', TODO_CONFIRMED: '할 일 확정', TODO_STATUS: '상태 변경', TODO_COMPLETION_REQUESTED: '완료 승인 요청',
-  TODO_COMPLETION_REJECTED: '완료 반려', TODO_HELP_REQUESTED: '도움 요청', TODO_DUPLICATE_MERGED: '중복 병합', DECISION_CONFIRMED: '결정 확정',
+  TODO_COMPLETION_REJECTED: '완료 보류', TODO_HELP_REQUESTED: '도움 요청', TODO_DUPLICATE_MERGED: '중복 병합', DECISION_CONFIRMED: '결정 확정',
 };
 
 const CONNECTOR_LABELS: Record<string, string> = { GOOGLE_DRIVE: 'Google Drive', GITHUB: 'GitHub', SLACK: 'Slack', NOTION: 'Notion' };
