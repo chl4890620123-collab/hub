@@ -220,7 +220,7 @@ public class TodoRepository {
     }
 
     public boolean rejectCompletion(long todoId,String reason){
-        String note=(reason==null||reason.isBlank())?"__HUB_REJECTED__":reason.trim();
+        String note=(reason==null||reason.isBlank())?"__HUB_HOLD__":reason.trim();
         return jdbc.update("""
                 UPDATE todo SET pending_approval=FALSE,status_note=?,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND pending_approval=TRUE AND deleted_at IS NULL
