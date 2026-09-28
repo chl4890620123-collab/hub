@@ -162,7 +162,7 @@ export function TodoCard({
                 onClick={() => setRejectDialogOpen(true)}
                 className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 hover:bg-ink-200"
               >
-                반려
+                보류
               </button>
             </>
           )}
