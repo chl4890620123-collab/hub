@@ -25,6 +25,14 @@ public class TimelineRepository {
                         rs.getString("source_type"),nullableLong(rs, "source_id")), projectId, limit);
     }
 
+    public List<TimelineEvent> listForSource(long projectId, String sourceType, long sourceId, int limit) {
+        return jdbc.query("SELECT id,project_id,event_type,title,description,happened_at,source_type,source_id FROM timeline_event " +
+                        "WHERE project_id=? AND source_type=? AND source_id=? ORDER BY happened_at DESC,id DESC LIMIT ?",
+                (rs,n)->new TimelineEvent(rs.getLong("id"),rs.getLong("project_id"),rs.getString("event_type"),
+                        rs.getString("title"),rs.getString("description"),rs.getTimestamp("happened_at").toLocalDateTime(),
+                        rs.getString("source_type"),nullableLong(rs, "source_id")), projectId, sourceType, sourceId, limit);
+    }
+
     private static Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
         long value = rs.getLong(column);
         return rs.wasNull() ? null : value;
