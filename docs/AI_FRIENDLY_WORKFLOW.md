@@ -10,6 +10,6 @@
 | Knowledge | TODO에 연결된 evidence의 저장된 인용문 | 원본 문서가 변경되어도 근거 스냅샷 유지 |
 | Agent | 현재 공식 상태에서 계산한 다음 행동 | 제안 정보이며 쓰기 권한이 없음 |
 
-회의 분석으로 나온 TODO 후보에는 `ADMIN_REVIEW`, 관리자 확정 후 담당자 업무에는 `ASSIGNEE_WORK_AND_SUBMIT`, 담당자 제출 후에는 `ADMIN_REVIEW_COMPLETION`, 완료 후에는 `NONE`을 반환합니다. 기존 `/api/todos/{id}/confirm`, `/request-completion`, `/approve-completion` 경로만 상태를 변경합니다. AI 제안은 담당자를 확정하거나 승인하지 않습니다.
+회의 분석으로 나온 TODO 후보에는 `ADMIN_REVIEW`, 관리자 확정 직후에는 `ASSIGNEE_START`, 진행 중에는 `ASSIGNEE_WORK_AND_SUBMIT`, 담당자 제출 후에는 `ADMIN_REVIEW_COMPLETION`, 완료 후에는 `NONE`을 반환합니다. 보류·차단·재배정 대기는 각각 상태 해소를 먼저 안내합니다. `ASSIGNED_TO` 관계는 확정된 현재 담당자에만 표시합니다. 기존 `/api/todos/{id}/confirm`, `/status`, `/request-completion`, `/approve-completion` 경로만 상태를 변경합니다. AI 제안은 담당자를 확정하거나 승인하지 않습니다.
 
 회의 출처나 근거가 삭제되면 해당 관계는 생략됩니다. 다른 프로젝트 자료를 추론해서 연결하지 않습니다. 이 API는 기존 데이터의 투영으로, AKB 코드나 프로토콜 구현을 포함하지 않습니다.
