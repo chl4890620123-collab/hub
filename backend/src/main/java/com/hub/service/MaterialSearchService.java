@@ -143,12 +143,11 @@ public class MaterialSearchService {
         List<String> terms = SearchText.terms(plan.searchText());
         SearchRuleService.RuleMatch rule = searchRules.match(projectId, normalized).orElse(null);
         List<Candidate> ranked = rankCandidates(projectId, plan, rule);
-        // An administrator's rule defines the answer boundary. Search still uses the full hybrid
-        // ranking, but RAG may only read documents matched by that rule or its reference form.
+        // An administrator's rule defines the answer boundary. Template similarity remains useful
+        // for broad search, but its same-format/semantic guesses are not explicit file membership.
         boolean scopedAnswer = rule != null && rule.managed();
         List<Candidate> answerCandidates = scopedAnswer ? ranked.stream()
-                .filter(candidate -> candidate.ruleRank < Integer.MAX_VALUE
-                        || candidate.templateRank < Integer.MAX_VALUE)
+                .filter(candidate -> candidate.ruleRank < Integer.MAX_VALUE)
                 .toList() : ranked;
         Set<Long> allowedDocumentIds = answerCandidates.stream()
                 .map(Candidate::nativeSeed)

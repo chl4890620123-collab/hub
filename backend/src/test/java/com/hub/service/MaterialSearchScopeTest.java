@@ -28,11 +28,13 @@ class MaterialSearchScopeTest {
         Fixture f = new Fixture();
         SearchHit allowed = hit(11, 101, 1, "2026-PRD.docx", "승인 내용");
         SearchHit unrelated = hit(22, 202, 2, "회의록.docx", "승인 내용");
-        f.rule(true);
+        f.rule(true, "양식.docx");
         when(f.context.matchingLatestDocuments(eq(PROJECT), eq(List.of("*PRD*")), anyInt()))
                 .thenReturn(List.of(ref(allowed)));
         when(f.context.chunks(101)).thenReturn(List.of(allowed));
         when(f.lexical.searchNative(PROJECT, QUESTION, 100)).thenReturn(List.of(unrelated));
+        when(f.templates.similar(PROJECT, "양식.docx", 40))
+                .thenReturn(List.of(new TemplateSimilarityService.TemplateMatch(unrelated, 1)));
         // A pinned/context expansion must not bypass the rule's document boundary.
         when(f.context.build(eq(PROJECT), eq(QUESTION), anyList(), any()))
                 .thenReturn(List.of(item(allowed), item(unrelated)));
@@ -48,6 +50,7 @@ class MaterialSearchScopeTest {
 
         var search = f.service.search(PROJECT, QUESTION);
         assertTrue(search.stream().anyMatch(hit -> hit.title().equals("회의록.docx")));
+        assertTrue(search.stream().anyMatch(hit -> hit.matchType().equals("원본 양식과 비슷한 자료")));
     }
 
     @Test
@@ -116,8 +119,12 @@ class MaterialSearchScopeTest {
         }
 
         void rule(boolean managed) {
+            rule(managed, "");
+        }
+
+        void rule(boolean managed, String targetFile) {
             when(rules.match(PROJECT, QUESTION)).thenReturn(Optional.of(new SearchRuleService.RuleMatch(
-                    managed ? 1L : null, "기획서", List.of("*PRD*"), "smart", "기획서", "", 1, managed)));
+                    managed ? 1L : null, "기획서", List.of("*PRD*"), "smart", "기획서", targetFile, 1, managed)));
         }
     }
 }
