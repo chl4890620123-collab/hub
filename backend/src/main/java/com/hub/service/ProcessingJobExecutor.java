@@ -28,10 +28,10 @@ public class ProcessingJobExecutor {
     }
 
     @Async("hubTaskExecutor")
-    public void document(long jobId, long projectId, long versionId, LocalDate sourceDate) {
+    public void document(long jobId, long projectId, long versionId, LocalDate sourceDate, boolean force) {
         try {
             jobs.start(jobId); jobs.progress(jobId, 20);
-            var result = analysis.analyzeDocument(projectId, versionId, sourceDate);
+            var result = analysis.analyzeDocument(projectId, versionId, sourceDate, force);
             jobs.progress(jobId, 90);
             jobs.success(jobId, json.writeValueAsString(result));
         } catch (Exception error) {

@@ -33,7 +33,7 @@ public class ProcessingJobService {
         var lease = force
                 ? jobs.createOrReuseRerunnable(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey)
                 : jobs.createOrReuse(projectId, "DOCUMENT_ANALYSIS", "DOCUMENT_VERSION", versionId, requestKey);
-        if (lease.shouldRun()) executor.document(lease.id(), projectId, versionId, sourceDate);
+        if (lease.shouldRun()) executor.document(lease.id(), projectId, versionId, sourceDate, force);
         return lease.id();
     }
 
