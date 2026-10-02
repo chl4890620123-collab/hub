@@ -45,6 +45,15 @@ public class SearchRuleService {
         RuleMatch best = null;
         int bestScore = Integer.MIN_VALUE;
         for (SearchRule rule : rules(projectId)) {
+            String target = lower(rule.targetFile());
+            if (!target.isBlank() && normalized.contains(target)) {
+                int score = 12000 + rule.priority();
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = new RuleMatch(rule.id(), rule.name(), rule.patterns(), rule.mode(), rule.targetFile(),
+                            rule.targetFile(), rule.priority(), rule.managed());
+                }
+            }
             for (String alias : rule.aliases()) {
                 int score = aliasScore(normalized, alias) + rule.priority();
                 if (score > bestScore) {
