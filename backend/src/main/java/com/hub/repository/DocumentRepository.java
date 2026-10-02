@@ -225,10 +225,8 @@ public class DocumentRepository {
                 FROM document_version v
                 JOIN document d ON d.id=v.document_id
                 WHERE d.project_id=? AND d.archived=FALSE AND d.source_deleted=FALSE
-                  AND v.embedding_status IN ('PENDING','FAILED')
-                  AND v.embedding_attempts < 20
                   AND v.version_no=(SELECT MAX(v2.version_no) FROM document_version v2 WHERE v2.document_id=d.id)
-                ORDER BY COALESCE(v.embedding_updated_at,v.created_at) ASC,v.id ASC
+                ORDER BY v.id ASC
                 LIMIT ?
                 """,
                 (rs,n) -> new EmbeddingRetryCandidate(rs.getLong("version_id"),rs.getLong("project_id"),rs.getLong("document_id"),rs.getInt("embedding_attempts")),
