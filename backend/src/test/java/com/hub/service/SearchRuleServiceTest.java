@@ -51,6 +51,20 @@ class SearchRuleServiceTest {
         assertEquals("주간업무보고_양식.xlsx", match.targetFile());
     }
 
+    @Test
+    void explicitReferenceFilenameMatchesManagedRuleEvenWithoutAnAliasInQuestion() {
+        SearchRuleRepository repository = mock(SearchRuleRepository.class);
+        when(repository.list(1L, true)).thenReturn(List.of(new SearchRuleRepository.Row(
+                7L, 1L, "베타/런칭 기준", List.of("출시", "런칭", "베타 일정"), List.of(),
+                "촬영용 Atlas 베타 운영 계획", "SMART", 200, true)));
+        SearchRuleService service = new SearchRuleService(properties(temp.resolve("missing.yml")), repository);
+
+        var match = service.match(1L, "촬영용 Atlas 베타 운영 계획에서 베타 운영 대상과 원문 근거 표시 원칙을 알려줘.").orElseThrow();
+        assertTrue(match.managed());
+        assertEquals("촬영용 Atlas 베타 운영 계획", match.targetFile());
+        assertEquals("촬영용 Atlas 베타 운영 계획", match.matchedAlias());
+    }
+
     private static HubProperties properties(Path rules) {
         return new HubProperties("./data", "http://localhost:8000", true, 
           "./local-reader", rules.toString(), 12000, 2, 3, 16, 30000,
