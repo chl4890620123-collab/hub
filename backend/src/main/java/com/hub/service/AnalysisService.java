@@ -69,8 +69,12 @@ public class AnalysisService {
      * document version, so repeated button clicks cannot create duplicate TODOs or decisions.
      */
     public AiDtos.AnalyzeResponse analyzeDocument(long projectId, long versionId, LocalDate sourceDate) {
+        return analyzeDocument(projectId, versionId, sourceDate, false);
+    }
+
+    public AiDtos.AnalyzeResponse analyzeDocument(long projectId, long versionId, LocalDate sourceDate, boolean force) {
         var cached = aiRuns.successfulDocument(versionId, DOCUMENT_ANALYSIS);
-        if (cached.isPresent()) return decode(cached.get());
+        if (cached.isPresent() && !force) return decode(cached.get());
 
         String text = documents.versionText(versionId);
         AiDtos.AnalyzeResponse raw = requireAnalysis(ai.analyze(text, dateText(sourceDate), memberCandidates(projectId)));
@@ -81,7 +85,16 @@ public class AnalysisService {
         AiDtos.AnalyzeResponse saved = transaction.execute(status -> {
             documents.lockVersion(versionId);
             var existing = aiRuns.successfulDocument(versionId, DOCUMENT_ANALYSIS);
-            if (existing.isPresent()) return decode(existing.get());
+            if (existing.isPresent()) {
+                if (!force) return decode(existing.get());
+                // Re-summary makes a real AI call, preserving reviewed candidates and decisions.
+                // A new document version is required to regenerate its workflow candidates.
+                var previous = decode(existing.get());
+                var refreshed = new AiDtos.AnalyzeResponse(raw.summary(), previous.todos(), previous.decisions());
+                documents.updateSummary(versionId, raw.summary());
+                aiRuns.saveDocument(projectId, versionId, DOCUMENT_ANALYSIS, encode(refreshed));
+                return refreshed;
+            }
 
             documents.updateSummary(versionId, raw.summary());
             List<AiDtos.TodoProposal> persistedTodos = persistDocumentTodos(projectId, versionId, groundedTodos);
