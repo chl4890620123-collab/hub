@@ -71,12 +71,22 @@ class GeminiProvider:
             raise RuntimeError("Gemini provider is not enabled")
         headers = {"x-goog-api-key": config.GEMINI_API_KEY, "Content-Type": "application/json"}
         client = await self._pool.get()
-        response = await self._generate_with_retries(client, config.GEMINI_MODEL, headers, prompt)
-        if (response.status_code == 429 and config.GEMINI_FALLBACK_MODEL
-                and config.GEMINI_FALLBACK_MODEL != config.GEMINI_MODEL):
-            logger.warning("Gemini model %s exhausted quota; retrying with %s",
-                           config.GEMINI_MODEL, config.GEMINI_FALLBACK_MODEL)
-            response = await self._generate_with_retries(client, config.GEMINI_FALLBACK_MODEL, headers, prompt)
+        alternate = config.GEMINI_FALLBACK_MODEL
+        can_fallback = bool(alternate and alternate != config.GEMINI_MODEL)
+        try:
+            response = await self._generate_with_retries(client, config.GEMINI_MODEL, headers, prompt)
+        except httpx.TransportError as exc:
+            if not can_fallback:
+                raise RuntimeError(f"Gemini transport failure: {type(exc).__name__}") from exc
+            logger.warning("Gemini model %s transport failure (%s); trying %s",
+                           config.GEMINI_MODEL, type(exc).__name__, alternate)
+            response = None
+        if can_fallback and (response is None or response.status_code in {429, 500, 502, 503, 504}):
+            logger.warning("Gemini model %s unavailable; trying %s", config.GEMINI_MODEL, alternate)
+            try:
+                response = await self._generate_with_retries(client, alternate, headers, prompt)
+            except httpx.TransportError as exc:
+                raise RuntimeError(f"Gemini transport failure: {type(exc).__name__}") from exc
         response.raise_for_status()
         data = response.json()
         try:
@@ -96,7 +106,13 @@ class GeminiProvider:
                                      headers: dict[str, str], prompt: str) -> httpx.Response:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         for attempt in range(config.GEMINI_RETRIES + 1):
-            response = await client.post(url, headers=headers, json=self.request_body(prompt))
+            try:
+                response = await client.post(url, headers=headers, json=self.request_body(prompt))
+            except httpx.TransportError:
+                if attempt >= config.GEMINI_RETRIES:
+                    raise
+                await asyncio.sleep(min(2.0, 0.25 * (2**attempt)))
+                continue
             if response.status_code not in {429, 500, 502, 503, 504} or attempt >= config.GEMINI_RETRIES:
                 return response
             await asyncio.sleep(self._retry_delay(response, attempt))

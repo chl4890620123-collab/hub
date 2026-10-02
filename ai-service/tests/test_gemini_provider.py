@@ -71,3 +71,53 @@ async def test_non_quota_errors_do_not_switch_models(monkeypatch):
             await provider.json_generate("QA task")
     assert exc.value.response.status_code == 403
     assert calls == ["/v1beta/models/gemini-2.5-flash:generateContent"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [500, 502, 503, 504, "timeout", "connect"])
+async def test_transient_failure_retries_then_falls_back(monkeypatch, failure):
+    calls = []
+    def respond(request):
+        calls.append(request.url.path)
+        if "primary" in request.url.path:
+            if failure == "timeout":
+                raise httpx.ReadTimeout("", request=request)
+            if failure == "connect":
+                raise httpx.ConnectError("", request=request)
+            return httpx.Response(failure)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": '{"ok":true}'}]}}]})
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(config, "AI_MODE", "gemini")
+    monkeypatch.setattr(config, "GEMINI_MODEL", "primary")
+    monkeypatch.setattr(config, "GEMINI_FALLBACK_MODEL", "alternate")
+    monkeypatch.setattr(config, "GEMINI_RETRIES", 1)
+    async def no_wait(_):
+        pass
+    monkeypatch.setattr("app.providers.gemini.asyncio.sleep", no_wait)
+    provider = GeminiProvider()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        async def get_client():
+            return client
+        monkeypatch.setattr(provider._pool, "get", get_client)
+        assert await provider.json_generate("test") == {"ok": True}
+    assert len(calls) == 3
+    assert calls[-1].endswith("alternate:generateContent")
+
+
+@pytest.mark.asyncio
+async def test_exhausted_timeouts_have_nonempty_safe_detail(monkeypatch):
+    def respond(request):
+        raise httpx.ReadTimeout("", request=request)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "secret-test-key")
+    monkeypatch.setattr(config, "AI_MODE", "gemini")
+    monkeypatch.setattr(config, "GEMINI_RETRIES", 0)
+    monkeypatch.setattr(config, "GEMINI_FALLBACK_MODEL", "")
+    provider = GeminiProvider()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        async def get_client():
+            return client
+        monkeypatch.setattr(provider._pool, "get", get_client)
+        with pytest.raises(RuntimeError, match="Gemini transport failure: ReadTimeout") as exc:
+            await provider.json_generate("private document text")
+        assert "secret-test-key" not in str(exc.value)
+        assert "private document" not in str(exc.value)
