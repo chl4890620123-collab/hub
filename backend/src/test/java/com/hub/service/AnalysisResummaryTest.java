@@ -20,6 +20,8 @@ class AnalysisResummaryTest {
                 .thenReturn(new AiDtos.AnalyzeResponse("Fresh summary", List.of(), List.of()));
         var result = f.service.analyzeDocument(1L, 2L, null, true);
         assertEquals("Fresh summary", result.summary());
+        assertEquals(39L, result.todos().get(0).id());
+        assertEquals("Existing decision", result.decisions().get(0).statement());
         verify(f.ai).analyze(eq("Original text"), any(), anyList());
         verify(f.documents).updateSummary(2L, "Fresh summary");
         verify(f.runs).saveDocument(eq(1L), eq(2L), eq("DOCUMENT_ANALYSIS"), contains("Fresh summary"));
@@ -55,7 +57,9 @@ class AnalysisResummaryTest {
         Fixture() throws Exception {
             var mapper = new ObjectMapper();
             when(runs.successfulDocument(2L, "DOCUMENT_ANALYSIS")).thenReturn(Optional.of(
-                    mapper.writeValueAsString(new AiDtos.AnalyzeResponse("Cached summary", List.of(), List.of()))));
+                    mapper.writeValueAsString(new AiDtos.AnalyzeResponse("Cached summary",
+                            List.of(new AiDtos.TodoProposal(39L, "Reviewed task", null, null, null, null, null, "HIGH", "Original text")),
+                            List.of(new AiDtos.DecisionProposal("Existing decision", "HIGH", "Original text"))))));
             when(documents.versionText(2L)).thenReturn("Original text");
             var projects = mock(ProjectRepository.class);
             when(projects.listMembers(1L)).thenReturn(List.of());
