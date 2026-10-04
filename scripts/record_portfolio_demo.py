@@ -264,7 +264,7 @@ def member_flow(page: Page) -> None:
             complete.click()
             dialog = page.get_by_role("dialog")
             try:
-                dialog.get_by_placeholder(re.compile("https://")).fill("https://example.com/hub-demo-result")
+                dialog.locator("input").first.fill("https://example.com/hub-demo-result")
                 dialog.get_by_role("button", name="관리자에게 제출", exact=True).click()
                 wait(page, 1200)
             except PlaywrightTimeoutError:
