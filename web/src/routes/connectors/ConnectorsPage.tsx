@@ -66,13 +66,14 @@ function useConnectorCallbackToast(projectId: number | undefined) {
 }
 
 function LinkedAccountBadge({ projectId, type }: { projectId: number; type: ConnectorType }) {
-  const { data } = useQuery({
+  const { data, isError, error } = useQuery({
     queryKey: ['connector-connection', projectId, type],
     queryFn: () => connectorsApi.connection(projectId, type),
   });
+  if (isError) return <span className="text-xs text-red-600">연결 상태 확인 실패: {errorMessage(error)}</span>;
   if (!data) return <Badge variant="neutral">상태 확인 중</Badge>;
-  if (data.linkedByUser) return <Badge variant="accent">연결됨 · {data.account || '내 계정'}</Badge>;
-  if (data.connected) return <Badge variant="accent">공용 연결 사용 중</Badge>;
+  if (data.linkedByUser) return <Badge variant="accent">계정 등록됨 · {data.account || '내 계정'}</Badge>;
+  if (data.connected) return <Badge variant="accent">공용 연결 설정됨</Badge>;
   return <Badge variant="neutral">연결 안 됨</Badge>;
 }
 
@@ -116,7 +117,7 @@ export function ConnectorsPage() {
     <div>
       <PageHeader
         title="연결 서비스"
-        description="GitHub 저장소, Google Drive 폴더, Slack 채널, Notion 페이지를 연결해 현재 프로젝트의 검색 자료로 가져옵니다."
+        description="GitHub 저장소, Google Drive 폴더, Slack 채널, Notion 페이지를 연결해 현재 프로젝트의 검색 자료로 가져옵니다. 계정 등록 여부와 실제 접근 가능 여부는 다릅니다. 목록을 열어 접근을 확인해 주세요."
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

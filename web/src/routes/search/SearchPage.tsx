@@ -6,7 +6,9 @@ import { NoProjectState } from '@/components/layout/NoProjectState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { LoadingBlock } from '@/components/ui/spinner';
+import { ErrorState, LoadingBlock } from '@/components/ui/spinner';
+import { errorMessage } from '@/lib/errors';
+import { toast } from '@/stores/toastStore';
 import { MaterialResultList } from '@/features/materials/MaterialResultList';
 import { useCurrentProject } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -64,6 +66,7 @@ export function SearchPage() {
   });
   const ownedAttachmentIds = new Set((transfers ?? []).filter((row) => row.senderId === user?.id).map((row) => row.id));
   const editAttachment = useMutation({
+    onError: (error) => toast.error(errorMessage(error)),
     mutationFn: async (hit: import('@/api/types').MaterialHit) => {
       const row = (transfers ?? []).find((item) => item.id === hit.evidenceId);
       const fileName = window.prompt('파일 이름', row?.fileName ?? hit.title);
@@ -78,6 +81,7 @@ export function SearchPage() {
     },
   });
   const deleteAttachment = useMutation({
+    onError: (error) => toast.error(errorMessage(error)),
     mutationFn: (hit: import('@/api/types').MaterialHit) => attachmentsApi.delete(hit.evidenceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['file-transfers', currentProject?.id] });
@@ -102,7 +106,7 @@ export function SearchPage() {
 
   function runSearch(q: string) {
     const trimmed = q.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed.length > 1000) return;
     setSubmittedQuery(trimmed);
     try {
       window.sessionStorage.setItem(storageKey, trimmed);
@@ -123,7 +127,7 @@ export function SearchPage() {
       </p>
 
       <form className="mb-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); runSearch(query); }}>
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 계약서, 전달받은 파일 이름, API 변경" className="max-w-lg" />
+        <Input aria-label="자료 검색어" maxLength={1000} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="예: 계약서, 전달받은 파일 이름, API 변경" className="max-w-lg" />
         <Button type="submit"><SearchIcon size={14} /> 검색</Button>
       </form>
 
@@ -147,7 +151,9 @@ export function SearchPage() {
         </div>
       )}
 
-      {search.isFetching && hits.length === 0 ? <LoadingBlock label="검색 중..." /> : submittedQuery ? (
+      {search.isFetching && hits.length === 0 ? <LoadingBlock label="검색 중..." /> : search.isError ? (
+        <div className="flex flex-col gap-2"><ErrorState message={errorMessage(search.error)} /><Button className="self-start" variant="outline" onClick={() => search.refetch()}>검색 다시 시도</Button></div>
+      ) : submittedQuery ? (
         <>
           <MaterialResultList
             hits={filteredHits}
