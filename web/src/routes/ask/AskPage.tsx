@@ -9,22 +9,28 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LoadingBlock } from '@/components/ui/spinner';
 import { MaterialResultList } from '@/features/materials/MaterialResultList';
 import { useCurrentProject } from '@/hooks/useProjects';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { materialsApi } from '@/api/endpoints/materials';
 import type { MaterialAskResponse } from '@/api/types';
 import { errorMessage } from '@/lib/errors';
 
 export function AskPage() {
   const { currentProject } = useCurrentProject();
+  const { data: user } = useCurrentUser();
+  if (!currentProject || !user) return <NoProjectState />;
+  return <ProjectAskPage key={`${user.id}-${currentProject.id}`} projectId={currentProject.id} userId={user.id} />;
+}
+
+function ProjectAskPage({ projectId, userId }: { projectId: number; userId: number }) {
   const [question, setQuestion] = useState('');
-  const projectId = currentProject?.id;
-  const storageKey = `hub.last-ask-question.${projectId ?? 'none'}`;
+  const storageKey = `hub.last-ask-question.${userId}.${projectId}`;
 
   useEffect(() => {
     if (!projectId) return;
     try { setQuestion(window.sessionStorage.getItem(storageKey) ?? ''); } catch { setQuestion(''); }
   }, [projectId, storageKey]);
 
-  const mutationKey = ['material-ask', projectId] as const;
+  const mutationKey = ['material-ask', projectId, userId] as const;
   const ask = useMutation({
     mutationKey,
     mutationFn: (q: string) => materialsApi.ask(projectId!, q),
@@ -42,11 +48,9 @@ export function AskPage() {
   const data = ask.data ?? latest?.data;
   const error = ask.error ?? latest?.error;
 
-  if (!currentProject) return <NoProjectState />;
-
   const submit = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed.length > 1000 || pending) return;
     try { window.sessionStorage.setItem(storageKey, trimmed); } catch { /* optional */ }
     ask.mutate(trimmed);
   };
@@ -55,11 +59,12 @@ export function AskPage() {
     <div>
       <PageHeader
         title="AI에게 묻기"
-        description="현재 프로젝트의 사용자 문서, 볼 수 있는 첨부파일과 연결 서비스 자료를 바탕으로 답하고 근거를 함께 보여줍니다. 다른 메뉴로 이동해도 진행 중인 요청은 계속됩니다."
+        description="현재 프로젝트에서 볼 수 있는 문서와 가져온 연결 서비스 자료를 근거로 답합니다. 첨부파일은 파일명·메모만 참고하며 본문은 자동으로 읽지 않습니다."
       />
       <form className="mb-5 flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); submit(question); }}>
-        <Textarea rows={3} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 지난주 결정된 API 스펙 변경 사항이 뭐였지?" />
-        <Button type="submit" disabled={pending} className="self-start">
+        <Textarea aria-label="프로젝트 자료에 대한 질문" aria-describedby="ask-input-help" rows={3} maxLength={1000} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="예: 첫 베타 대상과 검색 결과 표시 기준을 근거와 함께 알려줘." />
+        <p id="ask-input-help" className="text-xs text-ink-500">{question.length}/1,000자 · 질문마다 자료를 새로 찾습니다. 이전 대화를 기억하거나 업무 생성·담당자 변경을 실행하지 않습니다. 다른 메뉴로 이동해도 진행 중인 요청은 계속됩니다.</p>
+        <Button type="submit" disabled={pending || !question.trim() || question.trim().length > 1000} className="self-start">
           <Sparkles size={14} /> {pending ? '생각 중...' : '질문하기'}
         </Button>
       </form>

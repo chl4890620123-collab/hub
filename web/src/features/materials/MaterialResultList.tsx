@@ -1,4 +1,10 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { documentsApi } from '@/api/endpoints/documents';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { ErrorState, LoadingBlock } from '@/components/ui/spinner';
+import { errorMessage } from '@/lib/errors';
 import type { MaterialHit } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/spinner';
@@ -30,6 +36,12 @@ export interface MaterialResultActions {
 }
 
 function MaterialResultCard({ hit, actions }: { hit: MaterialHit; actions?: MaterialResultActions }) {
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const source = useQuery({
+    queryKey: ['material-source', hit.evidenceId],
+    queryFn: () => documentsApi.chunk(hit.evidenceId),
+    enabled: sourceOpen && hit.sourceType === 'HUB',
+  });
   const manageable = hit.sourceType === 'ATTACHMENT' && Boolean(actions?.canManageAttachment?.(hit));
   return (
     <li className="rounded-lg border border-ink-200 p-4 transition-shadow hover:shadow-sm">
@@ -43,11 +55,16 @@ function MaterialResultCard({ hit, actions }: { hit: MaterialHit; actions?: Mate
       <p className="line-clamp-3 text-sm text-ink-600">{hit.snippet}</p>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-400">
         {hit.author && <span>{hit.author}</span>}
+        {hit.sourceType === 'HUB' && (
+          <button type="button" onClick={() => setSourceOpen(true)} className="flex items-center gap-1 text-accent-600 hover:underline">
+            근거 원문 읽기 <ExternalLink size={12} />
+          </button>
+        )}
         {hit.sourceUrl && (
           <a href={hit.sourceUrl} target={hit.sourceType === 'ATTACHMENT' ? undefined : '_blank'}
             rel={hit.sourceType === 'ATTACHMENT' ? undefined : 'noreferrer'}
             className="flex items-center gap-1 text-accent-600 hover:underline">
-            {hit.sourceType === 'ATTACHMENT' ? '파일 읽기/다운로드' : '원문 열기'} <ExternalLink size={12} />
+            {hit.sourceType === 'ATTACHMENT' ? '파일 읽기/다운로드' : hit.sourceType === 'HUB' ? '원본 파일 다운로드' : '원문 열기'} <ExternalLink size={12} />
           </a>
         )}
         {manageable && actions?.onEditAttachment && (
@@ -61,6 +78,19 @@ function MaterialResultCard({ hit, actions }: { hit: MaterialHit; actions?: Mate
           </button>
         )}
       </div>
+      <Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogTitle>{hit.title} · 근거 원문</DialogTitle>
+          {source.isLoading ? <LoadingBlock label="근거 원문을 불러오는 중..." />
+            : source.isError ? <ErrorState message={errorMessage(source.error)} />
+            : source.data && <>
+              <p className="text-xs text-ink-500">답변·검색에 사용된 버전 {String(source.data.version_no ?? '')} · {String(source.data.paragraph_ref ?? hit.location)}</p>
+              <blockquote className="whitespace-pre-wrap rounded-md bg-accent-50 p-3 text-sm text-ink-800">{String(source.data.content ?? hit.snippet)}</blockquote>
+              <p className="text-sm font-medium">해당 버전의 전체 본문</p>
+              <p className="whitespace-pre-wrap text-sm text-ink-700">{String(source.data.full_text ?? '본문이 없습니다.')}</p>
+            </>}
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }
