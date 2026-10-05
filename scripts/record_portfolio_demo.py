@@ -296,10 +296,29 @@ def repository_crud_flow(page: Page) -> None:
     )
 
     goto(page, "/documents")
-    github_meta = page.get_by_text(re.compile(r"^GitHub · 버전 \d+")).first
-    github_meta.wait_for(timeout=15_000)
-    github_row = github_meta.locator("xpath=ancestor::li[1]")
-    imported_title = github_row.locator("p").first.inner_text().strip()
+    # Imported repositories can add dozens of rows, so the GitHub item may not be on the first
+    # rendered page. Read the same authenticated document API the screen uses, then drive the UI
+    # by its real title rather than accidentally treating pagination as an import failure.
+    imported = page.evaluate(
+        """async () => {
+          const projects = await fetch('/api/projects').then(r => r.json());
+          const project = projects.find(p => p.name === 'Hub 협업 촬영 데모') || projects[0];
+          if (!project) return null;
+          const docs = await fetch('/api/projects/' + project.id + '/documents').then(r => r.json());
+          const githubDocs = docs.filter(d => d.source_type === 'GITHUB' && !d.archived);
+          return githubDocs.length ? githubDocs[0] : null;
+        }"""
+    )
+    if not imported:
+        raise RuntimeError("GitHub import completed but no persisted GITHUB document was found")
+    imported_title = str(imported["original_name"]).strip()
+    name_filter = page.get_by_placeholder("이름으로 찾기")
+    name_filter.fill(imported_title)
+    title_node = page.get_by_text(imported_title, exact=True).first
+    title_node.wait_for(timeout=15_000)
+    github_row = title_node.locator("xpath=ancestor::li[1]")
+    github_meta = github_row.get_by_text(re.compile(r"^GitHub · 버전 \d+"))
+    github_meta.wait_for(timeout=5_000)
     add_caption(
         page,
         "READ · 저장된 저장소 자료",
@@ -353,6 +372,7 @@ def repository_crud_flow(page: Page) -> None:
     )
 
     goto(page, "/documents")
+    page.get_by_placeholder("이름으로 찾기").fill(imported_title)
     title_node = page.get_by_text(imported_title, exact=True).first
     title_node.wait_for(timeout=15_000)
     github_row = title_node.locator("xpath=ancestor::li[1]")
