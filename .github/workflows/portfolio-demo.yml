@@ -61,6 +61,7 @@ jobs:
             echo "HUB_DATA_RETENTION_ENABLED=false"
             echo "HUB_DEMO_BASE_URL=http://127.0.0.1:8080"
             echo "HUB_DEMO_VIDEO_DIR=artifacts/portfolio-demo/raw"
+            echo "HUB_DEMO_GITHUB_REPOSITORY=chl4890620123-collab/hub"
           } >> "$GITHUB_ENV"
 
       - name: Build the real browser application
@@ -114,7 +115,7 @@ jobs:
             exit 1
           fi
 
-      - name: Record administrator, search and member flows
+      - name: Record administrator, search, repository CRUD and member flows
         shell: bash
         run: |
           set -euo pipefail
@@ -135,7 +136,7 @@ jobs:
 
           concat_file="$RUNNER_TEMP/portfolio-concat.txt"
           : > "$concat_file"
-          for name in 00_intro 01_admin_flow 02_search_comparison 03_member_flow 04_admin_finish 05_explainer; do
+          for name in 00_intro 01_admin_flow 02_search_comparison 03_repository_crud 04_member_flow 05_admin_finish 06_explainer; do
             printf "file '%s'\n" "$GITHUB_WORKSPACE/artifacts/portfolio-demo/mp4/${name}.mp4" >> "$concat_file"
           done
           ffmpeg -y -loglevel error -f concat -safe 0 -i "$concat_file" -c copy \
