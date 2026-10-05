@@ -301,9 +301,7 @@ def repository_crud_flow(page: Page) -> None:
     save_button = page.get_by_role("button", name="Hub 문서로 저장", exact=True).first
     save_button.wait_for(timeout=15_000)
     imported_row = save_button.locator("xpath=ancestor::li[1]")
-    imported_title = imported_row.locator("p").filter(has_not=page.locator(".text-xs")).first.inner_text().strip()
-    if not imported_title:
-        imported_title = imported_row.locator("p").first.inner_text().strip()
+    imported_title = imported_row.locator("p").first.inner_text().strip()
 
     add_caption(
         page,
@@ -324,7 +322,7 @@ def repository_crud_flow(page: Page) -> None:
     )
 
     save_button.click()
-    saved_title = f"[GitHub 저장] {imported_title}"
+    saved_title = f"[GitHub 저장] {imported_title}"[:500]
     page.get_by_text(re.compile(r"Hub 문서로 저장했습니다\.")).wait_for(timeout=15_000)
     add_caption(
         page,
