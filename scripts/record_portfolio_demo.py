@@ -295,93 +295,73 @@ def repository_crud_flow(page: Page) -> None:
         2600,
     )
 
-    goto(page, "/documents")
-    # Imported repositories can add dozens of rows, so the GitHub item may not be on the first
-    # rendered page. Read the same authenticated document API the screen uses, then drive the UI
-    # by its real title rather than accidentally treating pagination as an import failure.
-    imported = page.evaluate(
-        """async () => {
-          const projects = await fetch('/api/projects').then(r => r.json());
-          const project = projects.find(p => p.name === 'Hub 협업 촬영 데모') || projects[0];
-          if (!project) return null;
-          const docs = await fetch('/api/projects/' + project.id + '/documents').then(r => r.json());
-          const githubDocs = docs.filter(d => d.source_type === 'GITHUB' && !d.archived);
-          return githubDocs.length ? githubDocs[0] : null;
-        }"""
-    )
-    if not imported:
-        raise RuntimeError("GitHub import completed but no persisted GITHUB document was found")
-    imported_title = str(imported["original_name"]).strip()
-    name_filter = page.get_by_placeholder("이름으로 찾기")
-    name_filter.fill(imported_title)
-    title_node = page.get_by_text(imported_title, exact=True).first
-    title_node.wait_for(timeout=15_000)
-    github_row = title_node.locator("xpath=ancestor::li[1]")
-    github_meta = github_row.get_by_text(re.compile(r"^GitHub · 버전 \d+"))
-    github_meta.wait_for(timeout=5_000)
+    goto(page, "/connectors")
+    manage_heading = page.get_by_text("가져온 자료 관리", exact=True)
+    manage_heading.wait_for(timeout=15_000)
+    save_button = page.get_by_role("button", name="Hub 문서로 저장", exact=True).first
+    save_button.wait_for(timeout=15_000)
+    imported_row = save_button.locator("xpath=ancestor::li[1]")
+    imported_title = imported_row.locator("p").filter(has_not=page.locator(".text-xs")).first.inner_text().strip()
+    if not imported_title:
+        imported_title = imported_row.locator("p").first.inner_text().strip()
+
     add_caption(
         page,
-        "READ · 저장된 저장소 자료",
-        "가져온 GitHub 항목이 Hub 문서로 실제 저장됐습니다. 출처와 버전이 함께 남아 다시 조회할 수 있습니다.",
-        2600,
-    )
-    add_caption(
-        page,
-        "저장소 요약",
-        "Hub는 저장소의 최근 커밋·PR·이슈를 각각 읽어 검색 가능한 업무 자료로 정리합니다. 원문 위치와 링크는 검색 결과에서 다시 확인합니다.",
-        2600,
+        "READ · 저장소 요약과 위치",
+        "가져온 범위·건수와 최근 커밋/PR/이슈를 실제 저장 결과로 보여주고, 각 항목에는 저장소 내부 위치를 함께 표시합니다.",
+        3000,
     )
 
-    goto(page, "/search")
-    box = page.get_by_placeholder("예: 계약서, 전달받은 파일 이름, API 변경")
-    words = [w for w in re.split(r"[^0-9A-Za-z가-힣]+", imported_title) if len(w) >= 3]
-    search_terms = [" ".join(words[:3]).strip(), imported_title[:80], "fix"]
-    source_link = None
-    source_card = None
-    for term in [t for t in search_terms if t]:
-        box.fill(term)
-        page.get_by_role("button", name="검색", exact=True).click()
-        wait(page, 900)
-        candidate = page.get_by_role("link", name="원문 열기").first
-        if candidate.count() and candidate.is_visible():
-            source_link = candidate
-            source_card = candidate.locator("xpath=ancestor::li[1]")
-            break
-    if source_link is None or source_card is None:
-        raise RuntimeError("Imported GitHub item did not expose a source link in material search")
-
-    source_card.scroll_into_view_if_needed()
-    add_caption(
-        page,
-        "READ · 저장소 위치와 근거",
-        "검색 결과에 저장소 내부 위치가 표시되고, '원문 열기'는 해당 GitHub 커밋·PR·이슈 주소로 연결됩니다.",
-        2800,
-    )
+    source_link = imported_row.get_by_role("link", name="원문 열기", exact=True)
     source_url = source_link.get_attribute("href")
     if not source_url:
-        raise RuntimeError("Imported GitHub material did not contain a source URL")
+        raise RuntimeError("Imported GitHub item did not expose its real source URL")
+    add_caption(
+        page,
+        "READ · 원문 링크",
+        "가져온 항목에서 GitHub 원문 주소를 그대로 확인할 수 있습니다. 외부 원본은 읽기 전용으로 유지합니다.",
+        2400,
+    )
+
+    save_button.click()
+    saved_title = f"[GitHub 저장] {imported_title}"
+    page.get_by_text(re.compile(r"Hub 문서로 저장했습니다\.")).wait_for(timeout=15_000)
+    add_caption(
+        page,
+        "CREATE · Hub 관리 사본 저장",
+        "외부 원본을 직접 수정하지 않고 필요한 항목만 Hub 문서로 저장합니다. 이 사본부터 버전·보관·삭제 CRUD 대상이 됩니다.",
+        2800,
+    )
+
     try:
         page.goto(source_url, wait_until="domcontentloaded", timeout=20_000)
     except PlaywrightTimeoutError:
         pass
     add_caption(
         page,
-        "원문 링크 검증",
-        "Hub에 저장된 자료에서 실제 GitHub 원문까지 이동되는 것을 확인합니다.",
-        2400,
+        "실제 GitHub 원문으로 이동",
+        "표시된 원문 링크가 실제 커밋·PR·이슈 페이지로 연결되는 것을 브라우저에서 확인합니다.",
+        2600,
     )
 
     goto(page, "/documents")
-    page.get_by_placeholder("이름으로 찾기").fill(imported_title)
-    title_node = page.get_by_text(imported_title, exact=True).first
+    page.get_by_placeholder("이름으로 찾기").fill(saved_title)
+    title_node = page.get_by_text(saved_title, exact=True).first
     title_node.wait_for(timeout=15_000)
-    github_row = title_node.locator("xpath=ancestor::li[1]")
-    github_row.get_by_role("button", name="수정", exact=True).click()
+    saved_row = title_node.locator("xpath=ancestor::li[1]")
+    add_caption(
+        page,
+        "READ · 저장된 Hub 문서",
+        "저장한 사본은 문서 목록에서 다시 조회할 수 있고 원본 위치·링크 정보도 본문에 함께 보존됩니다.",
+        2600,
+    )
+
+    saved_row.get_by_role("button", name="수정", exact=True).click()
     edit_dialog = page.get_by_role("dialog")
     title_input = edit_dialog.locator("input").first
     text_area = edit_dialog.locator("textarea").first
     text_area.wait_for(timeout=12_000)
-    updated_title = f"[CRUD 검증] {imported_title}"[:240]
+    updated_title = f"[CRUD 검증] {saved_title}"[:240]
     title_input.fill(updated_title)
     existing_text = text_area.input_value()
     text_area.fill(existing_text + "\n\n[CRUD 검증] Hub에서 새 버전으로 저장했습니다.")
@@ -391,7 +371,7 @@ def repository_crud_flow(page: Page) -> None:
     add_caption(
         page,
         "UPDATE · 새 버전 저장",
-        "가져온 자료를 수정하면 원본을 덮어쓰지 않고 새 버전으로 저장합니다. 버전 비교와 이력 추적이 가능합니다.",
+        "Hub 사본의 제목과 내용을 수정하면 기존 내용을 덮어쓰지 않고 새 버전으로 남깁니다.",
         2800,
     )
 
@@ -404,7 +384,7 @@ def repository_crud_flow(page: Page) -> None:
     add_caption(
         page,
         "DELETE · 보관 후 영구 삭제",
-        "관리자는 먼저 보관해 활성 목록에서 분리하고, 필요할 때만 영구 삭제합니다. 삭제된 외부 자료는 재가져오기에서도 제외됩니다.",
+        "Hub에 저장한 사본은 보관으로 활성 목록에서 분리한 뒤 영구 삭제할 수 있습니다. GitHub 원본은 변경하지 않습니다.",
         2800,
     )
     page.once("dialog", lambda prompt: prompt.accept())
@@ -412,9 +392,9 @@ def repository_crud_flow(page: Page) -> None:
     archived_title.wait_for(state="detached", timeout=15_000)
     add_caption(
         page,
-        "CRUD 검증 완료",
-        "CREATE=실제 GitHub 가져오기 · READ=저장/위치/원문 링크 · UPDATE=새 버전 · DELETE=보관/영구 삭제를 모두 확인했습니다.",
-        3200,
+        "저장소 → Hub CRUD 검증 완료",
+        "실제 GitHub 가져오기 → 위치·원문 링크 확인 → Hub 문서 저장 → 조회 → 새 버전 수정 → 보관·영구 삭제까지 확인했습니다.",
+        3400,
     )
 
 
