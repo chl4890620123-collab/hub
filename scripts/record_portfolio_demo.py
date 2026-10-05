@@ -7,9 +7,10 @@ exercise the actual UI and permissions without touching production data. It inte
 separate clips for:
   1) administrator workflow,
   2) search success vs. no-result behavior,
-  3) member workflow,
-  4) administrator completion approval,
-  5) short portfolio explanation cards.
+  3) real GitHub repository import + source-link + persisted CRUD behavior,
+  4) member workflow,
+  5) administrator completion approval,
+  6) short portfolio explanation cards.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ ADMIN_ID = os.getenv("HUB_DEMO_ADMIN_LOGIN_ID", "video-admin")
 MEMBER_ID = os.getenv("HUB_DEMO_MEMBER_LOGIN_ID", "video-member")
 ADMIN_PASSWORD = os.environ["HUB_DEMO_ADMIN_PASSWORD"]
 MEMBER_PASSWORD = os.environ["HUB_DEMO_MEMBER_PASSWORD"]
+DEMO_GITHUB_REPOSITORY = os.getenv("HUB_DEMO_GITHUB_REPOSITORY", "chl4890620123-collab/hub")
 OUT_DIR = Path(os.getenv("HUB_DEMO_VIDEO_DIR", "artifacts/portfolio-demo/raw")).resolve()
 VIEWPORT = {"width": 1600, "height": 900}
 
@@ -237,6 +239,165 @@ def search_comparison(page: Page) -> None:
         wait(page, 1300)
 
 
+
+def repository_crud_flow(page: Page) -> None:
+    """Exercise the real public Hub repository, then prove its imported data is persisted and manageable."""
+    login(page, ADMIN_ID, ADMIN_PASSWORD, "관리자")
+    goto(page, "/connectors")
+    add_caption(
+        page,
+        "실제 GitHub 저장소 확인",
+        "촬영용 격리 DB에서 공개 Hub 저장소를 GitHub 공개 API로 직접 읽습니다. 운영 데이터는 건드리지 않습니다.",
+        2200,
+    )
+
+    page.get_by_role("button", name="GitHub 저장소 보기", exact=True).click()
+    dialog = page.get_by_role("dialog")
+    repo_row = dialog.locator("li").filter(has_text=DEMO_GITHUB_REPOSITORY).first
+    repo_row.wait_for(timeout=15_000)
+    repo_row.scroll_into_view_if_needed()
+    add_caption(
+        page,
+        "저장소 위치 + 원본 링크",
+        f"{DEMO_GITHUB_REPOSITORY}가 실제 가져오기 대상이며, '열기' 링크로 GitHub 원본 위치를 확인합니다.",
+        2600,
+    )
+
+    repo_link = repo_row.get_by_role("link", name="열기", exact=True)
+    repo_url = repo_link.get_attribute("href")
+    if not repo_url:
+        raise RuntimeError("GitHub repository source URL was not rendered")
+    try:
+        page.goto(repo_url, wait_until="domcontentloaded", timeout=20_000)
+    except PlaywrightTimeoutError:
+        pass
+    add_caption(
+        page,
+        "원본 저장소로 실제 이동",
+        f"브라우저가 {DEMO_GITHUB_REPOSITORY} 원본 GitHub 페이지를 직접 열었습니다.",
+        2600,
+    )
+
+    goto(page, "/connectors")
+    page.get_by_role("button", name="GitHub 저장소 보기", exact=True).click()
+    dialog = page.get_by_role("dialog")
+    repo_row = dialog.locator("li").filter(has_text=DEMO_GITHUB_REPOSITORY).first
+    repo_row.wait_for(timeout=15_000)
+    repo_row.get_by_role("button", name="가져오기", exact=True).click()
+    try:
+        page.get_by_text(re.compile(r"GitHub에서 \d+건을 가져왔습니다\.")).wait_for(timeout=60_000)
+    except PlaywrightTimeoutError as exc:
+        raise RuntimeError("Real GitHub repository import did not complete in the demo") from exc
+    add_caption(
+        page,
+        "CREATE · 실제 저장소 가져오기",
+        "최근 커밋과 PR/이슈를 실제 GitHub API에서 읽어 Hub 문서와 검색 근거로 저장했습니다.",
+        2600,
+    )
+
+    goto(page, "/documents")
+    github_meta = page.get_by_text(re.compile(r"^GitHub · 버전 \d+")).first
+    github_meta.wait_for(timeout=15_000)
+    github_row = github_meta.locator("xpath=ancestor::li[1]")
+    imported_title = github_row.locator("p").first.inner_text().strip()
+    add_caption(
+        page,
+        "READ · 저장된 저장소 자료",
+        "가져온 GitHub 항목이 Hub 문서로 실제 저장됐습니다. 출처와 버전이 함께 남아 다시 조회할 수 있습니다.",
+        2600,
+    )
+    add_caption(
+        page,
+        "저장소 요약",
+        "Hub는 저장소의 최근 커밋·PR·이슈를 각각 읽어 검색 가능한 업무 자료로 정리합니다. 원문 위치와 링크는 검색 결과에서 다시 확인합니다.",
+        2600,
+    )
+
+    goto(page, "/search")
+    box = page.get_by_placeholder("예: 계약서, 전달받은 파일 이름, API 변경")
+    words = [w for w in re.split(r"[^0-9A-Za-z가-힣]+", imported_title) if len(w) >= 3]
+    search_terms = [" ".join(words[:3]).strip(), imported_title[:80], "fix"]
+    source_link = None
+    source_card = None
+    for term in [t for t in search_terms if t]:
+        box.fill(term)
+        page.get_by_role("button", name="검색", exact=True).click()
+        wait(page, 900)
+        candidate = page.get_by_role("link", name="원문 열기").first
+        if candidate.count() and candidate.is_visible():
+            source_link = candidate
+            source_card = candidate.locator("xpath=ancestor::li[1]")
+            break
+    if source_link is None or source_card is None:
+        raise RuntimeError("Imported GitHub item did not expose a source link in material search")
+
+    source_card.scroll_into_view_if_needed()
+    add_caption(
+        page,
+        "READ · 저장소 위치와 근거",
+        "검색 결과에 저장소 내부 위치가 표시되고, '원문 열기'는 해당 GitHub 커밋·PR·이슈 주소로 연결됩니다.",
+        2800,
+    )
+    source_url = source_link.get_attribute("href")
+    if not source_url:
+        raise RuntimeError("Imported GitHub material did not contain a source URL")
+    try:
+        page.goto(source_url, wait_until="domcontentloaded", timeout=20_000)
+    except PlaywrightTimeoutError:
+        pass
+    add_caption(
+        page,
+        "원문 링크 검증",
+        "Hub에 저장된 자료에서 실제 GitHub 원문까지 이동되는 것을 확인합니다.",
+        2400,
+    )
+
+    goto(page, "/documents")
+    title_node = page.get_by_text(imported_title, exact=True).first
+    title_node.wait_for(timeout=15_000)
+    github_row = title_node.locator("xpath=ancestor::li[1]")
+    github_row.get_by_role("button", name="수정", exact=True).click()
+    edit_dialog = page.get_by_role("dialog")
+    title_input = edit_dialog.locator("input").first
+    text_area = edit_dialog.locator("textarea").first
+    text_area.wait_for(timeout=12_000)
+    updated_title = f"[CRUD 검증] {imported_title}"[:240]
+    title_input.fill(updated_title)
+    existing_text = text_area.input_value()
+    text_area.fill(existing_text + "\n\n[CRUD 검증] Hub에서 새 버전으로 저장했습니다.")
+    edit_dialog.get_by_role("button", name="새 버전으로 저장", exact=True).click()
+    page.get_by_text("새 버전으로 저장했습니다. AI 요약을 다시 시작합니다.").wait_for(timeout=15_000)
+    page.get_by_text(updated_title, exact=True).first.wait_for(timeout=15_000)
+    add_caption(
+        page,
+        "UPDATE · 새 버전 저장",
+        "가져온 자료를 수정하면 원본을 덮어쓰지 않고 새 버전으로 저장합니다. 버전 비교와 이력 추적이 가능합니다.",
+        2800,
+    )
+
+    updated_row = page.get_by_text(updated_title, exact=True).first.locator("xpath=ancestor::li[1]")
+    updated_row.get_by_role("button", name="보관", exact=True).click()
+    page.get_by_role("button", name="보관함", exact=True).click()
+    archived_title = page.get_by_text(updated_title, exact=True).first
+    archived_title.wait_for(timeout=15_000)
+    archived_row = archived_title.locator("xpath=ancestor::li[1]")
+    add_caption(
+        page,
+        "DELETE · 보관 후 영구 삭제",
+        "관리자는 먼저 보관해 활성 목록에서 분리하고, 필요할 때만 영구 삭제합니다. 삭제된 외부 자료는 재가져오기에서도 제외됩니다.",
+        2800,
+    )
+    page.once("dialog", lambda prompt: prompt.accept())
+    archived_row.get_by_role("button", name="영구 삭제", exact=True).click()
+    archived_title.wait_for(state="detached", timeout=15_000)
+    add_caption(
+        page,
+        "CRUD 검증 완료",
+        "CREATE=실제 GitHub 가져오기 · READ=저장/위치/원문 링크 · UPDATE=새 버전 · DELETE=보관/영구 삭제를 모두 확인했습니다.",
+        3200,
+    )
+
+
 def member_flow(page: Page) -> None:
     login(page, MEMBER_ID, MEMBER_PASSWORD, "일반 사용자")
     add_caption(page, "일반 사용자 대시보드", "본인이 참여한 프로젝트와 담당 업무를 중심으로 필요한 정보만 확인합니다.", 2400)
@@ -351,9 +512,10 @@ def main() -> None:
             record(browser, "00_intro", intro)
             record(browser, "01_admin_flow", admin_flow)
             record(browser, "02_search_comparison", search_comparison)
-            record(browser, "03_member_flow", member_flow)
-            record(browser, "04_admin_finish", admin_finish)
-            record(browser, "05_explainer", explainer)
+            record(browser, "03_repository_crud", repository_crud_flow)
+            record(browser, "04_member_flow", member_flow)
+            record(browser, "05_admin_finish", admin_finish)
+            record(browser, "06_explainer", explainer)
         finally:
             browser.close()
 
