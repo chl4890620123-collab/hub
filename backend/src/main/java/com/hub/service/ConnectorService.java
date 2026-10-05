@@ -276,6 +276,61 @@ public class ConnectorService {
 
     public List<ConnectorRepository.SyncState> syncStates(long projectId) { return repository.listSyncStates(projectId); }
 
+    public java.util.List<java.util.Map<String,Object>> importedItems(long projectId, String type, User user) {
+        projectAccess.requireAccess(projectId, user);
+        return repository.listImportedItems(projectId, type, 50).stream().map(item -> {
+            java.util.Map<String,Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", item.id());
+            row.put("sourceType", item.sourceType());
+            row.put("itemType", item.itemType());
+            row.put("title", item.title());
+            row.put("snippet", item.content() == null ? "" : item.content());
+            row.put("author", item.author());
+            row.put("sourceUrl", item.sourceUrl());
+            row.put("sourceCreatedAt", item.sourceCreatedAt());
+            row.put("location", metadataLocation(item.rawMetadata()));
+            row.put("documentId", item.documentId());
+            row.put("archived", item.archived());
+            row.put("sourceDeleted", item.sourceDeleted());
+            row.put("versionNo", item.versionNo());
+            return row;
+        }).toList();
+    }
+
+    /**
+     * Connector snapshots mirror provider-owned content and remain read-only. Saving a copy makes the
+     * ownership boundary explicit: the new MANUAL_TEXT document is Hub-owned and can then use normal
+     * document versioning/archive/delete CRUD without pretending to edit GitHub/Drive/Slack/Notion.
+     */
+    public java.util.Map<String,Object> saveAsHubCopy(long projectId, long itemId, User user) {
+        projectAccess.requireAccess(projectId, user);
+        ConnectorRepository.ImportedItemRow item = repository.findImportedItem(projectId, itemId)
+                .orElseThrow(() -> new IllegalArgumentException("가져온 자료를 찾을 수 없습니다."));
+        if (item.sourceDeleted()) throw new IllegalArgumentException("이미 삭제된 연결 자료입니다.");
+        String provider = connectorName(item.sourceType());
+        String location = metadataLocation(item.rawMetadata());
+        String copyTitle = "[" + provider + " 저장] " + (item.title() == null || item.title().isBlank() ? "가져온 자료" : item.title());
+        StringBuilder body = new StringBuilder();
+        if (location != null && !location.isBlank()) body.append("원본 위치: ").append(location).append("\n");
+        if (item.sourceUrl() != null && !item.sourceUrl().isBlank()) body.append("원본 링크: ").append(item.sourceUrl()).append("\n");
+        if (body.length() > 0) body.append("\n");
+        body.append(item.content() == null || item.content().isBlank() ? item.title() : item.content());
+        long versionId = documents.manualText(projectId, copyTitle, body.toString(), user);
+        return java.util.Map.of("versionId", versionId, "title", copyTitle, "status", "SAVED");
+    }
+
+    private String metadataLocation(String rawMetadata) {
+        if (rawMetadata == null || rawMetadata.isBlank()) return null;
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = json.readTree(rawMetadata);
+            String location = node.path("location").asText("");
+            return location.isBlank() ? null : location;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+
     private static String safeMessage(RuntimeException ex, String token) {
         String msg=ex.getMessage();
         if(msg==null||msg.isBlank()) return "연결 서비스 처리 중 오류가 발생했습니다.";
