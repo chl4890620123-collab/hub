@@ -1,8 +1,14 @@
 import { API_BASE, apiDelete, apiGet, apiPost, apiPut } from '@/api/client';
-import type { ConnectorConnectionResponse, ConnectorSyncState, ConnectorTargetsResponse, ConnectorType } from '@/api/types';
+import type { ConnectorConnectionResponse, ConnectorSyncState, ConnectorTargetsResponse, ConnectorType, ImportedConnectorItem } from '@/api/types';
 
 export const connectorsApi = {
   status: (projectId: number) => apiGet<ConnectorSyncState[]>(`/api/projects/${projectId}/connectors/status`),
+  items: (projectId: number, type?: ConnectorType) => {
+    const params = type ? `?type=${type}` : '';
+    return apiGet<ImportedConnectorItem[]>(`/api/projects/${projectId}/connectors/items${params}`);
+  },
+  saveCopy: (projectId: number, itemId: number) =>
+    apiPost<{ versionId: number; title: string; status: string }>(`/api/projects/${projectId}/connectors/items/${itemId}/save-copy`),
   connection: (projectId: number, type: ConnectorType) =>
     apiGet<ConnectorConnectionResponse>(`/api/projects/${projectId}/connectors/${type.toLowerCase()}/connection`),
   targets: (projectId: number, type: ConnectorType, cursor?: string | null, pageSize = 20) => {
