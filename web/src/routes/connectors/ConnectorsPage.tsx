@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Github, HardDrive, MessageSquare, NotebookText } from 'lucide-react';
+import { ExternalLink, Github, HardDrive, MessageSquare, NotebookText, Save } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { NoProjectState } from '@/components/layout/NoProjectState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,6 +90,21 @@ export function ConnectorsPage() {
     enabled: !!currentProject,
   });
 
+  const { data: importedItems } = useQuery({
+    queryKey: ['connector-items', currentProject?.id],
+    queryFn: () => connectorsApi.items(currentProject!.id),
+    enabled: !!currentProject,
+  });
+
+  const saveCopy = useMutation({
+    mutationFn: (itemId: number) => connectorsApi.saveCopy(currentProject!.id, itemId),
+    onSuccess: (result) => {
+      toast.success(`'${result.title}'을 Hub 문서로 저장했습니다.`);
+      queryClient.invalidateQueries({ queryKey: ['documents', currentProject?.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const disconnect = useMutation({
     mutationFn: (type: ConnectorType) => connectorsApi.disconnect(currentProject!.id, type),
     onSuccess: () => {
@@ -173,6 +188,54 @@ export function ConnectorsPage() {
           );
         })}
       </div>
+
+      <Card className="mt-5">
+        <CardHeader>
+          <CardTitle>가져온 자료 관리</CardTitle>
+          <p className="text-xs text-ink-500">
+            외부 원본은 읽기 전용입니다. 저장소 위치와 원문 링크를 확인한 뒤 수정이 필요한 자료만 Hub 문서로 저장해 버전·보관·삭제로 관리합니다.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(statuses ?? []).filter((state) => state.lastStatus === 'SUCCESS').length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {(statuses ?? []).filter((state) => state.lastStatus === 'SUCCESS').map((state) => (
+                <Badge key={`${state.connectorType}-${state.externalScope}`} variant="outline">
+                  {state.connectorType} · {state.externalScope} · 최근 {state.lastImportedCount}건
+                </Badge>
+              ))}
+            </div>
+          )}
+          {!importedItems?.length ? (
+            <p className="py-6 text-center text-sm text-ink-400">아직 저장된 연결 자료가 없습니다.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {importedItems.slice(0, 20).map((item) => (
+                <li key={item.id} className="rounded-lg border border-ink-100 p-3">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{item.sourceType}</Badge>
+                    <span className="text-xs text-ink-400">{item.itemType}</span>
+                    <span className="text-xs text-ink-400">버전 {item.versionNo}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-ink-800">{item.title}</p>
+                  {item.location && <p className="mt-1 text-xs text-ink-500">저장소 위치: {item.location}</p>}
+                  {item.snippet && <p className="mt-1 line-clamp-2 text-xs text-ink-600">{item.snippet}</p>}
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    {item.sourceUrl && (
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-accent-600 hover:underline">
+                        원문 열기 <ExternalLink size={12} />
+                      </a>
+                    )}
+                    <Button size="sm" variant="outline" disabled={saveCopy.isPending || item.sourceDeleted} onClick={() => saveCopy.mutate(item.id)}>
+                      <Save size={13} /> Hub 문서로 저장
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <ConnectorBrowserDialog
         projectId={currentProject.id}
