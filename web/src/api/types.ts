@@ -154,6 +154,21 @@ export interface SearchRule { id: number | null; projectId: number | null; name:
 export interface RuleInput { name: string; aliases: string[]; patterns: string[]; targetFile?: string | null; mode: 'SMART' | 'FULL'; priority: number; active: boolean; }
 export type ConnectorType = 'GITHUB' | 'GOOGLE_DRIVE' | 'SLACK' | 'NOTION';
 export interface ConnectorSyncState { connectorType: string; externalScope: string; lastSyncedAt: string | null; lastStatus: string | null; lastError: string | null; lastImportedCount: number; }
+export interface ImportedConnectorItem {
+  id: number;
+  sourceType: ConnectorType;
+  itemType: string;
+  title: string;
+  snippet: string;
+  author: string | null;
+  sourceUrl: string | null;
+  sourceCreatedAt: string | null;
+  location: string | null;
+  documentId: number;
+  archived: boolean;
+  sourceDeleted: boolean;
+  versionNo: number;
+}
 export interface ConnectorTargetOption { id: string; name: string; description: string; url: string; }
 export interface ConnectorConnectionResponse { connected: boolean; linkedByUser: boolean; account: string | null; }
 export interface ConnectorTargetsResponse extends ConnectorConnectionResponse { targets: ConnectorTargetOption[]; nextCursor: string; hasMore: boolean; pageSize: number; }
