@@ -70,6 +70,7 @@ export function ConnectorBrowserDialog({
       const imported = job.resultJson ? (JSON.parse(job.resultJson).imported ?? 0) : 0;
       toast.success(`${providerLabel}에서 ${imported}건을 가져왔습니다.`);
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['connector-items', projectId] });
     } else if (job.status === 'FAILED') {
       toast.error(job.errorMessage || '자료를 가져오지 못했습니다.');
     }

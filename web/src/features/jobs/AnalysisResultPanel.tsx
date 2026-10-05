@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useJobPolling } from '@/hooks/useJobPolling';
 import { useCanConfirm } from '@/hooks/useProjects';
@@ -34,6 +35,14 @@ export function AnalysisResultPanel({
   const canConfirm = useCanConfirm();
   const openEvidence = useEvidenceStore((s) => s.open);
   const ready = !!job && job.status === 'SUCCESS';
+
+  useEffect(() => {
+    if (!jobId || (job?.status !== 'SUCCESS' && job?.status !== 'FAILED')) return;
+    // A completed background job changes lists that may still be in the query cache.
+    for (const key of ['documents', 'meeting-transcript-documents', 'jobs-recent', 'review-todos', 'review-decisions']) {
+      void queryClient.invalidateQueries({ queryKey: [key, projectId] });
+    }
+  }, [jobId, job?.status, projectId, queryClient]);
 
   const { data: members } = useQuery({
     queryKey: ['project-members', projectId],

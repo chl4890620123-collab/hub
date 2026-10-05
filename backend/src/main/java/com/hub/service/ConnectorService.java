@@ -20,6 +20,9 @@ import java.util.Map;
 
 @Service
 public class ConnectorService {
+    private static final String DEMO_GITHUB_REPOSITORY = "chl4890620123-collab/hub";
+    private static final String DEMO_GITHUB_URL = "https://github.com/" + DEMO_GITHUB_REPOSITORY;
+
     private final Map<String, ReadOnlyConnector> adapters = new HashMap<>();
     private final ConnectorRepository repository;
     private final DocumentService documents;
@@ -88,12 +91,13 @@ public class ConnectorService {
         if (adapter == null) throw new IllegalArgumentException("지원하지 않는 연결 서비스입니다.");
         if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         String token = resolveToken(normalizedType, user);
-        boolean connected = token != null && !token.isBlank();
-        boolean linked = connected && linkedByUser(normalizedType, user);
+        boolean demoPublicGitHub = isDemoPublicGitHub(normalizedType, token);
+        boolean connected = demoPublicGitHub || (token != null && !token.isBlank());
+        boolean linked = !demoPublicGitHub && connected && linkedByUser(normalizedType, user);
         java.util.Map<String,Object> result = new java.util.LinkedHashMap<>();
         result.put("connected", connected);
         result.put("linkedByUser", linked);
-        result.put("account", linked ? accountLabel(normalizedType, user) : null);
+        result.put("account", demoPublicGitHub ? "공개 촬영 저장소" : linked ? accountLabel(normalizedType, user) : null);
         return result;
     }
 
@@ -108,7 +112,24 @@ public class ConnectorService {
         if (!policy.isEnabled(normalizedType)) throw new IllegalArgumentException(connectorName(normalizedType) + "는 관리자가 사용을 막아 두었습니다.");
         int safePageSize = Math.max(10, Math.min(pageSize, 100));
         String token = resolveToken(normalizedType, user);
+        boolean demoPublicGitHub = isDemoPublicGitHub(normalizedType, token);
         if (token == null || token.isBlank()) {
+            if (demoPublicGitHub) {
+                java.util.Map<String,Object> demo = new java.util.LinkedHashMap<>();
+                demo.put("connected", true);
+                demo.put("linkedByUser", false);
+                demo.put("account", "공개 촬영 저장소");
+                demo.put("targets", java.util.List.of(java.util.Map.of(
+                        "id", DEMO_GITHUB_REPOSITORY,
+                        "name", DEMO_GITHUB_REPOSITORY,
+                        "description", "공개 저장소 · 실제 GitHub API로 읽기",
+                        "url", DEMO_GITHUB_URL
+                )));
+                demo.put("nextCursor", "");
+                demo.put("hasMore", false);
+                demo.put("pageSize", safePageSize);
+                return demo;
+            }
             java.util.Map<String,Object> disconnected = new java.util.LinkedHashMap<>();
             disconnected.put("connected", false);
             disconnected.put("linkedByUser", false);
@@ -170,16 +191,21 @@ public class ConnectorService {
 
         String cleanScope=scope.trim();
         String effectiveToken = resolveToken(normalizedType, user);
-        if (effectiveToken == null || effectiveToken.isBlank()) {
+        boolean demoPublicGitHub = isDemoPublicGitHub(normalizedType, effectiveToken);
+        if ((effectiveToken == null || effectiveToken.isBlank()) && !demoPublicGitHub) {
             throw new IllegalArgumentException(connectorName(normalizedType) + " 계정을 먼저 연결해 주세요.");
         }
+        if (demoPublicGitHub && !DEMO_GITHUB_REPOSITORY.equals(cleanScope)) {
+            throw new IllegalArgumentException("촬영 모드에서는 지정된 공개 Hub 저장소만 가져올 수 있습니다.");
+        }
+        String adapterToken = demoPublicGitHub ? "" : effectiveToken;
         int imported = 0;
         int skipped = 0;
         int excludedDeleted = 0;
         int excludedArchived = 0;
         Long connectorAccountId = externalOAuth.accountId(user.id(), normalizedType);
         try {
-        for (ExternalContent item : adapter.fetch(cleanScope, effectiveToken)) {
+        for (ExternalContent item : adapter.fetch(cleanScope, adapterToken)) {
             String metadata;
             try {
                 metadata = json.writeValueAsString(item.metadata());
@@ -243,12 +269,67 @@ public class ConnectorService {
         );
         return imported;
         } catch (RuntimeException ex) {
-            repository.saveSyncState(projectId, normalizedType, cleanScope, user.id(), "FAILED", safeMessage(ex, effectiveToken), imported);
+            repository.saveSyncState(projectId, normalizedType, cleanScope, user.id(), "FAILED", safeMessage(ex, adapterToken), imported);
             throw ex;
         }
     }
 
     public List<ConnectorRepository.SyncState> syncStates(long projectId) { return repository.listSyncStates(projectId); }
+
+    public java.util.List<java.util.Map<String,Object>> importedItems(long projectId, String type, User user) {
+        projectAccess.requireAccess(projectId, user);
+        return repository.listImportedItems(projectId, type, 50).stream().map(item -> {
+            java.util.Map<String,Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", item.id());
+            row.put("sourceType", item.sourceType());
+            row.put("itemType", item.itemType());
+            row.put("title", item.title());
+            row.put("snippet", item.content() == null ? "" : item.content());
+            row.put("author", item.author());
+            row.put("sourceUrl", item.sourceUrl());
+            row.put("sourceCreatedAt", item.sourceCreatedAt());
+            row.put("location", metadataLocation(item.rawMetadata()));
+            row.put("documentId", item.documentId());
+            row.put("archived", item.archived());
+            row.put("sourceDeleted", item.sourceDeleted());
+            row.put("versionNo", item.versionNo());
+            return row;
+        }).toList();
+    }
+
+    /**
+     * Connector snapshots mirror provider-owned content and remain read-only. Saving a copy makes the
+     * ownership boundary explicit: the new MANUAL_TEXT document is Hub-owned and can then use normal
+     * document versioning/archive/delete CRUD without pretending to edit GitHub/Drive/Slack/Notion.
+     */
+    public java.util.Map<String,Object> saveAsHubCopy(long projectId, long itemId, User user) {
+        projectAccess.requireAccess(projectId, user);
+        ConnectorRepository.ImportedItemRow item = repository.findImportedItem(projectId, itemId)
+                .orElseThrow(() -> new IllegalArgumentException("가져온 자료를 찾을 수 없습니다."));
+        if (item.sourceDeleted()) throw new IllegalArgumentException("이미 삭제된 연결 자료입니다.");
+        String provider = connectorName(item.sourceType());
+        String location = metadataLocation(item.rawMetadata());
+        String copyTitle = "[" + provider + " 저장] " + (item.title() == null || item.title().isBlank() ? "가져온 자료" : item.title());
+        StringBuilder body = new StringBuilder();
+        if (location != null && !location.isBlank()) body.append("원본 위치: ").append(location).append("\n");
+        if (item.sourceUrl() != null && !item.sourceUrl().isBlank()) body.append("원본 링크: ").append(item.sourceUrl()).append("\n");
+        if (body.length() > 0) body.append("\n");
+        body.append(item.content() == null || item.content().isBlank() ? item.title() : item.content());
+        long versionId = documents.manualText(projectId, copyTitle, body.toString(), user);
+        return java.util.Map.of("versionId", versionId, "title", copyTitle, "status", "SAVED");
+    }
+
+    private String metadataLocation(String rawMetadata) {
+        if (rawMetadata == null || rawMetadata.isBlank()) return null;
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = json.readTree(rawMetadata);
+            String location = node.path("location").asText("");
+            return location.isBlank() ? null : location;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
 
     private static String safeMessage(RuntimeException ex, String token) {
         String msg=ex.getMessage();
@@ -265,6 +346,10 @@ public class ConnectorService {
      * with. GitHub used to skip the personal token entirely, so a user who had signed in to GitHub
      * still browsed the server account's repositories.
      */
+    private boolean isDemoPublicGitHub(String type, String token) {
+        return props.demoMode() && "GITHUB".equals(type) && (token == null || token.isBlank());
+    }
+
     private String resolveToken(String type, User user) {
         if ("GOOGLE_DRIVE".equals(type)) {
             if (!googleTokens.connected(user.id())) return null;

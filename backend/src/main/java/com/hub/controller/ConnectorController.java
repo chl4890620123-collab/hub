@@ -37,6 +37,23 @@ public class ConnectorController {
         return connectorService.syncStates(projectId);
     }
 
+    @GetMapping("/items")
+    public Object items(@PathVariable long projectId,
+                        @RequestParam(defaultValue = "") String type,
+                        Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        return connectorService.importedItems(projectId, type, user);
+    }
+
+    @PostMapping("/items/{itemId}/save-copy")
+    public Map<String,Object> saveCopy(@PathVariable long projectId, @PathVariable long itemId,
+                                       Authentication authentication) {
+        User user = currentUser.requireOperational(authentication);
+        Map<String,Object> result = connectorService.saveAsHubCopy(projectId, itemId, user);
+        audit.add(user.id(), projectId, "CONNECTOR_SAVE_COPY", "EXTERNAL_ITEM", itemId, "{}");
+        return result;
+    }
+
     /** Lightweight link status; unlike /targets this never enumerates provider content. */
     @GetMapping("/{type}/connection")
     public Map<String,Object> connection(@PathVariable long projectId, @PathVariable String type,

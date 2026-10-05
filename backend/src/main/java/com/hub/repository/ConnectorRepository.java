@@ -247,6 +247,86 @@ public class ConnectorRepository {
         );
     }
 
+    public record ImportedItemRow(
+            long id,
+            String sourceType,
+            String externalId,
+            String itemType,
+            String title,
+            String content,
+            String author,
+            String sourceUrl,
+            OffsetDateTime sourceCreatedAt,
+            String rawMetadata,
+            long documentId,
+            boolean archived,
+            boolean sourceDeleted,
+            int versionNo
+    ) {}
+
+    /** Imported connector content stays read-only toward the provider, but the UI needs a real
+     * management view so users can inspect its source/location and explicitly save a Hub-owned copy
+     * before editing. */
+    public List<ImportedItemRow> listImportedItems(long projectId, String connectorType, int limit) {
+        String normalized = connectorType == null ? "" : connectorType.trim().toUpperCase(java.util.Locale.ROOT);
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        String typeClause = normalized.isBlank() ? "" : " AND d.source_type=?";
+        String sql = """
+                SELECT e.id,e.external_id,e.item_type,e.title,e.content,e.author,e.source_url,e.source_created_at,e.raw_metadata,
+                       d.id document_id,d.source_type,d.archived,d.source_deleted,
+                       COALESCE((SELECT MAX(v.version_no) FROM document_version v WHERE v.document_id=d.id),0) version_no
+                FROM external_item e
+                JOIN document d
+                  ON d.project_id=e.project_id
+                 AND d.source_identifier=e.external_id
+                 AND d.source_type IN ('GITHUB','GOOGLE_DRIVE','SLACK','NOTION')
+                WHERE e.project_id=?
+                """ + typeClause + """
+                ORDER BY e.source_created_at DESC,e.id DESC
+                LIMIT ?
+                """;
+        if (normalized.isBlank()) {
+            return jdbc.query(sql, (rs, n) -> mapImportedItem(rs), projectId, safeLimit);
+        }
+        return jdbc.query(sql, (rs, n) -> mapImportedItem(rs), projectId, normalized, safeLimit);
+    }
+
+    public Optional<ImportedItemRow> findImportedItem(long projectId, long itemId) {
+        String sql = """
+                SELECT e.id,e.external_id,e.item_type,e.title,e.content,e.author,e.source_url,e.source_created_at,e.raw_metadata,
+                       d.id document_id,d.source_type,d.archived,d.source_deleted,
+                       COALESCE((SELECT MAX(v.version_no) FROM document_version v WHERE v.document_id=d.id),0) version_no
+                FROM external_item e
+                JOIN document d
+                  ON d.project_id=e.project_id
+                 AND d.source_identifier=e.external_id
+                 AND d.source_type IN ('GITHUB','GOOGLE_DRIVE','SLACK','NOTION')
+                WHERE e.project_id=? AND e.id=?
+                LIMIT 1
+                """;
+        return jdbc.query(sql, (rs, n) -> mapImportedItem(rs), projectId, itemId).stream().findFirst();
+    }
+
+    private static ImportedItemRow mapImportedItem(java.sql.ResultSet rs) throws java.sql.SQLException {
+        Timestamp timestamp = rs.getTimestamp("source_created_at");
+        return new ImportedItemRow(
+                rs.getLong("id"),
+                rs.getString("source_type"),
+                rs.getString("external_id"),
+                rs.getString("item_type"),
+                rs.getString("title"),
+                rs.getString("content"),
+                rs.getString("author"),
+                rs.getString("source_url"),
+                timestamp == null ? null : timestamp.toInstant().atOffset(ZoneOffset.UTC),
+                rs.getString("raw_metadata"),
+                rs.getLong("document_id"),
+                rs.getBoolean("archived"),
+                rs.getBoolean("source_deleted"),
+                rs.getInt("version_no")
+        );
+    }
+
     public record SyncState(String connectorType, String externalScope, OffsetDateTime lastSyncedAt, String lastStatus, String lastError, int lastImportedCount) {}
 
     public void saveSyncState(long projectId, String connectorType, String scope, long ownerUserId,

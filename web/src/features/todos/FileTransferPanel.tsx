@@ -104,6 +104,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
       a.click();
       URL.revokeObjectURL(url);
     },
+    onError: (error) => toast.error(errorMessage(error)),
   });
 
   const deleteAdminSubmission = useMutation({
@@ -122,6 +123,7 @@ export function FileTransferPanel({ projectId }: { projectId: number }) {
       a.click();
       URL.revokeObjectURL(url);
     },
+    onError: (error) => toast.error(errorMessage(error)),
   });
 
   const updateTransfer = useMutation({
