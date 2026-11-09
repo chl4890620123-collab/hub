@@ -39,6 +39,19 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Hub AI Service", version="0.4.0", lifespan=lifespan)
 
+# Keep uploads bounded even when the AI service is called directly. Match the
+# Spring multipart limit so a large upload cannot reach the provider in memory.
+MAX_AI_UPLOAD_BYTES = 100 * 1024 * 1024
+
+
+async def read_limited_upload(file: UploadFile) -> bytes:
+    data = await file.read(MAX_AI_UPLOAD_BYTES + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="빈 파일은 분석할 수 없습니다.")
+    if len(data) > MAX_AI_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="파일 크기는 100MB 이하여야 합니다.")
+    return data
+
 
 @app.get("/health")
 def health():
@@ -56,38 +69,46 @@ def health():
 async def analyze(req: AnalyzeRequest):
     try:
         return await analyzer.analyze(req.text, req.source_date, req.project_members)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/rag", response_model=RagResponse)
 async def rag_answer(req: RagRequest):
     try:
         return await rag.answer(req)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/changes", response_model=ChangeResponse)
 async def change(req: ChangeRequest):
     try:
         return await changes.compare(req.before, req.after)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/revise", response_model=ReviseResponse)
 async def revise(req: ReviseRequest):
     try:
         return await reviser.revise(req)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/ocr")
 async def ocr(file: UploadFile = File(...)):
     try:
-        data = await file.read()
+        data = await read_limited_upload(file)
         file_name = file.filename or "image.jpg"
         content_type = file.content_type or "image/jpeg"
         text = await ocr_provider.extract(file_name, content_type, data)
@@ -99,8 +120,10 @@ async def ocr(file: UploadFile = File(...)):
                 "ocr_provider": ocr_provider.info().get("provider", "unknown"),
             }],
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/stt")
@@ -109,10 +132,12 @@ async def stt(file: UploadFile = File(...)):
         return await speech.transcribe(
             file.filename or "meeting.wav",
             file.content_type or "audio/wav",
-            await file.read(),
+            await read_limited_upload(file),
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 @app.post("/api/v1/embed", response_model=EmbedResponse)
